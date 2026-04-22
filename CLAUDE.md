@@ -100,8 +100,9 @@ src/
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
       DetalhesAgendamento.jsx   ← GET /appointment/:id + PATCH Status — rota /agendamento/:id
     cliente/
-      ClienteDashboard.jsx      ← Sidebar com avatar XL + histórico (mockado)
+      ClienteDashboard.jsx      ← Sidebar com avatar XL + card dinâmico de combo + histórico
       MeusAgendamentos.jsx      ← GET /appointment/client/:id + filtro status
+      MeusCombos.jsx            ← GET /package/client/:id — cards com barra de progresso, seções Ativos/Histórico
     profissional/
       ProfissionalPainel.jsx    ← Now-card dark + próximos + grade de horários — integrado
       MinhaAgenda.jsx           ← GET /appointment/my + filtros data/status
@@ -301,6 +302,37 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 ```
 - Todos os campos opcionais, também em lowercase
 
+### GET /package/client/:clientId
+```json
+{
+  "data": [{
+    "UUID": "uuid",
+    "Status": "pendente | ativo | concluido | cancelado",
+    "Acquired_at": "ISO8601 | null",
+    "Created_at": "ISO8601",
+    "Package_id": "uuid",
+    "Tab_id": "uuid",
+    "Service_package": {
+      "UUID": "uuid",
+      "Name": "string",
+      "Price": 150,
+      "Available_until": "YYYY-MM-DD"
+    },
+    "Client_package_items": [{
+      "UUID": "uuid",
+      "Service_id": "uuid",
+      "Service": { "UUID": "uuid", "Name": "string" },
+      "Total_quantity": 1,
+      "Used_quantity": 0
+    }]
+  }],
+  "pagination": { "page", "limit", "total" }
+}
+```
+- `Acquired_at` pode ser `null` quando o pagamento ainda não foi confirmado — usar `Created_at` como fallback para exibição
+- Sessões restantes = `Total_quantity - Used_quantity` (calculado no frontend)
+- Permissão: `Usuario` (próprios combos), `Admin`, `Profissional`
+
 ---
 
 ## Rotas
@@ -317,6 +349,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 | `/agendamento/:id` | DetalhesAgendamento | todos os roles |
 | `/cliente` | ClienteDashboard | Usuario, Admin |
 | `/cliente/agendamentos` | MeusAgendamentos | Usuario, Admin |
+| `/cliente/combos` | MeusCombos | Usuario, Admin |
 | `/profissional` | ProfissionalPainel | Profissional, Admin |
 | `/profissional/agendamentos` | MinhaAgenda | Profissional, Admin |
 | `/profissional/servicos` | ProfissionalServicos | Profissional, Admin |
@@ -365,7 +398,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - Serviços do Profissional — vincular/desvincular (`GET /service` + `GET/POST/DELETE /service/:id/professionals`)
 - Horários do Profissional — CRUD semanal (`GET/POST/PATCH/DELETE /working-hours`)
 - Aceitar Convite — fluxo corrigido: JWT do hash → `POST /auth/accept-invite { access_token, refresh_token, phone, birthday, password }`
-- Dashboard Cliente — próximo agendamento real (`GET /appointment/client/:id` filtrado por data/status) + histórico recente + "cliente desde YYYY" via `created_at`
+- Dashboard Cliente — próximo agendamento real (`GET /appointment/client/:id` filtrado por data/status) + histórico recente + "cliente desde YYYY" via `created_at` + card dinâmico de combo (`GET /package/client/:id`)
+- Meus Combos — cliente (`GET /package/client/:id`) — cards com barra de progresso + breakdown por serviço + seções Ativos/Histórico
 - Máscara de telefone no stepper de agendamento (campo registro)
 - Normalização do store após login — todos os fluxos (`LoginPage`, `RegisterPage`, `AgendarPage`) buscam `GET /users/perfil/me` após login para garantir `UUID` e `name` corretos no store
 

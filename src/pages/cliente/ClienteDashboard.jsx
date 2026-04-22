@@ -11,6 +11,7 @@ import api from '@/lib/api'
 const navItems = [
   { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
   { to: '/cliente/agendamentos', icon: 'receipt', label: 'Meus agendamentos' },
+  { to: '/cliente/combos', icon: 'package', label: 'Meus combos' },
   { to: '/perfil', icon: 'users', label: 'Perfil e senha' },
 ]
 
@@ -87,18 +88,21 @@ export default function ClienteDashboard() {
   const [loading, setLoading] = useState(true)
   const [appointments, setAppointments] = useState([])
   const [sinceYear, setSinceYear] = useState(null)
+  const [combos, setCombos] = useState([])
 
   useEffect(() => {
     if (!user?.id) return
     Promise.all([
       api.get(`/appointment/client/${user.id}`),
       api.get('/users/perfil/me'),
+      api.get(`/package/client/${user.id}`),
     ])
-      .then(([apptRes, perfilRes]) => {
+      .then(([apptRes, perfilRes, combosRes]) => {
         setAppointments(apptRes.data.data ?? [])
         if (perfilRes.data.created_at) {
           setSinceYear(new Date(perfilRes.data.created_at).getFullYear())
         }
+        setCombos(combosRes.data.data ?? [])
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -193,33 +197,78 @@ export default function ClienteDashboard() {
               </div>
             )}
 
-            {/* CTA combos */}
-            <div
-              className="rounded-2xl p-6 border border-line flex flex-col justify-between"
-              style={{ background: 'linear-gradient(135deg, #f1e3d6 0%, #f4e9d6 100%)' }}
-            >
-              <div>
-                <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-widest text-brand mb-2.5">
-                  <Icon name="package" size={12} />Pacotes e combos
+            {/* Card combos */}
+            {combos.length > 0 ? (() => {
+              const ativos = combos.filter(c => c.Status === 'ativo' || c.Status === 'pendente')
+              const destaque = ativos[0] ?? combos[0]
+              const items = destaque.Client_package_items ?? []
+              const totalSessions = items.reduce((s, i) => s + i.Total_quantity, 0)
+              const usedSessions = items.reduce((s, i) => s + i.Used_quantity, 0)
+              const remaining = totalSessions - usedSessions
+              const pct = totalSessions > 0 ? Math.min((usedSessions / totalSessions) * 100, 100) : 0
+              return (
+                <div className="rounded-2xl p-6 border border-line bg-surface flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-widest text-brand">
+                        <Icon name="package" size={12} />Pacotes e combos
+                      </div>
+                      {ativos.length > 0 && (
+                        <span className="font-mono text-[10.5px] bg-success-soft text-success px-2 py-0.5 rounded-full">
+                          {ativos.length} ativo{ativos.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="font-display font-medium text-[18px] tracking-tight mb-0.5">
+                      {destaque.Service_package?.Name ?? '—'}
+                    </h4>
+                    <div className="text-[12.5px] text-ink-3 mb-4">
+                      {remaining} sessão{remaining !== 1 ? 'ões' : ''} restante{remaining !== 1 ? 's' : ''} de {totalSessions}
+                    </div>
+                    <div className="h-1.5 bg-line rounded-full overflow-hidden mb-1">
+                      <div className="h-full bg-brand rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="flex flex-col gap-1.5 mt-3">
+                      {items.map(item => (
+                        <div key={item.UUID} className="flex items-center justify-between text-[12px]">
+                          <span className="text-ink-2">{item.Service?.Name ?? '—'}</span>
+                          <span className="font-mono text-ink-3">{item.Total_quantity - item.Used_quantity} / {item.Total_quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-5">
+                    <NavLink to="/cliente/combos">
+                      <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md font-medium text-[13px] bg-brand text-white cursor-pointer hover:bg-[#72391f] transition-colors">
+                        <Icon name="package" size={13} />Ver meus combos
+                      </button>
+                    </NavLink>
+                  </div>
                 </div>
-                <h4 className="font-display font-medium text-[20px] tracking-tight mb-1.5">
-                  Economize com combos
-                </h4>
-                <div className="text-[12.5px] text-ink-2">
-                  Compre sessões em pacote e pague menos em cada atendimento.
+              )
+            })() : (
+              <div
+                className="rounded-2xl p-6 border border-line flex flex-col justify-between"
+                style={{ background: 'linear-gradient(135deg, #f1e3d6 0%, #f4e9d6 100%)' }}
+              >
+                <div>
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-widest text-brand mb-2.5">
+                    <Icon name="package" size={12} />Pacotes e combos
+                  </div>
+                  <h4 className="font-display font-medium text-[20px] tracking-tight mb-1.5">
+                    Economize com combos
+                  </h4>
+                  <div className="text-[12.5px] text-ink-2">
+                    Compre sessões em pacote e pague menos em cada atendimento.
+                  </div>
+                </div>
+                <div className="mt-5">
+                  <div className="font-mono text-[11px] text-ink-3">
+                    Converse com a equipe sobre combos disponíveis.
+                  </div>
                 </div>
               </div>
-              <div className="mt-5">
-                <NavLink to="/agendar">
-                  <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md font-medium text-[13px] bg-brand text-white cursor-pointer hover:bg-[#72391f] transition-colors">
-                    <Icon name="scissors" size={13} />Agendar serviço
-                  </button>
-                </NavLink>
-                <div className="font-mono text-[11px] text-ink-3 mt-3">
-                  Converse com a equipe sobre combos disponíveis.
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* History header */}

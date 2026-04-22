@@ -13,6 +13,7 @@ import api from '@/lib/api'
 const navItems = [
   { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
   { to: '/cliente/agendamentos', icon: 'receipt', label: 'Meus agendamentos' },
+  { to: '/cliente/combos', icon: 'package', label: 'Meus combos' },
   { to: '/perfil', icon: 'users', label: 'Perfil e senha' },
 ]
 

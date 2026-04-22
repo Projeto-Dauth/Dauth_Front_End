@@ -11,6 +11,7 @@ import AcceptInvitePage from '@/pages/auth/AcceptInvitePage'
 // Páginas do cliente (Usuario)
 import ClienteDashboard from '@/pages/cliente/ClienteDashboard'
 import MeusAgendamentos from '@/pages/cliente/MeusAgendamentos'
+import MeusCombos from '@/pages/cliente/MeusCombos'
 
 // Páginas do profissional
 import ProfissionalPainel from '@/pages/profissional/ProfissionalPainel'
@@ -86,6 +87,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['Usuario', 'Admin']}>
         <MeusAgendamentos />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/cliente/combos',
+    element: (
+      <ProtectedRoute allowedRoles={['Usuario', 'Admin']}>
+        <MeusCombos />
       </ProtectedRoute>
     ),
   },

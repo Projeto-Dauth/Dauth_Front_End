@@ -25,10 +25,10 @@
 
 ## 👤 Cliente (Usuario)
 
-- [x] **Dashboard Cliente** — visão geral (`ClienteDashboard.jsx`) — dados mockados
+- [x] **Dashboard Cliente** — visão geral (`ClienteDashboard.jsx`) — integrado com `GET /appointment/client/:id` + `GET /users/perfil/me` + `GET /package/client/:id`; card de combos dinâmico (mostra destaque do combo ativo ou CTA promocional se não há combos)
 - [x] **Meus Agendamentos** — lista com filtros de status (`MeusAgendamentos.jsx`) — integrado com `GET /appointment/client/:id`
 - [x] **Detalhes do Agendamento** — visualizar informações completas (`DetalhesAgendamento.jsx`) — integrado, read-only para cliente
-- [ ] **Meus Combos** — pacotes comprados, sessões restantes, status
+- [x] **Meus Combos** — pacotes comprados, sessões restantes, status (`MeusCombos.jsx`) — integrado com `GET /package/client/:id`; cards com barra de progresso por combo + breakdown de sessões por serviço; seções "Ativos" e "Histórico"
 - [ ] **Minhas Comandas** — lista de comandas (em aberto, pagas)
 - [x] **Meu Perfil** — editar nome, telefone, aniversário (`MeuPerfil.jsx`) — integrado com `GET/PATCH /users/perfil/me`
 - [x] **Trocar Senha** — formulário com senha atual + nova senha (`TrocarSenha.jsx`) — integrado com `PATCH /users/perfil/me/password`
@@ -174,7 +174,7 @@
 | Gerenciar categorias | ✅ | ✅ | ❌ |
 | Gerenciar pacotes | ✅ | ✅ | ❌ |
 | Vender combo | ✅ | ❌ | ❌ |
-| Ver combos ativos | ✅ | ✅ | ❌ |
+| Ver combos ativos | ✅ | ✅ | ✅ (próprios) |
 | Gerenciar comandas | ✅ | ✅ | ❌ |
 | Gerenciar transações | ✅ | ✅ | ❌ |
 | Horários de trabalho | ✅ | ✅ (próprio) | ❌ |
@@ -225,6 +225,7 @@
 | `/agendamento/:id` | DetalhesAgendamento | todos os roles |
 | `/cliente` | ClienteDashboard | Usuario, Admin |
 | `/cliente/agendamentos` | MeusAgendamentos | Usuario, Admin |
+| `/cliente/combos` | MeusCombos | Usuario, Admin |
 | `/profissional` | ProfissionalPainel | Profissional, Admin |
 | `/profissional/agendamentos` | MinhaAgenda | Profissional, Admin |
 | `/profissional/servicos` | ProfissionalServicos | Profissional, Admin |
@@ -247,4 +248,4 @@
 
 ---
 
-**Última atualização:** 2026-04-21 — Bloco Profissional integrado: ProfissionalPainel, ProfissionalServicos, ProfissionalHorarios. Fluxo de aceitar convite corrigido (JWT do hash → POST /auth/accept-invite). Bloco Admin 100% integrado.
+**Última atualização:** 2026-04-22 — Meus Combos implementado e integrado (`GET /package/client/:id`). ClienteDashboard atualizado com card dinâmico de combos. Rota `/cliente/combos` registrada. Permissão de `Usuario` para `GET /package/client/:id` confirmada no backend.
