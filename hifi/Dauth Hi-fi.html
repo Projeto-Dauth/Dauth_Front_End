@@ -1,0 +1,2324 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Dauth — Hi-fi</title>
+<meta name="viewport" content="width=1920">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* Page shell */
+  html, body { background: #ece4d8; }
+  .page {
+    max-width: 1720px;
+    margin: 0 auto;
+    padding: 48px 40px 120px;
+    font-family: var(--font-body);
+    color: #2a1e18;
+  }
+  .page-head { margin-bottom: 48px; }
+  .page-head .kicker {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #8d7b6f;
+  }
+  .page-head h1 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 42px;
+    margin: 6px 0 10px;
+    letter-spacing: -0.02em;
+  }
+  .page-head p { max-width: 680px; color: #5b463c; font-size: 15px; margin: 0; }
+
+  .screen-section { margin-bottom: 84px; }
+  .screen-section h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 26px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .screen-section .desc { color: #5b463c; font-size: 14px; margin: 0 0 26px; max-width: 760px; }
+  .screen-section .eyebrow-n {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #8d7b6f;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+  }
+
+  /* Tab nav */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 40px;
+    background: #fbf7f4;
+    border: 1px solid #e8dcc9;
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .tab {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none; background: transparent;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    color: #5b463c;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab:hover { background: #f5f0ea; }
+  .tab.active { background: #2a1e18; color: #fbf7f4; }
+  .tab .num { color: #8d7b6f; margin-right: 6px; font-family: var(--font-mono); font-size: 11px; }
+  .tab.active .num { color: #c9a57b; }
+
+  section.area { display: none; }
+  section.area.active { display: block; }
+
+  /* -----------------------------------------------------
+     SCREEN SHELL (desktop admin/prof)
+     ----------------------------------------------------- */
+  .screen {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    height: 900px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .sidebar {
+    background: var(--surface-2);
+    border-right: 1px solid var(--line);
+    padding: 24px 16px;
+    display: flex; flex-direction: column;
+    gap: 2px;
+  }
+  .sidebar .brand-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 8px 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 14px;
+  }
+  .sidebar .brand-mark {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--ink);
+    color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 16px;
+  }
+  .sidebar .brand-name {
+    font-family: var(--font-display); font-size: 16px; font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .sidebar .group-label {
+    font-family: var(--font-mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3);
+    padding: 14px 10px 4px;
+  }
+  .sidebar .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .sidebar .nav-item:hover { background: var(--surface-3); color: var(--ink); }
+  .sidebar .nav-item.on { background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow-xs); }
+  .sidebar .nav-item.sub { padding-left: 36px; color: var(--ink-3); font-size: 13px; }
+  .sidebar .nav-icon { width: 16px; height: 16px; color: currentColor; flex-shrink: 0; }
+  .sidebar .spacer { flex: 1; }
+  .sidebar .footer {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-top: 1px solid var(--line); margin-top: 10px;
+  }
+  .sidebar .footer .who { font-size: 12.5px; font-weight: 500; }
+  .sidebar .footer .who small { color: var(--ink-3); font-size: 11px; display: block; }
+
+  .main {
+    padding: 28px 32px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 28px;
+  }
+  .topbar h3 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 26px; margin: 0; letter-spacing: -0.01em;
+  }
+  .topbar .sub {
+    font-size: 13px; color: var(--ink-3); margin-top: 4px;
+  }
+
+  /* KPIs */
+  .kpis {
+    display: grid; gap: 12px; margin-bottom: 24px;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .kpi .lbl {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .kpi .val {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 28px; letter-spacing: -0.01em; margin-top: 6px;
+  }
+  .kpi .delta { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+  .kpi .delta.up { color: var(--success); }
+  .kpi .delta.down { color: var(--danger); }
+
+  /* =========================================
+     AGENDA — week by professional
+     ========================================= */
+  .cal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; gap: 16px;
+  }
+  .cal-head .range {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-display); font-weight: 500; font-size: 18px;
+  }
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink-2);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .icon-btn:hover { border-color: var(--ink-3); }
+  .seg {
+    display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px;
+  }
+  .seg button {
+    border: none; background: transparent;
+    font-family: var(--font-body); font-size: 12.5px; font-weight: 500;
+    color: var(--ink-3);
+    padding: 6px 12px; border-radius: 7px;
+    cursor: pointer;
+  }
+  .seg button.on { background: var(--ink); color: var(--bg); }
+
+  .calendar {
+    display: grid;
+    grid-template-columns: 70px repeat(4, 1fr);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .cal-col-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line-2);
+    background: var(--surface);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cal-col-head:last-child { border-right: none; }
+  .cal-col-head.time { border-right: 1px solid var(--line); }
+  .cal-col-head .avatar.sm { width: 30px; height: 30px; }
+  .cal-col-head .name { font-weight: 600; font-size: 13.5px; }
+  .cal-col-head .meta {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+  }
+  .cal-time {
+    padding: 4px 10px; text-align: right;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-3);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line-2);
+  }
+  .cal-slot {
+    height: 32px;
+    border-right: 1px solid var(--line-2);
+    border-bottom: 1px dashed var(--line-2);
+    position: relative;
+  }
+  .cal-slot.whole { border-bottom-style: solid; }
+  .cal-slot:last-child { border-right: none; }
+  .cal-slot.off {
+    background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, transparent 6px 12px);
+  }
+  .cal-ev {
+    position: absolute;
+    left: 5px; right: 5px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.3;
+    overflow: hidden;
+    background: var(--brand-soft);
+    color: var(--brand-soft-ink);
+    border: 1px solid transparent;
+  }
+  .cal-ev.pend { background: var(--warning-soft); color: var(--warning); }
+  .cal-ev.conf { background: var(--success-soft); color: var(--success); }
+  .cal-ev.done { background: var(--surface-2); color: var(--ink-3); text-decoration: line-through; }
+  .cal-ev .cli { font-weight: 600; font-size: 12px; color: var(--ink); }
+  .cal-ev.pend .cli { color: var(--warning); }
+  .cal-ev.conf .cli { color: var(--success); }
+  .cal-ev.done .cli { color: var(--ink-3); }
+  .cal-ev .svc {
+    font-family: var(--font-mono); font-size: 10.5px; opacity: 0.8;
+  }
+
+  .legend {
+    display: flex; gap: 18px; margin-top: 14px;
+    font-size: 12px; color: var(--ink-3);
+  }
+  .legend span {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .legend i {
+    width: 10px; height: 10px; border-radius: 3px;
+  }
+
+  /* =========================================
+     PAINEL PROFISSIONAL — hero now+next
+     ========================================= */
+  .now-grid {
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px;
+    margin-bottom: 20px;
+  }
+  .now-card {
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 16px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .now-card::after {
+    content: ''; position: absolute; right: -40px; top: -40px;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle, var(--brand) 0%, transparent 70%);
+    opacity: 0.4;
+  }
+  .now-card .eyebrow {
+    color: var(--gold);
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .now-card .eyebrow .pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 0 rgba(201,165,123,0.6);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(201,165,123,0.55); }
+    70% { box-shadow: 0 0 0 10px rgba(201,165,123,0); }
+    100% { box-shadow: 0 0 0 0 rgba(201,165,123,0); }
+  }
+  .now-card .client-name {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 34px; letter-spacing: -0.02em; margin: 10px 0 4px;
+  }
+  .now-card .client-meta {
+    font-family: var(--font-mono); font-size: 12.5px; color: rgba(244,236,225,0.7);
+  }
+  .now-card .now-meta-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(244,236,225,0.1);
+  }
+  .now-card .meta-block .lbl {
+    font-family: var(--font-mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: rgba(244,236,225,0.55);
+    margin-bottom: 6px;
+  }
+  .now-card .meta-block .val { font-size: 14px; font-weight: 500; }
+  .now-card .now-actions {
+    display: flex; gap: 10px; margin-top: 24px;
+  }
+  .now-card .btn.primary { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .now-card .btn.primary:hover { background: #d8b78e; }
+  .now-card .btn.ghost { background: transparent; color: var(--bg); border-color: rgba(244,236,225,0.2); }
+  .now-card .btn.ghost:hover { background: rgba(244,236,225,0.08); }
+
+  .next-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex; flex-direction: column;
+  }
+  .next-card h4 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 16px; margin: 0 0 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .next-item {
+    display: flex; gap: 14px; align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .next-item:last-child { border-bottom: none; }
+  .next-item .time {
+    font-family: var(--font-mono); font-size: 12.5px;
+    color: var(--ink-2); min-width: 52px; font-weight: 500;
+  }
+  .next-item .body { flex: 1; min-width: 0; }
+  .next-item .nm { font-size: 13.5px; font-weight: 500; }
+  .next-item .sv { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+
+  /* Work hours & services bottom grid */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .wh-list { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 14px; }
+  .wh-day {
+    padding: 10px 4px; text-align: center;
+    background: var(--surface-2); border-radius: 10px;
+    border: 1px solid var(--line-2);
+  }
+  .wh-day .dow {
+    font-family: var(--font-mono); font-size: 10px;
+    text-transform: uppercase; color: var(--ink-3); letter-spacing: 0.1em;
+  }
+  .wh-day .hrs { font-family: var(--font-mono); font-size: 11px; margin-top: 6px; font-weight: 500; }
+  .wh-day.off { color: var(--ink-4); }
+  .wh-day.off .hrs::after { content: '—'; }
+  .wh-day.off .hrs { color: var(--ink-4); }
+
+  .svc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .svc-chips .chip { padding: 6px 12px; font-size: 12px; }
+
+  /* =========================================
+     CLIENTE — dashboard
+     ========================================= */
+  .client-hero {
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px;
+    margin-bottom: 24px;
+  }
+  .hero-appt {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px;
+    display: flex; gap: 28px; align-items: center;
+    position: relative;
+  }
+  .hero-appt .date-block {
+    text-align: center;
+    padding-right: 28px;
+    border-right: 1px solid var(--line-2);
+  }
+  .hero-appt .day {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 56px; line-height: 1; letter-spacing: -0.03em;
+  }
+  .hero-appt .month {
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3); margin-top: 6px;
+  }
+  .hero-appt .time {
+    font-family: var(--font-mono); font-size: 14px;
+    margin-top: 10px;
+  }
+  .hero-appt .info .svc {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 22px; margin-bottom: 2px; letter-spacing: -0.01em;
+  }
+  .hero-appt .info .with {
+    font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero-appt .info .pr { margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+  .hero-appt .info .actions { display: flex; gap: 8px; margin-top: 16px; }
+
+  .combo-hero {
+    background: linear-gradient(135deg, var(--brand-soft) 0%, var(--gold-soft) 100%);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    position: relative; overflow: hidden;
+  }
+  .theme-dark .combo-hero {
+    background: linear-gradient(135deg, #2f2218 0%, #3a2b1e 100%);
+  }
+  .combo-hero .eyebrow {
+    color: var(--brand-soft-ink);
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .combo-hero h4 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 22px; margin: 10px 0 4px; letter-spacing: -0.01em;
+  }
+  .combo-hero .sub { font-size: 12.5px; color: var(--ink-2); margin-bottom: 18px; }
+  .combo-hero .progress-row {
+    display: flex; align-items: center; gap: 12px; margin-top: 16px;
+  }
+  .combo-hero .progress-row .bar { flex: 1; }
+  .combo-hero .progress-row .count {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+    color: var(--brand-soft-ink); min-width: 44px; text-align: right;
+  }
+  .combo-hero .expire {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+    margin-top: 14px;
+  }
+
+  .section-head {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 14px;
+  }
+  .section-head h4 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 18px; margin: 0; letter-spacing: -0.01em;
+  }
+  .section-head .chips-row { display: flex; gap: 6px; }
+
+  /* =========================================
+     PORTAL PÚBLICO
+     ========================================= */
+  .portal {
+    background: var(--bg); min-height: 900px;
+    color: var(--ink);
+  }
+  .portal-bar {
+    padding: 22px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .portal-bar .brand-row { display: flex; align-items: center; gap: 10px; }
+  .portal-bar .brand-mark {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--ink); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  }
+  .portal-bar .brand-name {
+    font-family: var(--font-display); font-size: 17px; font-weight: 600;
+  }
+  .portal-inner {
+    max-width: 1120px; margin: 0 auto;
+    padding: 40px 40px 60px;
+  }
+  .portal-inner h2 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 32px; letter-spacing: -0.02em; margin: 0 0 8px;
+  }
+  .portal-inner .sub { color: var(--ink-2); font-size: 14.5px; margin-bottom: 32px; max-width: 560px; }
+
+  .stepper {
+    display: flex; gap: 8px;
+    margin-bottom: 36px; padding: 12px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+  .step {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    color: var(--ink-3); font-size: 13px;
+  }
+  .step.done { color: var(--ink-2); }
+  .step.on { background: var(--ink); color: var(--bg); }
+  .step .n {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-2); color: var(--ink-3);
+    font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .step.done .n { background: var(--success-soft); color: var(--success); border-color: transparent; }
+  .step.on .n { background: var(--gold); color: var(--ink); border-color: transparent; }
+
+  .service-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  }
+  .service-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px;
+    cursor: pointer; transition: border 0.15s, transform 0.15s;
+    position: relative;
+  }
+  .service-card:hover { border-color: var(--ink-3); transform: translateY(-2px); }
+  .service-card.sel {
+    border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft);
+  }
+  .service-card .cat {
+    font-family: var(--font-mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--brand); margin-bottom: 10px;
+  }
+  .service-card .nm {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 19px; letter-spacing: -0.01em; margin-bottom: 4px;
+  }
+  .service-card .desc {
+    font-size: 13px; color: var(--ink-3); margin-bottom: 20px; line-height: 1.45;
+  }
+  .service-card .meta-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 14px; border-top: 1px solid var(--line-2);
+  }
+  .service-card .dur {
+    font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
+  }
+  .service-card .pr {
+    font-family: var(--font-display); font-size: 18px; font-weight: 500;
+    color: var(--ink);
+  }
+
+  /* Filter chips */
+  .filter-chips {
+    display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .filter-chips .chip { padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .filter-chips .chip.on { background: var(--ink); color: var(--bg); }
+
+  /* Prof select */
+  .prof-list {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  }
+  .prof-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px;
+    display: flex; gap: 16px; align-items: center;
+    cursor: pointer;
+  }
+  .prof-card:hover { border-color: var(--ink-3); }
+  .prof-card.sel { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+  .prof-card .body { flex: 1; }
+  .prof-card .nm { font-family: var(--font-display); font-size: 17px; font-weight: 500; }
+  .prof-card .tags { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+  .prof-card .stars {
+    display: flex; gap: 2px; margin-top: 8px; color: var(--gold);
+    font-size: 12px;
+  }
+
+  /* Date picker */
+  .date-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 28px; }
+  .mini-cal {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px;
+  }
+  .mini-cal .mh {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .mini-cal .mh .m { font-family: var(--font-display); font-weight: 500; font-size: 16px; }
+  .mini-cal .dows {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+    text-align: center; margin-bottom: 6px;
+  }
+  .mini-cal .days {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  }
+  .mini-cal .d {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; border-radius: 8px;
+    color: var(--ink);
+  }
+  .mini-cal .d.avail { cursor: pointer; }
+  .mini-cal .d.avail:hover { background: var(--surface-2); }
+  .mini-cal .d.sel { background: var(--ink); color: var(--bg); font-weight: 600; }
+  .mini-cal .d.muted { color: var(--ink-4); }
+  .mini-cal .d.none { color: var(--ink-4); text-decoration: line-through; }
+
+  .slots-label {
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3); margin-bottom: 12px;
+  }
+  .slots {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .slot {
+    padding: 12px; text-align: center;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: var(--font-mono); font-size: 13px;
+    cursor: pointer;
+  }
+  .slot:hover { border-color: var(--ink-3); }
+  .slot.sel { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .slot.none { color: var(--ink-4); text-decoration: line-through; background: var(--surface-2); cursor: not-allowed; }
+
+  /* Login split */
+  .login-split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .form-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 32px;
+  }
+  .form-card h3 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 20px; margin: 0 0 20px; letter-spacing: -0.01em;
+  }
+
+  /* Confirm */
+  .confirm-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
+  .confirm-card {
+    background: var(--surface); border: 2px solid var(--ink);
+    border-radius: 16px; padding: 28px;
+  }
+  .confirm-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--line-2);
+  }
+  .confirm-row:last-child { border-bottom: none; }
+  .confirm-row .k {
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-3);
+  }
+  .confirm-row .v { font-size: 14px; font-weight: 500; }
+  .confirm-row.total .v {
+    font-family: var(--font-display); font-size: 22px; font-weight: 500;
+  }
+
+  /* Success */
+  .success-card {
+    background: linear-gradient(180deg, var(--success-soft) 0%, var(--surface) 100%);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+  }
+  .theme-dark .success-card {
+    background: linear-gradient(180deg, var(--success-soft) 0%, var(--surface) 100%);
+  }
+  .success-card .check {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--success); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .success-card h2 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 28px; letter-spacing: -0.02em; margin: 0 0 10px;
+  }
+  .success-card .dt {
+    font-family: var(--font-mono); font-size: 14px; color: var(--ink-2);
+  }
+
+  /* =========================================
+     CAIXA / COMANDAS
+     ========================================= */
+  .cash-split {
+    display: grid; grid-template-columns: 1fr 420px;
+    gap: 16px;
+  }
+  .tab-list {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden;
+  }
+  .tab-list-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tab-list-head .t {
+    font-family: var(--font-display); font-weight: 500; font-size: 17px;
+  }
+  .tab-row {
+    display: grid;
+    grid-template-columns: 42px 1fr 120px 110px;
+    gap: 16px; padding: 16px 20px;
+    align-items: center;
+    border-bottom: 1px solid var(--line-2);
+    cursor: pointer;
+  }
+  .tab-row:last-child { border-bottom: none; }
+  .tab-row:hover { background: var(--surface-2); }
+  .tab-row.on { background: var(--brand-soft); }
+  .theme-dark .tab-row.on { background: var(--surface-3); }
+  .tab-row .body .nm { font-size: 14px; font-weight: 500; }
+  .tab-row .body .meta {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 2px;
+  }
+  .tab-row .amt {
+    font-family: var(--font-mono); font-size: 14px; font-weight: 500;
+    text-align: right;
+  }
+  .tab-row .amt small {
+    display: block; font-size: 10.5px; color: var(--ink-3); font-weight: 400;
+  }
+
+  /* Drawer pagamento */
+  .pay-drawer {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px;
+    display: flex; flex-direction: column;
+    height: fit-content;
+  }
+  .pay-drawer .head {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .pay-drawer .head h4 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 18px; letter-spacing: -0.01em; margin: 0;
+  }
+  .pay-drawer .head .m {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); margin-top: 4px;
+  }
+  .pay-drawer .body { padding: 20px 24px; }
+  .pay-method-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 16px;
+  }
+  .pay-method {
+    padding: 16px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface);
+    font-size: 13px; text-align: center;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .pay-method:hover { border-color: var(--ink-3); }
+  .pay-method.sel { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .pay-method svg { width: 22px; height: 22px; }
+  .total-row {
+    display: flex; justify-content: space-between; padding: 10px 0;
+    border-bottom: 1px dashed var(--line-2);
+    font-size: 13.5px;
+  }
+  .total-row.total {
+    border-top: 1px solid var(--ink); border-bottom: none;
+    padding-top: 14px; margin-top: 8px;
+    font-family: var(--font-display); font-size: 22px; font-weight: 500;
+  }
+
+  /* =========================================
+     COMBOS catálogo
+     ========================================= */
+  .combo-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  .combo-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 24px;
+    display: flex; flex-direction: column;
+  }
+  .combo-card .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 16px; border-bottom: 1px solid var(--line-2); margin-bottom: 16px;
+  }
+  .combo-card .header .id {
+    font-family: var(--font-mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand);
+  }
+  .combo-card .header h3 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 20px; letter-spacing: -0.01em; margin: 4px 0 0;
+  }
+  .combo-card .header .price {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 24px; letter-spacing: -0.01em;
+  }
+  .combo-card .items { flex: 1; }
+  .combo-card .ci {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; font-size: 13px;
+  }
+  .combo-card .ci .q {
+    font-family: var(--font-mono); font-size: 11.5px;
+    padding: 2px 8px; background: var(--surface-2);
+    border-radius: 999px; color: var(--ink-2);
+  }
+  .combo-card .footer {
+    display: flex; gap: 8px; margin-top: 20px; padding-top: 16px;
+    border-top: 1px solid var(--line-2);
+  }
+  .combo-card .expire {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+    margin-top: 4px;
+  }
+
+  /* ------------- notes strip ------------- */
+  .notes-strip {
+    background: #f5f0ea;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 18px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: #5b463c;
+  }
+  .notes-strip .nt {
+    border-left: 2px solid #8b4a2b; padding-left: 12px;
+  }
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-head">
+    <div class="kicker">Dauth Agendamentos · design hi-fi</div>
+    <h1>Da escolha ao caixa — em 6 telas.</h1>
+    <p>Versões refinadas das telas aprovadas: Agenda Admin, Painel Profissional (Próximo atendimento em destaque), Portal Público, Área do Cliente, Caixa e Combos. Cada tela é mostrada em <strong>tema claro</strong> e <strong>tema escuro</strong> lado a lado, com tokens unificados para guiar o desenvolvimento.</p>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-area="agenda"><span class="num">01</span>Agenda</button>
+    <button class="tab" data-area="prof"><span class="num">02</span>Painel Profissional</button>
+    <button class="tab" data-area="public"><span class="num">03</span>Portal Público</button>
+    <button class="tab" data-area="client"><span class="num">04</span>Área do Cliente</button>
+    <button class="tab" data-area="cash"><span class="num">05</span>Caixa</button>
+    <button class="tab" data-area="combo"><span class="num">06</span>Combos</button>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- Reusable icons as SVG template                 -->
+  <!-- ============================================== -->
+  <svg style="display:none;">
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><path d="M7 7h.01"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01 20.73 6.96M12 22.08V12"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2z"/><path d="M8 10h8M8 14h5"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></symbol>
+    <symbol id="i-cash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h3v1h-3zM20 20h1v1h-1z"/></symbol>
+  </svg>
+
+  <!-- ============================================== -->
+  <!-- 01 · AGENDA                                    -->
+  <!-- ============================================== -->
+  <section class="area active" data-area="agenda">
+    <div class="eyebrow-n">Admin · tela 01</div>
+    <h2>Agenda</h2>
+    <p class="desc">Visão semanal por profissional. Tema claro (dia-a-dia) à esquerda, escuro (ambiente noturno / modo foco) à direita.</p>
+
+    <div class="compare-wrap">
+
+      <!-- LIGHT -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#fbf7f4;border-color:#e8dcc9;"></span>Tema claro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="url">admin.dauth.app / agenda</div>
+          </div>
+          <div class="theme-light screen">
+            <aside class="sidebar">
+              <div class="brand-row">
+                <div class="brand-mark">d</div>
+                <div>
+                  <div class="brand-name">Dauth</div>
+                  <div class="mono" style="font-size:10px;color:var(--ink-3);">Salão Bela Arte</div>
+                </div>
+              </div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-cal"/></svg>Agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Profissionais</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Serviços</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-package"/></svg>Pacotes</div>
+              <div class="group-label">Financeiro</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-receipt"/></svg>Comandas</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-chart"/></svg>Transações</div>
+              <div class="spacer"></div>
+              <div class="footer">
+                <div class="avatar ph-1 sm">MR</div>
+                <div class="who">Marina R.<small>Administradora</small></div>
+              </div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div>
+                  <h3>Agenda</h3>
+                  <div class="sub">Segunda, 20 de abril · 22 atendimentos · ocupação 78%</div>
+                </div>
+                <div class="row">
+                  <button class="btn ghost"><svg style="width:14px;height:14px;"><use href="#i-filter"/></svg>Filtrar</button>
+                  <button class="btn outline"><svg style="width:14px;height:14px;"><use href="#i-search"/></svg>Buscar</button>
+                  <button class="btn primary"><svg style="width:14px;height:14px;"><use href="#i-plus"/></svg>Novo agendamento</button>
+                </div>
+              </div>
+
+              <div class="cal-head">
+                <div class="range">
+                  <button class="icon-btn"><svg style="width:14px;height:14px;"><use href="#i-arrow-left"/></svg></button>
+                  Seg 20 — Sex 24 · Abril 2026
+                  <button class="icon-btn"><svg style="width:14px;height:14px;"><use href="#i-arrow-right"/></svg></button>
+                </div>
+                <div class="seg">
+                  <button>Dia</button>
+                  <button class="on">Semana</button>
+                  <button>Mês</button>
+                </div>
+              </div>
+
+              <div class="calendar">
+                <div class="cal-col-head time"><span class="mono" style="font-size:10.5px;color:var(--ink-3);">Hora</span></div>
+                <div class="cal-col-head"><div class="avatar ph-1 sm">AL</div><div><div class="name">Ana Lima</div><div class="meta">cabelo · 8 hoje</div></div></div>
+                <div class="cal-col-head"><div class="avatar ph-2 sm">BS</div><div><div class="name">Bruno Sá</div><div class="meta">barba · 5 hoje</div></div></div>
+                <div class="cal-col-head"><div class="avatar ph-3 sm">CR</div><div><div class="name">Carla Reis</div><div class="meta">unhas · 6 hoje</div></div></div>
+                <div class="cal-col-head"><div class="avatar ph-4 sm">DM</div><div><div class="name">Diego Melo</div><div class="meta">estética · 3 hoje</div></div></div>
+
+                <!-- 09:00 -->
+                <div class="cal-time">09:00</div>
+                <div class="cal-slot whole"><div class="cal-ev conf" style="top:3px;height:58px;"><div class="cli">Marina Pacheco</div><div class="svc">Corte · 60min</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"><div class="cal-ev pend" style="top:3px;height:28px;"><div class="cli">Júlia Teixeira</div><div class="svc">Esmaltação</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"><div class="cal-ev conf" style="top:3px;height:28px;"><div class="cli">Lucas M.</div><div class="svc">Barba</div></div></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+
+                <!-- 10:00 -->
+                <div class="cal-time">10:00</div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"><div class="cal-ev conf" style="top:3px;height:58px;"><div class="cli">Renata V.</div><div class="svc">Gel · 90min</div></div></div>
+                <div class="cal-slot whole"><div class="cal-ev pend" style="top:3px;height:90px;"><div class="cli">Tatiana Bueno</div><div class="svc">Limpeza pele</div></div></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"><div class="cal-ev conf" style="top:3px;height:28px;"><div class="cli">Helena D.</div><div class="svc">Corte masc</div></div></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+
+                <!-- 11:00 -->
+                <div class="cal-time">11:00</div>
+                <div class="cal-slot whole"><div class="cal-ev done" style="top:3px;height:58px;"><div class="cli">Paula F.</div><div class="svc">Escova</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"><div class="cal-ev conf" style="top:3px;height:28px;"><div class="cli">Rafael O.</div><div class="svc">Pigmentação</div></div></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+
+                <!-- 12:00 -->
+                <div class="cal-time">12:00</div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot off"></div>
+                <div class="cal-slot off"></div>
+                <div class="cal-slot off"></div>
+                <div class="cal-slot off"></div>
+
+                <!-- 13:00 -->
+                <div class="cal-time">13:00</div>
+                <div class="cal-slot whole"><div class="cal-ev conf" style="top:3px;height:58px;"><div class="cli">Sofia K.</div><div class="svc">Coloração</div></div></div>
+                <div class="cal-slot whole"><div class="cal-ev pend" style="top:3px;height:28px;"><div class="cli">Eduardo R.</div><div class="svc">Barba + corte</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"><div class="cal-ev pend" style="top:3px;height:28px;"><div class="cli">Isabela G.</div><div class="svc">Consulta</div></div></div>
+              </div>
+
+              <div class="legend">
+                <span><i style="background:var(--warning-soft);"></i>Pendente</span>
+                <span><i style="background:var(--success-soft);"></i>Confirmado</span>
+                <span><i style="background:var(--surface-2);"></i>Concluído</span>
+                <span><i style="background:repeating-linear-gradient(135deg,var(--surface-2) 0 4px,transparent 4px 8px);"></i>Fora do expediente</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#17120f;border-color:#3a2d23;"></span>Tema escuro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome" style="background:#1f1814;border-color:#3a2d23;">
+            <div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div>
+            <div class="url" style="background:#261d18;border-color:#3a2d23;color:#8d7b6f;">admin.dauth.app / agenda</div>
+          </div>
+          <div class="theme-dark screen">
+            <aside class="sidebar">
+              <div class="brand-row">
+                <div class="brand-mark">d</div>
+                <div>
+                  <div class="brand-name">Dauth</div>
+                  <div class="mono" style="font-size:10px;color:var(--ink-3);">Salão Bela Arte</div>
+                </div>
+              </div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-cal"/></svg>Agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Profissionais</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Serviços</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-package"/></svg>Pacotes</div>
+              <div class="group-label">Financeiro</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-receipt"/></svg>Comandas</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-chart"/></svg>Transações</div>
+              <div class="spacer"></div>
+              <div class="footer">
+                <div class="avatar ph-1 sm">MR</div>
+                <div class="who">Marina R.<small>Administradora</small></div>
+              </div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div>
+                  <h3>Agenda</h3>
+                  <div class="sub">Segunda, 20 de abril · 22 atendimentos · ocupação 78%</div>
+                </div>
+                <div class="row">
+                  <button class="btn ghost"><svg style="width:14px;height:14px;"><use href="#i-filter"/></svg>Filtrar</button>
+                  <button class="btn outline"><svg style="width:14px;height:14px;"><use href="#i-search"/></svg>Buscar</button>
+                  <button class="btn primary"><svg style="width:14px;height:14px;"><use href="#i-plus"/></svg>Novo agendamento</button>
+                </div>
+              </div>
+
+              <div class="cal-head">
+                <div class="range">
+                  <button class="icon-btn"><svg style="width:14px;height:14px;"><use href="#i-arrow-left"/></svg></button>
+                  Seg 20 — Sex 24 · Abril 2026
+                  <button class="icon-btn"><svg style="width:14px;height:14px;"><use href="#i-arrow-right"/></svg></button>
+                </div>
+                <div class="seg">
+                  <button>Dia</button>
+                  <button class="on">Semana</button>
+                  <button>Mês</button>
+                </div>
+              </div>
+
+              <div class="calendar">
+                <div class="cal-col-head time"><span class="mono" style="font-size:10.5px;color:var(--ink-3);">Hora</span></div>
+                <div class="cal-col-head"><div class="avatar ph-1 sm">AL</div><div><div class="name">Ana Lima</div><div class="meta">cabelo · 8 hoje</div></div></div>
+                <div class="cal-col-head"><div class="avatar ph-2 sm">BS</div><div><div class="name">Bruno Sá</div><div class="meta">barba · 5 hoje</div></div></div>
+                <div class="cal-col-head"><div class="avatar ph-3 sm">CR</div><div><div class="name">Carla Reis</div><div class="meta">unhas · 6 hoje</div></div></div>
+                <div class="cal-col-head"><div class="avatar ph-4 sm">DM</div><div><div class="name">Diego Melo</div><div class="meta">estética · 3 hoje</div></div></div>
+
+                <div class="cal-time">09:00</div>
+                <div class="cal-slot whole"><div class="cal-ev conf" style="top:3px;height:58px;"><div class="cli">Marina Pacheco</div><div class="svc">Corte · 60min</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"><div class="cal-ev pend" style="top:3px;height:28px;"><div class="cli">Júlia Teixeira</div><div class="svc">Esmaltação</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"><div class="cal-ev conf" style="top:3px;height:28px;"><div class="cli">Lucas M.</div><div class="svc">Barba</div></div></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+
+                <div class="cal-time">10:00</div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"><div class="cal-ev conf" style="top:3px;height:58px;"><div class="cli">Renata V.</div><div class="svc">Gel · 90min</div></div></div>
+                <div class="cal-slot whole"><div class="cal-ev pend" style="top:3px;height:90px;"><div class="cli">Tatiana Bueno</div><div class="svc">Limpeza pele</div></div></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"><div class="cal-ev conf" style="top:3px;height:28px;"><div class="cli">Helena D.</div><div class="svc">Corte masc</div></div></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+
+                <div class="cal-time">11:00</div>
+                <div class="cal-slot whole"><div class="cal-ev done" style="top:3px;height:58px;"><div class="cli">Paula F.</div><div class="svc">Escova</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"><div class="cal-ev conf" style="top:3px;height:28px;"><div class="cli">Rafael O.</div><div class="svc">Pigmentação</div></div></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+
+                <div class="cal-time">12:00</div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-slot whole off"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot off"></div>
+                <div class="cal-slot off"></div>
+                <div class="cal-slot off"></div>
+                <div class="cal-slot off"></div>
+
+                <div class="cal-time">13:00</div>
+                <div class="cal-slot whole"><div class="cal-ev conf" style="top:3px;height:58px;"><div class="cli">Sofia K.</div><div class="svc">Coloração</div></div></div>
+                <div class="cal-slot whole"><div class="cal-ev pend" style="top:3px;height:28px;"><div class="cli">Eduardo R.</div><div class="svc">Barba + corte</div></div></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-slot whole"></div>
+                <div class="cal-time"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"></div>
+                <div class="cal-slot"><div class="cal-ev pend" style="top:3px;height:28px;"><div class="cli">Isabela G.</div><div class="svc">Consulta</div></div></div>
+              </div>
+
+              <div class="legend">
+                <span><i style="background:var(--warning-soft);"></i>Pendente</span>
+                <span><i style="background:var(--success-soft);"></i>Confirmado</span>
+                <span><i style="background:var(--surface-2);"></i>Concluído</span>
+                <span><i style="background:repeating-linear-gradient(135deg,var(--surface-2) 0 4px,transparent 4px 8px);"></i>Fora do expediente</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-strip">
+      <div class="nt">Clique em slot vazio → modal de novo agendamento já com prof+hora pré-preenchidos.</div>
+      <div class="nt">Drag-and-drop dispara PATCH /appointment/:id. Conflito (409) mostra toast com link para reagendar.</div>
+      <div class="nt">Concluir atendimento cria Tab automaticamente e alerta se o cliente tem combo elegível.</div>
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- 02 · PAINEL PROFISSIONAL                       -->
+  <!-- ============================================== -->
+  <section class="area" data-area="prof">
+    <div class="eyebrow-n">Profissional · tela 02</div>
+    <h2>Painel do Profissional</h2>
+    <p class="desc">Foco no "agora" — o cliente em atendimento ocupa a maior parte da tela. À direita, o resto do dia.</p>
+
+    <div class="compare-wrap">
+      <!-- LIGHT -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#fbf7f4;border-color:#e8dcc9;"></span>Tema claro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">app.dauth.app / hoje</div></div>
+          <div class="theme-light screen" style="grid-template-columns: 220px 1fr;">
+            <aside class="sidebar">
+              <div class="brand-row">
+                <div class="brand-mark">d</div>
+                <div class="brand-name">Dauth</div>
+              </div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-cal"/></svg>Minha agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Meus serviços</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-clock"/></svg>Meus horários</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-chart"/></svg>Comissões</div>
+              <div class="spacer"></div>
+              <div class="footer">
+                <div class="avatar ph-1 sm">AL</div>
+                <div class="who">Ana Lima<small>Cabelo</small></div>
+              </div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div>
+                  <h3>Segunda, 20 de abril</h3>
+                  <div class="sub"><span class="mono">10:23</span> · próximo livre às 11:30 · comissão estimada R$ 312</div>
+                </div>
+                <div class="row">
+                  <button class="btn ghost"><svg style="width:14px;height:14px;"><use href="#i-cal"/></svg>Ver semana</button>
+                  <button class="btn outline"><svg style="width:14px;height:14px;"><use href="#i-bell"/></svg></button>
+                </div>
+              </div>
+
+              <div class="now-grid">
+                <div class="now-card">
+                  <div class="eyebrow"><span class="pulse"></span>Agora atendendo · 10:00 — 11:30</div>
+                  <div class="client-name">Renata Vasconcelos</div>
+                  <div class="client-meta">Gel nas unhas · 90 min · 8ª visita</div>
+
+                  <div class="now-meta-row">
+                    <div class="meta-block">
+                      <div class="lbl">Combo</div>
+                      <div class="val">Pacote 5 Unhas · sessão 3/5</div>
+                    </div>
+                    <div class="meta-block">
+                      <div class="lbl">Pagamento</div>
+                      <div class="val">Incluso no combo</div>
+                    </div>
+                    <div class="meta-block">
+                      <div class="lbl">Última visita</div>
+                      <div class="val">há 15 dias</div>
+                    </div>
+                  </div>
+
+                  <div class="now-actions">
+                    <button class="btn primary"><svg style="width:14px;height:14px;"><use href="#i-check"/></svg>Concluir atendimento</button>
+                    <button class="btn ghost">Adicionar extra</button>
+                    <button class="btn ghost">Remarcar</button>
+                  </div>
+                </div>
+
+                <div class="next-card">
+                  <h4>A seguir · 6 atendimentos <span class="chip brand">+4 após almoço</span></h4>
+
+                  <div class="next-item">
+                    <div class="time">11:00</div>
+                    <div class="avatar ph-5 sm">RO</div>
+                    <div class="body">
+                      <div class="nm">Rafael Oliveira</div>
+                      <div class="sv">Retoque raiz · 30min</div>
+                    </div>
+                    <span class="status conf"><span class="dot"></span>Confirmado</span>
+                  </div>
+                  <div class="next-item">
+                    <div class="time">13:30</div>
+                    <div class="avatar ph-3 sm">IG</div>
+                    <div class="body">
+                      <div class="nm">Isabela Guerra</div>
+                      <div class="sv">Consulta de cor</div>
+                    </div>
+                    <span class="status pend"><span class="dot"></span>Pendente</span>
+                  </div>
+                  <div class="next-item">
+                    <div class="time">14:00</div>
+                    <div class="avatar ph-2 sm">CN</div>
+                    <div class="body">
+                      <div class="nm">Carol Nunes</div>
+                      <div class="sv">Manicure simples</div>
+                    </div>
+                    <span class="status conf"><span class="dot"></span>Confirmado</span>
+                  </div>
+                  <div class="next-item">
+                    <div class="time">15:00</div>
+                    <div class="avatar ph-4 sm">LS</div>
+                    <div class="body">
+                      <div class="nm">Laura Santos</div>
+                      <div class="sv">Escova · combo</div>
+                    </div>
+                    <span class="status conf"><span class="dot"></span>Confirmado</span>
+                  </div>
+                  <div class="next-item">
+                    <div class="time">16:30</div>
+                    <div class="avatar ph-6 sm">BM</div>
+                    <div class="body">
+                      <div class="nm">Beatriz Meira</div>
+                      <div class="sv">Coloração completa</div>
+                    </div>
+                    <span class="status conf"><span class="dot"></span>Confirmado</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bottom-grid">
+                <div class="card">
+                  <div class="section-head">
+                    <h4>Meus horários</h4>
+                    <button class="btn ghost sm">Editar</button>
+                  </div>
+                  <div class="wh-list">
+                    <div class="wh-day"><div class="dow">Seg</div><div class="hrs">09–18</div></div>
+                    <div class="wh-day"><div class="dow">Ter</div><div class="hrs">09–18</div></div>
+                    <div class="wh-day off"><div class="dow">Qua</div><div class="hrs"></div></div>
+                    <div class="wh-day"><div class="dow">Qui</div><div class="hrs">11–20</div></div>
+                    <div class="wh-day"><div class="dow">Sex</div><div class="hrs">09–18</div></div>
+                    <div class="wh-day"><div class="dow">Sáb</div><div class="hrs">09–14</div></div>
+                    <div class="wh-day off"><div class="dow">Dom</div><div class="hrs"></div></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="section-head">
+                    <h4>Meus serviços · 6 vinculados</h4>
+                    <button class="btn ghost sm">Gerenciar</button>
+                  </div>
+                  <div class="svc-chips">
+                    <span class="chip">Corte feminino · R$ 80</span>
+                    <span class="chip">Escova · R$ 60</span>
+                    <span class="chip">Coloração · R$ 180</span>
+                    <span class="chip">Retoque raiz · R$ 60</span>
+                    <span class="chip">Manicure · R$ 50</span>
+                    <span class="chip">Esmaltação gel · R$ 90</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#17120f;border-color:#3a2d23;"></span>Tema escuro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome" style="background:#1f1814;border-color:#3a2d23;"><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="url" style="background:#261d18;border-color:#3a2d23;color:#8d7b6f;">app.dauth.app / hoje</div></div>
+          <div class="theme-dark screen" style="grid-template-columns: 220px 1fr;">
+            <aside class="sidebar">
+              <div class="brand-row">
+                <div class="brand-mark">d</div>
+                <div class="brand-name">Dauth</div>
+              </div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-cal"/></svg>Minha agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Meus serviços</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-clock"/></svg>Meus horários</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-chart"/></svg>Comissões</div>
+              <div class="spacer"></div>
+              <div class="footer">
+                <div class="avatar ph-1 sm">AL</div>
+                <div class="who">Ana Lima<small>Cabelo</small></div>
+              </div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div>
+                  <h3>Segunda, 20 de abril</h3>
+                  <div class="sub"><span class="mono">10:23</span> · próximo livre às 11:30 · comissão estimada R$ 312</div>
+                </div>
+                <div class="row">
+                  <button class="btn ghost"><svg style="width:14px;height:14px;"><use href="#i-cal"/></svg>Ver semana</button>
+                  <button class="btn outline"><svg style="width:14px;height:14px;"><use href="#i-bell"/></svg></button>
+                </div>
+              </div>
+
+              <div class="now-grid">
+                <div class="now-card" style="background:#0d0806;">
+                  <div class="eyebrow"><span class="pulse"></span>Agora atendendo · 10:00 — 11:30</div>
+                  <div class="client-name">Renata Vasconcelos</div>
+                  <div class="client-meta">Gel nas unhas · 90 min · 8ª visita</div>
+                  <div class="now-meta-row">
+                    <div class="meta-block"><div class="lbl">Combo</div><div class="val">Pacote 5 Unhas · 3/5</div></div>
+                    <div class="meta-block"><div class="lbl">Pagamento</div><div class="val">Incluso no combo</div></div>
+                    <div class="meta-block"><div class="lbl">Última visita</div><div class="val">há 15 dias</div></div>
+                  </div>
+                  <div class="now-actions">
+                    <button class="btn primary"><svg style="width:14px;height:14px;"><use href="#i-check"/></svg>Concluir atendimento</button>
+                    <button class="btn ghost">Adicionar extra</button>
+                    <button class="btn ghost">Remarcar</button>
+                  </div>
+                </div>
+
+                <div class="next-card">
+                  <h4>A seguir · 6 atendimentos <span class="chip brand">+4 após almoço</span></h4>
+                  <div class="next-item"><div class="time">11:00</div><div class="avatar ph-5 sm">RO</div><div class="body"><div class="nm">Rafael Oliveira</div><div class="sv">Retoque raiz · 30min</div></div><span class="status conf"><span class="dot"></span>Conf.</span></div>
+                  <div class="next-item"><div class="time">13:30</div><div class="avatar ph-3 sm">IG</div><div class="body"><div class="nm">Isabela Guerra</div><div class="sv">Consulta de cor</div></div><span class="status pend"><span class="dot"></span>Pend.</span></div>
+                  <div class="next-item"><div class="time">14:00</div><div class="avatar ph-2 sm">CN</div><div class="body"><div class="nm">Carol Nunes</div><div class="sv">Manicure simples</div></div><span class="status conf"><span class="dot"></span>Conf.</span></div>
+                  <div class="next-item"><div class="time">15:00</div><div class="avatar ph-4 sm">LS</div><div class="body"><div class="nm">Laura Santos</div><div class="sv">Escova · combo</div></div><span class="status conf"><span class="dot"></span>Conf.</span></div>
+                  <div class="next-item"><div class="time">16:30</div><div class="avatar ph-6 sm">BM</div><div class="body"><div class="nm">Beatriz Meira</div><div class="sv">Coloração completa</div></div><span class="status conf"><span class="dot"></span>Conf.</span></div>
+                </div>
+              </div>
+
+              <div class="bottom-grid">
+                <div class="card">
+                  <div class="section-head"><h4>Meus horários</h4><button class="btn ghost sm">Editar</button></div>
+                  <div class="wh-list">
+                    <div class="wh-day"><div class="dow">Seg</div><div class="hrs">09–18</div></div>
+                    <div class="wh-day"><div class="dow">Ter</div><div class="hrs">09–18</div></div>
+                    <div class="wh-day off"><div class="dow">Qua</div><div class="hrs"></div></div>
+                    <div class="wh-day"><div class="dow">Qui</div><div class="hrs">11–20</div></div>
+                    <div class="wh-day"><div class="dow">Sex</div><div class="hrs">09–18</div></div>
+                    <div class="wh-day"><div class="dow">Sáb</div><div class="hrs">09–14</div></div>
+                    <div class="wh-day off"><div class="dow">Dom</div><div class="hrs"></div></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="section-head"><h4>Meus serviços · 6 vinculados</h4><button class="btn ghost sm">Gerenciar</button></div>
+                  <div class="svc-chips">
+                    <span class="chip">Corte feminino · R$ 80</span>
+                    <span class="chip">Escova · R$ 60</span>
+                    <span class="chip">Coloração · R$ 180</span>
+                    <span class="chip">Retoque raiz · R$ 60</span>
+                    <span class="chip">Manicure · R$ 50</span>
+                    <span class="chip">Esmaltação gel · R$ 90</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-strip">
+      <div class="nt">Hero escuro diferencia o "now-card" mesmo no tema claro — único componente com essa inversão.</div>
+      <div class="nt">Pulsante dourado reforça que há um atendimento em andamento.</div>
+      <div class="nt">Status chips nas lanes usam semântica de cor consistente em todas as telas.</div>
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- 03 · PORTAL PÚBLICO                            -->
+  <!-- ============================================== -->
+  <section class="area" data-area="public">
+    <div class="eyebrow-n">Cliente · tela 03</div>
+    <h2>Portal Público — escolha do serviço</h2>
+    <p class="desc">Passo 1 do fluxo de autoagendamento (sem auth). Os demais 5 passos seguem o mesmo padrão visual — este é o "estabelecedor" do estilo.</p>
+
+    <div class="compare-wrap">
+      <!-- LIGHT -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#fbf7f4;border-color:#e8dcc9;"></span>Tema claro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">dauth.app / agendar</div></div>
+          <div class="theme-light portal">
+            <div class="portal-bar">
+              <div class="brand-row">
+                <div class="brand-mark">d</div>
+                <div class="brand-name">Dauth · Bela Arte</div>
+              </div>
+              <div class="row">
+                <button class="btn ghost">Entrar</button>
+              </div>
+            </div>
+            <div class="portal-inner">
+              <div class="stepper">
+                <div class="step on"><span class="n">1</span>Serviço</div>
+                <div class="step"><span class="n">2</span>Profissional</div>
+                <div class="step"><span class="n">3</span>Data e hora</div>
+                <div class="step"><span class="n">4</span>Seus dados</div>
+                <div class="step"><span class="n">5</span>Confirmar</div>
+              </div>
+
+              <h2>Qual serviço hoje?</h2>
+              <div class="sub">Filtre pela categoria ou escolha entre os mais pedidos da semana.</div>
+
+              <div class="filter-chips">
+                <span class="chip on">Todas</span>
+                <span class="chip">Cabelo</span>
+                <span class="chip">Unhas</span>
+                <span class="chip">Barba</span>
+                <span class="chip">Estética</span>
+              </div>
+
+              <div class="service-grid">
+                <div class="service-card sel">
+                  <div class="cat">Cabelo</div>
+                  <div class="nm">Corte + Escova</div>
+                  <div class="desc">Corte com finalização em escova, ideal para dia a dia e eventos.</div>
+                  <div class="meta-row">
+                    <div class="dur"><svg style="width:12px;height:12px;vertical-align:-2px;"><use href="#i-clock"/></svg> 90 min</div>
+                    <div class="pr">R$ 120</div>
+                  </div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Cabelo</div>
+                  <div class="nm">Corte feminino</div>
+                  <div class="desc">Corte clássico, sem finalização em escova.</div>
+                  <div class="meta-row">
+                    <div class="dur"><svg style="width:12px;height:12px;vertical-align:-2px;"><use href="#i-clock"/></svg> 60 min</div>
+                    <div class="pr">R$ 80</div>
+                  </div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Cabelo</div>
+                  <div class="nm">Coloração</div>
+                  <div class="desc">Cor completa com tratamento selante pós-química.</div>
+                  <div class="meta-row">
+                    <div class="dur"><svg style="width:12px;height:12px;vertical-align:-2px;"><use href="#i-clock"/></svg> 120 min</div>
+                    <div class="pr">R$ 180</div>
+                  </div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Unhas</div>
+                  <div class="nm">Manicure simples</div>
+                  <div class="desc">Corte de cutícula, lixa e esmalte comum à sua escolha.</div>
+                  <div class="meta-row">
+                    <div class="dur"><svg style="width:12px;height:12px;vertical-align:-2px;"><use href="#i-clock"/></svg> 45 min</div>
+                    <div class="pr">R$ 50</div>
+                  </div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Unhas</div>
+                  <div class="nm">Esmaltação em gel</div>
+                  <div class="desc">Durabilidade de até 3 semanas com finalização LED.</div>
+                  <div class="meta-row">
+                    <div class="dur"><svg style="width:12px;height:12px;vertical-align:-2px;"><use href="#i-clock"/></svg> 90 min</div>
+                    <div class="pr">R$ 90</div>
+                  </div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Estética</div>
+                  <div class="nm">Limpeza de pele</div>
+                  <div class="desc">Higienização profunda, extração e máscara calmante.</div>
+                  <div class="meta-row">
+                    <div class="dur"><svg style="width:12px;height:12px;vertical-align:-2px;"><use href="#i-clock"/></svg> 60 min</div>
+                    <div class="pr">R$ 150</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row" style="justify-content:flex-end;margin-top:32px;gap:10px;">
+                <button class="btn ghost">Voltar</button>
+                <button class="btn primary">Continuar <svg style="width:14px;height:14px;"><use href="#i-arrow-right"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#17120f;border-color:#3a2d23;"></span>Tema escuro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome" style="background:#1f1814;border-color:#3a2d23;"><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="url" style="background:#261d18;border-color:#3a2d23;color:#8d7b6f;">dauth.app / agendar</div></div>
+          <div class="theme-dark portal">
+            <div class="portal-bar">
+              <div class="brand-row">
+                <div class="brand-mark">d</div>
+                <div class="brand-name">Dauth · Bela Arte</div>
+              </div>
+              <div class="row"><button class="btn ghost">Entrar</button></div>
+            </div>
+            <div class="portal-inner">
+              <div class="stepper">
+                <div class="step on"><span class="n">1</span>Serviço</div>
+                <div class="step"><span class="n">2</span>Profissional</div>
+                <div class="step"><span class="n">3</span>Data e hora</div>
+                <div class="step"><span class="n">4</span>Seus dados</div>
+                <div class="step"><span class="n">5</span>Confirmar</div>
+              </div>
+              <h2>Qual serviço hoje?</h2>
+              <div class="sub">Filtre pela categoria ou escolha entre os mais pedidos da semana.</div>
+              <div class="filter-chips">
+                <span class="chip on">Todas</span>
+                <span class="chip">Cabelo</span>
+                <span class="chip">Unhas</span>
+                <span class="chip">Barba</span>
+                <span class="chip">Estética</span>
+              </div>
+              <div class="service-grid">
+                <div class="service-card sel">
+                  <div class="cat">Cabelo</div>
+                  <div class="nm">Corte + Escova</div>
+                  <div class="desc">Corte com finalização em escova, ideal para dia a dia e eventos.</div>
+                  <div class="meta-row"><div class="dur">90 min</div><div class="pr">R$ 120</div></div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Cabelo</div>
+                  <div class="nm">Corte feminino</div>
+                  <div class="desc">Corte clássico, sem finalização em escova.</div>
+                  <div class="meta-row"><div class="dur">60 min</div><div class="pr">R$ 80</div></div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Cabelo</div>
+                  <div class="nm">Coloração</div>
+                  <div class="desc">Cor completa com tratamento selante pós-química.</div>
+                  <div class="meta-row"><div class="dur">120 min</div><div class="pr">R$ 180</div></div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Unhas</div>
+                  <div class="nm">Manicure simples</div>
+                  <div class="desc">Corte de cutícula, lixa e esmalte comum à sua escolha.</div>
+                  <div class="meta-row"><div class="dur">45 min</div><div class="pr">R$ 50</div></div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Unhas</div>
+                  <div class="nm">Esmaltação em gel</div>
+                  <div class="desc">Durabilidade de até 3 semanas com finalização LED.</div>
+                  <div class="meta-row"><div class="dur">90 min</div><div class="pr">R$ 90</div></div>
+                </div>
+                <div class="service-card">
+                  <div class="cat">Estética</div>
+                  <div class="nm">Limpeza de pele</div>
+                  <div class="desc">Higienização profunda, extração e máscara calmante.</div>
+                  <div class="meta-row"><div class="dur">60 min</div><div class="pr">R$ 150</div></div>
+                </div>
+              </div>
+              <div class="row" style="justify-content:flex-end;margin-top:32px;gap:10px;">
+                <button class="btn ghost">Voltar</button>
+                <button class="btn primary">Continuar <svg style="width:14px;height:14px;"><use href="#i-arrow-right"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-strip">
+      <div class="nt">Card selecionado ganha borda terracota + halo suave (3px ring) — mantém o componente calmo.</div>
+      <div class="nt">Passos 2-5 reutilizam layout (stepper + card central). Step "Data/hora" usa calendário + slots.</div>
+      <div class="nt">Call-to-action "Continuar" só habilita após seleção; botão segue padrão dourado no now-card.</div>
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- 04 · ÁREA DO CLIENTE                           -->
+  <!-- ============================================== -->
+  <section class="area" data-area="client">
+    <div class="eyebrow-n">Cliente · tela 04</div>
+    <h2>Área do Cliente Logado</h2>
+    <p class="desc">Home com próximo atendimento em destaque, combo ativo, e histórico compacto abaixo.</p>
+
+    <div class="compare-wrap">
+      <!-- LIGHT -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#fbf7f4;border-color:#e8dcc9;"></span>Tema claro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">dauth.app / minha-conta</div></div>
+          <div class="theme-light screen" style="grid-template-columns: 240px 1fr;">
+            <aside class="sidebar">
+              <div class="brand-row"><div class="brand-mark">d</div><div class="brand-name">Dauth</div></div>
+              <div style="text-align:center;padding:12px 0 18px;border-bottom:1px solid var(--line);margin-bottom:12px;">
+                <div class="avatar ph-3 xl" style="margin:0 auto 8px;">JT</div>
+                <div style="font-family:var(--font-display);font-weight:500;font-size:15px;">Júlia Teixeira</div>
+                <div class="mono" style="font-size:11px;color:var(--ink-3);">cliente desde 2024</div>
+              </div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-cal"/></svg>Início</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-receipt"/></svg>Meus agendamentos</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-package"/></svg>Meus combos</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Perfil e senha</div>
+              <div class="spacer"></div>
+              <button class="btn primary" style="justify-content:center;"><svg style="width:14px;height:14px;"><use href="#i-plus"/></svg>Novo agendamento</button>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div>
+                  <h3>Olá, Júlia</h3>
+                  <div class="sub">Seu próximo atendimento é em 4 dias</div>
+                </div>
+                <div class="row">
+                  <button class="btn ghost"><svg style="width:14px;height:14px;"><use href="#i-bell"/></svg></button>
+                </div>
+              </div>
+
+              <div class="client-hero">
+                <div class="hero-appt">
+                  <div class="date-block">
+                    <div class="day">24</div>
+                    <div class="month">Abr · Sex</div>
+                    <div class="time">11:00 → 12:30</div>
+                  </div>
+                  <div class="info grow">
+                    <div class="svc">Corte + Escova</div>
+                    <div class="with">com Ana Lima · 90 min</div>
+                    <div class="pr"><strong>R$ 120,00</strong> · pagar no local</div>
+                    <div class="actions">
+                      <button class="btn outline">Remarcar</button>
+                      <button class="btn ghost">Cancelar</button>
+                      <button class="btn ghost">Adicionar ao calendário</button>
+                    </div>
+                  </div>
+                  <span class="status conf" style="position:absolute;top:20px;right:20px;"><span class="dot"></span>Confirmado</span>
+                </div>
+
+                <div class="combo-hero">
+                  <div class="eyebrow"><svg style="width:12px;height:12px;"><use href="#i-package"/></svg>Combo ativo</div>
+                  <h4>Pacote 5 Unhas</h4>
+                  <div class="sub">Use em qualquer agendamento de esmaltação em gel.</div>
+                  <div class="progress-row">
+                    <div class="bar"><i style="width:60%;"></i></div>
+                    <div class="count">3/5</div>
+                  </div>
+                  <div class="expire">Válido até 31/12/2026</div>
+                </div>
+              </div>
+
+              <div class="section-head">
+                <h4>Histórico recente</h4>
+                <div class="chips-row">
+                  <span class="chip on">Todos</span>
+                  <span class="chip">Confirmados</span>
+                  <span class="chip">Concluídos</span>
+                </div>
+              </div>
+
+              <div class="card" style="padding:0;">
+                <table class="table">
+                  <thead><tr><th>Data</th><th>Serviço</th><th>Profissional</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td class="mono">24/04 · 11:00</td><td>Corte + Escova</td><td>Ana Lima</td><td class="mono">R$ 120,00</td><td><span class="status conf"><span class="dot"></span>Confirmado</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">05/04 · 14:00</td><td>Esmaltação em gel</td><td>Carla Reis</td><td class="mono">— (combo)</td><td><span class="status done"><span class="dot"></span>Concluído</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">22/03 · 10:00</td><td>Esmaltação em gel</td><td>Carla Reis</td><td class="mono">— (combo)</td><td><span class="status done"><span class="dot"></span>Concluído</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">08/03 · 16:00</td><td>Corte feminino</td><td>Ana Lima</td><td class="mono">R$ 80,00</td><td><span class="status done"><span class="dot"></span>Concluído</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">15/02 · 09:30</td><td>Limpeza de pele</td><td>Diego Melo</td><td class="mono">R$ 150,00</td><td><span class="status canc"><span class="dot"></span>Cancelado</span></td><td class="tr"><button class="btn ghost sm">—</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#17120f;border-color:#3a2d23;"></span>Tema escuro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome" style="background:#1f1814;border-color:#3a2d23;"><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="url" style="background:#261d18;border-color:#3a2d23;color:#8d7b6f;">dauth.app / minha-conta</div></div>
+          <div class="theme-dark screen" style="grid-template-columns: 240px 1fr;">
+            <aside class="sidebar">
+              <div class="brand-row"><div class="brand-mark">d</div><div class="brand-name">Dauth</div></div>
+              <div style="text-align:center;padding:12px 0 18px;border-bottom:1px solid var(--line);margin-bottom:12px;">
+                <div class="avatar ph-3 xl" style="margin:0 auto 8px;">JT</div>
+                <div style="font-family:var(--font-display);font-weight:500;font-size:15px;">Júlia Teixeira</div>
+                <div class="mono" style="font-size:11px;color:var(--ink-3);">cliente desde 2024</div>
+              </div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-cal"/></svg>Início</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-receipt"/></svg>Meus agendamentos</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-package"/></svg>Meus combos</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Perfil e senha</div>
+              <div class="spacer"></div>
+              <button class="btn primary" style="justify-content:center;"><svg style="width:14px;height:14px;"><use href="#i-plus"/></svg>Novo agendamento</button>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div><h3>Olá, Júlia</h3><div class="sub">Seu próximo atendimento é em 4 dias</div></div>
+                <div class="row"><button class="btn ghost"><svg style="width:14px;height:14px;"><use href="#i-bell"/></svg></button></div>
+              </div>
+              <div class="client-hero">
+                <div class="hero-appt">
+                  <div class="date-block">
+                    <div class="day">24</div>
+                    <div class="month">Abr · Sex</div>
+                    <div class="time">11:00 → 12:30</div>
+                  </div>
+                  <div class="info grow">
+                    <div class="svc">Corte + Escova</div>
+                    <div class="with">com Ana Lima · 90 min</div>
+                    <div class="pr"><strong>R$ 120,00</strong> · pagar no local</div>
+                    <div class="actions">
+                      <button class="btn outline">Remarcar</button>
+                      <button class="btn ghost">Cancelar</button>
+                      <button class="btn ghost">Adicionar ao calendário</button>
+                    </div>
+                  </div>
+                  <span class="status conf" style="position:absolute;top:20px;right:20px;"><span class="dot"></span>Confirmado</span>
+                </div>
+                <div class="combo-hero">
+                  <div class="eyebrow"><svg style="width:12px;height:12px;"><use href="#i-package"/></svg>Combo ativo</div>
+                  <h4>Pacote 5 Unhas</h4>
+                  <div class="sub">Use em qualquer agendamento de esmaltação em gel.</div>
+                  <div class="progress-row">
+                    <div class="bar"><i style="width:60%;"></i></div>
+                    <div class="count">3/5</div>
+                  </div>
+                  <div class="expire">Válido até 31/12/2026</div>
+                </div>
+              </div>
+              <div class="section-head">
+                <h4>Histórico recente</h4>
+                <div class="chips-row">
+                  <span class="chip on">Todos</span>
+                  <span class="chip">Confirmados</span>
+                  <span class="chip">Concluídos</span>
+                </div>
+              </div>
+              <div class="card" style="padding:0;">
+                <table class="table">
+                  <thead><tr><th>Data</th><th>Serviço</th><th>Profissional</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td class="mono">24/04 · 11:00</td><td>Corte + Escova</td><td>Ana Lima</td><td class="mono">R$ 120,00</td><td><span class="status conf"><span class="dot"></span>Confirmado</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">05/04 · 14:00</td><td>Esmaltação em gel</td><td>Carla Reis</td><td class="mono">— (combo)</td><td><span class="status done"><span class="dot"></span>Concluído</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">22/03 · 10:00</td><td>Esmaltação em gel</td><td>Carla Reis</td><td class="mono">— (combo)</td><td><span class="status done"><span class="dot"></span>Concluído</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">08/03 · 16:00</td><td>Corte feminino</td><td>Ana Lima</td><td class="mono">R$ 80,00</td><td><span class="status done"><span class="dot"></span>Concluído</span></td><td class="tr"><button class="btn ghost sm">Detalhes</button></td></tr>
+                    <tr><td class="mono">15/02 · 09:30</td><td>Limpeza de pele</td><td>Diego Melo</td><td class="mono">R$ 150,00</td><td><span class="status canc"><span class="dot"></span>Cancelado</span></td><td class="tr"><button class="btn ghost sm">—</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-strip">
+      <div class="nt">Avatar XL na sidebar reforça identidade pessoal — diferente do painel admin/profissional.</div>
+      <div class="nt">Hero "combo" usa gradiente brand-soft → gold-soft; única superfície colorida.</div>
+      <div class="nt">Histórico em tabela compacta; filtros em chips ao invés de tabs.</div>
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- 05 · CAIXA / COMANDAS                          -->
+  <!-- ============================================== -->
+  <section class="area" data-area="cash">
+    <div class="eyebrow-n">Admin · tela 05</div>
+    <h2>Caixa / Comandas</h2>
+    <p class="desc">Lista à esquerda, pagamento à direita. Seleção da comanda alimenta o drawer.</p>
+
+    <div class="compare-wrap">
+      <!-- LIGHT -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#fbf7f4;border-color:#e8dcc9;"></span>Tema claro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">admin.dauth.app / comandas</div></div>
+          <div class="theme-light screen">
+            <aside class="sidebar">
+              <div class="brand-row"><div class="brand-mark">d</div><div class="brand-name">Dauth</div></div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-cal"/></svg>Agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Serviços</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-package"/></svg>Pacotes</div>
+              <div class="group-label">Financeiro</div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-receipt"/></svg>Comandas</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-chart"/></svg>Transações</div>
+              <div class="spacer"></div>
+              <div class="footer"><div class="avatar ph-1 sm">MR</div><div class="who">Marina R.<small>Administradora</small></div></div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div><h3>Caixa de hoje</h3><div class="sub">Seg 20/04 · 5 em aberto · R$ 640 a receber</div></div>
+                <div class="row">
+                  <span class="chip">Em aberto · 5</span>
+                  <span class="chip brand">Pagas (hoje) · 9</span>
+                  <button class="btn outline">Fechar caixa</button>
+                </div>
+              </div>
+
+              <div class="cash-split">
+                <div class="tab-list">
+                  <div class="tab-list-head">
+                    <div class="t">Comandas</div>
+                    <span class="mono" style="font-size:11px;color:var(--ink-3);">mais recentes primeiro</span>
+                  </div>
+                  <div class="tab-row on">
+                    <div class="avatar ph-6 sm">MP</div>
+                    <div class="body"><div class="nm">Marina Pacheco</div><div class="meta">Corte · Ana Lima · 20/04 09:00</div></div>
+                    <div class="amt">R$ 80,00<small>80 bruto</small></div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-2 sm">PF</div>
+                    <div class="body"><div class="nm">Paula Ferreira</div><div class="meta">Escova · Ana Lima · 20/04 11:00</div></div>
+                    <div class="amt">R$ 60,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-5 sm">LM</div>
+                    <div class="body"><div class="nm">Lucas Mendes</div><div class="meta">Barba · Bruno Sá · 20/04 09:30</div></div>
+                    <div class="amt">R$ 45,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-3 sm">RV</div>
+                    <div class="body"><div class="nm">Renata Vasconcelos</div><div class="meta">Gel · Carla Reis · 20/04 10:00</div></div>
+                    <div class="amt">R$ 0,00<small>combo</small></div>
+                    <span class="status paid"><span class="dot"></span>Paga</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-4 sm">HD</div>
+                    <div class="body"><div class="nm">Helena Dias</div><div class="meta">Corte masc · Ana Lima · 19/04</div></div>
+                    <div class="amt">R$ 50,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-1 sm">RO</div>
+                    <div class="body"><div class="nm">Rafael Oliveira</div><div class="meta">Pigmentação · Bruno Sá · 19/04</div></div>
+                    <div class="amt">R$ 150,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-2 sm">SK</div>
+                    <div class="body"><div class="nm">Sofia Kauffmann</div><div class="meta">Coloração · Ana Lima · 19/04</div></div>
+                    <div class="amt">R$ 180,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                </div>
+
+                <div class="pay-drawer">
+                  <div class="head">
+                    <span class="eyebrow">Comanda selecionada · #CMD-00042</span>
+                    <h4 style="margin-top:6px;">Marina Pacheco</h4>
+                    <div class="m">Appointment · 20/04 · 09:00 · Ana Lima</div>
+                  </div>
+                  <div class="body">
+                    <div class="total-row"><span>Corte feminino</span><span class="mono">R$ 80,00</span></div>
+                    <div class="total-row" style="color:var(--ink-3);font-style:italic;"><span>+ adicionar extra</span><span class="mono">—</span></div>
+                    <div class="total-row total"><span>Total</span><span class="mono">R$ 80,00</span></div>
+
+                    <div style="margin-top:20px;">
+                      <div class="eyebrow" style="margin-bottom:10px;">Método de pagamento</div>
+                      <div class="pay-method-grid">
+                        <div class="pay-method sel"><svg><use href="#i-qr"/></svg>Pix</div>
+                        <div class="pay-method"><svg><use href="#i-cash"/></svg>Dinheiro</div>
+                        <div class="pay-method"><svg><use href="#i-card"/></svg>Débito</div>
+                        <div class="pay-method"><svg><use href="#i-card"/></svg>Crédito</div>
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <span class="lbl">Valor recebido</span>
+                      <div class="input mono" style="font-weight:500;color:var(--ink);">R$ 80,00</div>
+                    </div>
+
+                    <button class="btn primary" style="width:100%;justify-content:center;margin-top:8px;"><svg style="width:14px;height:14px;"><use href="#i-check"/></svg>Registrar pagamento</button>
+
+                    <div class="sep"></div>
+                    <div class="row" style="justify-content:space-between;">
+                      <div>
+                        <div class="eyebrow">Comissão · Ana Lima</div>
+                        <div class="mono" style="margin-top:4px;font-size:13px;">30% sobre R$ 80,00</div>
+                      </div>
+                      <div class="mono" style="font-size:16px;font-weight:500;">R$ 24,00</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#17120f;border-color:#3a2d23;"></span>Tema escuro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome" style="background:#1f1814;border-color:#3a2d23;"><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="url" style="background:#261d18;border-color:#3a2d23;color:#8d7b6f;">admin.dauth.app / comandas</div></div>
+          <div class="theme-dark screen">
+            <aside class="sidebar">
+              <div class="brand-row"><div class="brand-mark">d</div><div class="brand-name">Dauth</div></div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-cal"/></svg>Agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Serviços</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-package"/></svg>Pacotes</div>
+              <div class="group-label">Financeiro</div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-receipt"/></svg>Comandas</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-chart"/></svg>Transações</div>
+              <div class="spacer"></div>
+              <div class="footer"><div class="avatar ph-1 sm">MR</div><div class="who">Marina R.<small>Administradora</small></div></div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div><h3>Caixa de hoje</h3><div class="sub">Seg 20/04 · 5 em aberto · R$ 640 a receber</div></div>
+                <div class="row">
+                  <span class="chip">Em aberto · 5</span>
+                  <span class="chip brand">Pagas · 9</span>
+                  <button class="btn outline">Fechar caixa</button>
+                </div>
+              </div>
+              <div class="cash-split">
+                <div class="tab-list">
+                  <div class="tab-list-head"><div class="t">Comandas</div><span class="mono" style="font-size:11px;color:var(--ink-3);">mais recentes primeiro</span></div>
+                  <div class="tab-row on">
+                    <div class="avatar ph-6 sm">MP</div>
+                    <div class="body"><div class="nm">Marina Pacheco</div><div class="meta">Corte · Ana Lima · 20/04 09:00</div></div>
+                    <div class="amt">R$ 80,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-2 sm">PF</div>
+                    <div class="body"><div class="nm">Paula Ferreira</div><div class="meta">Escova · Ana Lima · 20/04 11:00</div></div>
+                    <div class="amt">R$ 60,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-5 sm">LM</div>
+                    <div class="body"><div class="nm">Lucas Mendes</div><div class="meta">Barba · Bruno Sá · 20/04 09:30</div></div>
+                    <div class="amt">R$ 45,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-3 sm">RV</div>
+                    <div class="body"><div class="nm">Renata Vasconcelos</div><div class="meta">Gel · Carla Reis · 20/04 10:00</div></div>
+                    <div class="amt">R$ 0,00<small>combo</small></div>
+                    <span class="status paid"><span class="dot"></span>Paga</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-4 sm">HD</div>
+                    <div class="body"><div class="nm">Helena Dias</div><div class="meta">Corte masc · Ana Lima · 19/04</div></div>
+                    <div class="amt">R$ 50,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-1 sm">RO</div>
+                    <div class="body"><div class="nm">Rafael Oliveira</div><div class="meta">Pigmentação · Bruno Sá · 19/04</div></div>
+                    <div class="amt">R$ 150,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                  <div class="tab-row">
+                    <div class="avatar ph-2 sm">SK</div>
+                    <div class="body"><div class="nm">Sofia Kauffmann</div><div class="meta">Coloração · Ana Lima · 19/04</div></div>
+                    <div class="amt">R$ 180,00</div>
+                    <span class="status open"><span class="dot"></span>Em aberto</span>
+                  </div>
+                </div>
+                <div class="pay-drawer">
+                  <div class="head">
+                    <span class="eyebrow">Comanda selecionada · #CMD-00042</span>
+                    <h4 style="margin-top:6px;">Marina Pacheco</h4>
+                    <div class="m">Appointment · 20/04 · 09:00 · Ana Lima</div>
+                  </div>
+                  <div class="body">
+                    <div class="total-row"><span>Corte feminino</span><span class="mono">R$ 80,00</span></div>
+                    <div class="total-row" style="color:var(--ink-3);font-style:italic;"><span>+ adicionar extra</span><span class="mono">—</span></div>
+                    <div class="total-row total"><span>Total</span><span class="mono">R$ 80,00</span></div>
+                    <div style="margin-top:20px;">
+                      <div class="eyebrow" style="margin-bottom:10px;">Método de pagamento</div>
+                      <div class="pay-method-grid">
+                        <div class="pay-method sel"><svg><use href="#i-qr"/></svg>Pix</div>
+                        <div class="pay-method"><svg><use href="#i-cash"/></svg>Dinheiro</div>
+                        <div class="pay-method"><svg><use href="#i-card"/></svg>Débito</div>
+                        <div class="pay-method"><svg><use href="#i-card"/></svg>Crédito</div>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <span class="lbl">Valor recebido</span>
+                      <div class="input mono" style="font-weight:500;color:var(--ink);">R$ 80,00</div>
+                    </div>
+                    <button class="btn primary" style="width:100%;justify-content:center;margin-top:8px;"><svg style="width:14px;height:14px;"><use href="#i-check"/></svg>Registrar pagamento</button>
+                    <div class="sep"></div>
+                    <div class="row" style="justify-content:space-between;">
+                      <div><div class="eyebrow">Comissão · Ana Lima</div><div class="mono" style="margin-top:4px;font-size:13px;">30% sobre R$ 80,00</div></div>
+                      <div class="mono" style="font-size:16px;font-weight:500;">R$ 24,00</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-strip">
+      <div class="nt">Linha selecionada pinta com brand-soft (claro) ou surface-3 (escuro) — sinaliza contexto no drawer.</div>
+      <div class="nt">Comanda de combo mostra R$ 0 e status "paga" automática — consistente com a regra do backend.</div>
+      <div class="nt">Pay-methods grandes (min 44px) facilitam uso em monitor touch na recepção.</div>
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- 06 · COMBOS                                    -->
+  <!-- ============================================== -->
+  <section class="area" data-area="combo">
+    <div class="eyebrow-n">Admin · tela 06</div>
+    <h2>Pacotes / Combos</h2>
+    <p class="desc">Catálogo em cards com composição visível, botão "Vender" abre modal de cliente.</p>
+
+    <div class="compare-wrap">
+      <!-- LIGHT -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#fbf7f4;border-color:#e8dcc9;"></span>Tema claro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="url">admin.dauth.app / pacotes</div></div>
+          <div class="theme-light screen">
+            <aside class="sidebar">
+              <div class="brand-row"><div class="brand-mark">d</div><div class="brand-name">Dauth</div></div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-cal"/></svg>Agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Serviços</div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-package"/></svg>Pacotes</div>
+              <div class="nav-item sub">Catálogo</div>
+              <div class="nav-item sub">Combos vendidos</div>
+              <div class="group-label">Financeiro</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-receipt"/></svg>Comandas</div>
+              <div class="spacer"></div>
+              <div class="footer"><div class="avatar ph-1 sm">MR</div><div class="who">Marina R.<small>Administradora</small></div></div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div><h3>Pacotes</h3><div class="sub">4 ativos no catálogo · 23 combos vendidos este mês</div></div>
+                <div class="row">
+                  <span class="chip">Ativos · 4</span>
+                  <button class="btn outline">Combos vendidos</button>
+                  <button class="btn primary"><svg style="width:14px;height:14px;"><use href="#i-plus"/></svg>Novo pacote</button>
+                </div>
+              </div>
+
+              <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
+                <div class="kpi"><div class="lbl">Vendidos este mês</div><div class="val">23</div><div class="delta up">+18% vs. março</div></div>
+                <div class="kpi"><div class="lbl">Receita recorrente</div><div class="val">R$ 3.880</div><div class="delta">média R$ 168/combo</div></div>
+                <div class="kpi"><div class="lbl">Sessões ativas</div><div class="val">84</div><div class="delta">em 42 clientes</div></div>
+              </div>
+
+              <div class="combo-grid">
+                <div class="combo-card">
+                  <div class="header">
+                    <div>
+                      <div class="id">#PKG-001</div>
+                      <h3>Pacote 5 Unhas</h3>
+                    </div>
+                    <div class="price">R$ 100</div>
+                  </div>
+                  <div class="items">
+                    <div class="ci"><span>Esmaltação em gel</span><span class="q">×5</span></div>
+                  </div>
+                  <div class="expire">Válido até 31/12/2026</div>
+                  <div class="footer">
+                    <button class="btn primary grow" style="justify-content:center;">Vender</button>
+                    <button class="btn ghost">Editar</button>
+                  </div>
+                </div>
+
+                <div class="combo-card">
+                  <div class="header">
+                    <div>
+                      <div class="id">#PKG-002</div>
+                      <h3>Combo Cabelo Mensal</h3>
+                    </div>
+                    <div class="price">R$ 240</div>
+                  </div>
+                  <div class="items">
+                    <div class="ci"><span>Corte feminino</span><span class="q">×2</span></div>
+                    <div class="ci"><span>Escova</span><span class="q">×4</span></div>
+                  </div>
+                  <div class="expire">Sem prazo · recorrente</div>
+                  <div class="footer">
+                    <button class="btn primary grow" style="justify-content:center;">Vender</button>
+                    <button class="btn ghost">Editar</button>
+                  </div>
+                </div>
+
+                <div class="combo-card">
+                  <div class="header">
+                    <div>
+                      <div class="id">#PKG-003</div>
+                      <h3>Combo Barba Fiel</h3>
+                    </div>
+                    <div class="price">R$ 180</div>
+                  </div>
+                  <div class="items">
+                    <div class="ci"><span>Barba completa</span><span class="q">×5</span></div>
+                  </div>
+                  <div class="expire">Válido até 30/06/2026</div>
+                  <div class="footer">
+                    <button class="btn primary grow" style="justify-content:center;">Vender</button>
+                    <button class="btn ghost">Editar</button>
+                  </div>
+                </div>
+
+                <div class="combo-card" style="grid-column:span 2;">
+                  <div class="header">
+                    <div>
+                      <div class="id">#PKG-004 · destaque</div>
+                      <h3>Combo Noiva</h3>
+                    </div>
+                    <div class="price">R$ 680</div>
+                  </div>
+                  <div class="items" style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
+                    <div class="ci"><span>Coloração</span><span class="q">×1</span></div>
+                    <div class="ci"><span>Corte + Escova</span><span class="q">×2</span></div>
+                    <div class="ci"><span>Limpeza de pele</span><span class="q">×1</span></div>
+                    <div class="ci"><span>Esmaltação em gel</span><span class="q">×2</span></div>
+                  </div>
+                  <div class="expire">Válido até 31/12/2026 · vendido 3× este mês</div>
+                  <div class="footer">
+                    <button class="btn primary grow" style="justify-content:center;">Vender</button>
+                    <button class="btn ghost">Editar</button>
+                  </div>
+                </div>
+
+                <div class="combo-card" style="background:transparent;border-style:dashed;color:var(--ink-3);justify-content:center;align-items:center;text-align:center;display:flex;flex-direction:column;gap:10px;min-height:200px;">
+                  <svg style="width:28px;height:28px;color:var(--ink-3);"><use href="#i-plus"/></svg>
+                  <div style="font-family:var(--font-display);font-size:15px;">Criar novo pacote</div>
+                  <div style="font-size:12px;">Defina serviços e quantidades</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK -->
+      <div>
+        <div class="compare-label"><span class="swatch" style="background:#17120f;border-color:#3a2d23;"></span>Tema escuro</div>
+        <div class="screen-frame">
+          <div class="browser-chrome" style="background:#1f1814;border-color:#3a2d23;"><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="dot" style="background:#4a382b;"></div><div class="url" style="background:#261d18;border-color:#3a2d23;color:#8d7b6f;">admin.dauth.app / pacotes</div></div>
+          <div class="theme-dark screen">
+            <aside class="sidebar">
+              <div class="brand-row"><div class="brand-mark">d</div><div class="brand-name">Dauth</div></div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-cal"/></svg>Agenda</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-users"/></svg>Clientes</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-scissors"/></svg>Serviços</div>
+              <div class="nav-item on"><svg class="nav-icon"><use href="#i-package"/></svg>Pacotes</div>
+              <div class="nav-item sub">Catálogo</div>
+              <div class="nav-item sub">Combos vendidos</div>
+              <div class="group-label">Financeiro</div>
+              <div class="nav-item"><svg class="nav-icon"><use href="#i-receipt"/></svg>Comandas</div>
+              <div class="spacer"></div>
+              <div class="footer"><div class="avatar ph-1 sm">MR</div><div class="who">Marina R.<small>Administradora</small></div></div>
+            </aside>
+            <div class="main">
+              <div class="topbar">
+                <div><h3>Pacotes</h3><div class="sub">4 ativos no catálogo · 23 combos vendidos este mês</div></div>
+                <div class="row">
+                  <span class="chip">Ativos · 4</span>
+                  <button class="btn outline">Combos vendidos</button>
+                  <button class="btn primary"><svg style="width:14px;height:14px;"><use href="#i-plus"/></svg>Novo pacote</button>
+                </div>
+              </div>
+              <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
+                <div class="kpi"><div class="lbl">Vendidos este mês</div><div class="val">23</div><div class="delta up">+18% vs. março</div></div>
+                <div class="kpi"><div class="lbl">Receita recorrente</div><div class="val">R$ 3.880</div><div class="delta">média R$ 168/combo</div></div>
+                <div class="kpi"><div class="lbl">Sessões ativas</div><div class="val">84</div><div class="delta">em 42 clientes</div></div>
+              </div>
+              <div class="combo-grid">
+                <div class="combo-card">
+                  <div class="header"><div><div class="id">#PKG-001</div><h3>Pacote 5 Unhas</h3></div><div class="price">R$ 100</div></div>
+                  <div class="items"><div class="ci"><span>Esmaltação em gel</span><span class="q">×5</span></div></div>
+                  <div class="expire">Válido até 31/12/2026</div>
+                  <div class="footer"><button class="btn primary grow" style="justify-content:center;">Vender</button><button class="btn ghost">Editar</button></div>
+                </div>
+                <div class="combo-card">
+                  <div class="header"><div><div class="id">#PKG-002</div><h3>Combo Cabelo Mensal</h3></div><div class="price">R$ 240</div></div>
+                  <div class="items">
+                    <div class="ci"><span>Corte feminino</span><span class="q">×2</span></div>
+                    <div class="ci"><span>Escova</span><span class="q">×4</span></div>
+                  </div>
+                  <div class="expire">Sem prazo · recorrente</div>
+                  <div class="footer"><button class="btn primary grow" style="justify-content:center;">Vender</button><button class="btn ghost">Editar</button></div>
+                </div>
+                <div class="combo-card">
+                  <div class="header"><div><div class="id">#PKG-003</div><h3>Combo Barba Fiel</h3></div><div class="price">R$ 180</div></div>
+                  <div class="items"><div class="ci"><span>Barba completa</span><span class="q">×5</span></div></div>
+                  <div class="expire">Válido até 30/06/2026</div>
+                  <div class="footer"><button class="btn primary grow" style="justify-content:center;">Vender</button><button class="btn ghost">Editar</button></div>
+                </div>
+                <div class="combo-card" style="grid-column:span 2;">
+                  <div class="header"><div><div class="id">#PKG-004 · destaque</div><h3>Combo Noiva</h3></div><div class="price">R$ 680</div></div>
+                  <div class="items" style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
+                    <div class="ci"><span>Coloração</span><span class="q">×1</span></div>
+                    <div class="ci"><span>Corte + Escova</span><span class="q">×2</span></div>
+                    <div class="ci"><span>Limpeza de pele</span><span class="q">×1</span></div>
+                    <div class="ci"><span>Esmaltação em gel</span><span class="q">×2</span></div>
+                  </div>
+                  <div class="expire">Válido até 31/12/2026 · vendido 3× este mês</div>
+                  <div class="footer"><button class="btn primary grow" style="justify-content:center;">Vender</button><button class="btn ghost">Editar</button></div>
+                </div>
+                <div class="combo-card" style="background:transparent;border-style:dashed;color:var(--ink-3);justify-content:center;align-items:center;text-align:center;display:flex;flex-direction:column;gap:10px;min-height:200px;">
+                  <svg style="width:28px;height:28px;color:var(--ink-3);"><use href="#i-plus"/></svg>
+                  <div style="font-family:var(--font-display);font-size:15px;">Criar novo pacote</div>
+                  <div style="font-size:12px;">Defina serviços e quantidades</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-strip">
+      <div class="nt">Card "destaque" ocupa 2 colunas para combos maiores — muda a ordem visual sem quebrar o grid.</div>
+      <div class="nt">Slot vazio "+ Criar" no fim do grid mantém affordance sempre visível.</div>
+      <div class="nt">KPIs em 3 colunas (não 4) pra respirar mais e manter visual boutique.</div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Tab switching
+  const tabs = document.querySelectorAll('.tabs .tab');
+  const areas = document.querySelectorAll('section.area');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const target = t.dataset.area;
+    areas.forEach(a => a.classList.toggle('active', a.dataset.area === target));
+    window.scrollTo({top: 0, behavior: 'smooth'});
+    try { localStorage.setItem('dauth_hifi_tab', target); } catch(e) {}
+  }));
+  try {
+    const saved = localStorage.getItem('dauth_hifi_tab');
+    if (saved) {
+      const t = document.querySelector(`.tabs .tab[data-area="${saved}"]`);
+      if (t) t.click();
+    }
+  } catch(e) {}
+
+  // Screen labels
+  areas.forEach((a, i) => {
+    const num = String(i + 1).padStart(2, '0');
+    a.setAttribute('data-screen-label', num + ' ' + a.dataset.area + ' (hi-fi)');
+  });
+</script>
+
+</body>
+</html>

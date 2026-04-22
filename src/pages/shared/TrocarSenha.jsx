@@ -1,0 +1,154 @@
+import { useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import AppLayout from '@/components/layout/AppLayout'
+import Sidebar from '@/components/layout/Sidebar'
+import Button from '@/components/ui/Button'
+import Icon from '@/components/ui/Icons'
+import { useToast } from '@/context/ToastContext'
+import useAuthStore from '@/store/authStore'
+import api from '@/lib/api'
+
+const navItemsByRole = {
+  Admin: [
+    { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
+    { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
+    { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
+    { to: '/admin/convidar-profissional', icon: 'plus', label: 'Convidar profissional' },
+    { to: '/admin/servicos', icon: 'scissors', label: 'Serviços' },
+    { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
+    { type: 'label', label: 'Financeiro' },
+    { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
+    { type: 'label', label: 'Conta' },
+    { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+  ],
+  Profissional: [
+    { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
+    { to: '/profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
+    { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
+    { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
+    { type: 'label', label: 'Conta' },
+    { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+  ],
+  Usuario: [
+    { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
+    { to: '/cliente/agendamentos', icon: 'receipt', label: 'Meus agendamentos' },
+    { to: '/cliente/combos', icon: 'package', label: 'Meus combos' },
+    { to: '/perfil', icon: 'users', label: 'Perfil e senha' },
+  ],
+}
+
+function PasswordInput({ label, value, onChange, error, placeholder }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="flex flex-col gap-1.5 mb-4">
+      {label && <label className="text-xs text-ink-3 font-medium">{label}</label>}
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          className={`h-[42px] w-full px-[14px] pr-10 rounded-md border border-line bg-surface text-ink-2
+            font-body text-md placeholder:text-ink-4
+            focus:outline-none focus:border-brand transition-colors
+            ${error ? 'border-danger' : ''}`}
+        />
+        <button
+          type="button"
+          onClick={() => setShow(v => !v)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink transition-colors cursor-pointer"
+        >
+          <Icon name={show ? 'eyeOff' : 'eye'} size={15} />
+        </button>
+      </div>
+      {error && <span className="text-xs text-danger">{error}</span>}
+    </div>
+  )
+}
+
+export default function TrocarSenha() {
+  const { user } = useAuthStore()
+  const { addToast } = useToast()
+  const navigate = useNavigate()
+
+  const [current, setCurrent] = useState('')
+  const [newPass, setNewPass] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  function validate() {
+    const e = {}
+    if (!current) e.current = 'Informe a senha atual'
+    if (!newPass || newPass.length < 6) e.newPass = 'Nova senha deve ter no mínimo 6 caracteres'
+    if (newPass !== confirm) e.confirm = 'As senhas não coincidem'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!validate()) return
+    setSaving(true)
+    try {
+      await api.patch('/users/perfil/me/password', { current_password: current, password: newPass })
+      addToast('Senha atualizada com sucesso')
+      navigate('/perfil')
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao trocar senha', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const navItems = navItemsByRole[user?.role] ?? []
+
+  const sidebar = (
+    <Sidebar navItems={navItems} footerUser={user?.name} footerRole={user?.role}>
+      {user?.role}
+    </Sidebar>
+  )
+
+  return (
+    <AppLayout sidebar={sidebar}>
+      <div className="max-w-md">
+        <div className="mb-7">
+          <h3 className="font-display font-medium text-[26px] tracking-tight">Trocar senha</h3>
+          <p className="text-[13px] text-ink-3 mt-1">Informe a senha atual e escolha uma nova</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-surface border border-line rounded-xl p-6">
+          <PasswordInput
+            label="Senha atual"
+            value={current}
+            onChange={e => setCurrent(e.target.value)}
+            error={errors.current}
+            placeholder="••••••••"
+          />
+          <PasswordInput
+            label="Nova senha"
+            value={newPass}
+            onChange={e => setNewPass(e.target.value)}
+            error={errors.newPass}
+            placeholder="Mínimo 6 caracteres"
+          />
+          <PasswordInput
+            label="Confirmar nova senha"
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+            error={errors.confirm}
+            placeholder="Repita a nova senha"
+          />
+          <div className="flex gap-2.5 mt-2">
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Salvando...' : 'Atualizar senha'}
+            </Button>
+            <NavLink to="/perfil">
+              <Button type="button" variant="ghost">Cancelar</Button>
+            </NavLink>
+          </div>
+        </form>
+      </div>
+    </AppLayout>
+  )
+}

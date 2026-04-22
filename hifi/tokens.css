@@ -1,0 +1,354 @@
+/* =========================================================
+   Dauth — Design tokens (hi-fi, tema boutique terroso)
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Tipografia */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  /* Escala */
+  --t-xs: 11px;
+  --t-sm: 12.5px;
+  --t-md: 14px;
+  --t-lg: 16px;
+  --t-xl: 20px;
+  --t-2xl: 28px;
+  --t-3xl: 40px;
+
+  /* Raio */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* Espaçamento */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 56px;
+
+  /* Sombra */
+  --shadow-xs: 0 1px 2px rgba(42,30,24,0.04);
+  --shadow-sm: 0 2px 6px rgba(42,30,24,0.06), 0 1px 2px rgba(42,30,24,0.04);
+  --shadow-md: 0 8px 24px rgba(42,30,24,0.08), 0 2px 6px rgba(42,30,24,0.04);
+}
+
+/* =========================================================
+   Tema claro (default)
+   ========================================================= */
+.theme-light {
+  --bg: #fbf7f4;
+  --surface: #ffffff;
+  --surface-2: #f5f0ea;
+  --surface-3: #efe7dd;
+
+  --ink: #2a1e18;
+  --ink-2: #5b463c;
+  --ink-3: #8d7b6f;
+  --ink-4: #b4a598;
+
+  --line: #e8dcc9;
+  --line-2: #f0e7d9;
+  --line-3: #d9c9b4;
+
+  --brand: #8b4a2b;          /* terracota */
+  --brand-ink: #ffffff;
+  --brand-soft: #f1e3d6;
+  --brand-soft-ink: #7a3f23;
+
+  --gold: #c9a57b;
+  --gold-soft: #f4e9d6;
+
+  --success: #4a6b3e;
+  --success-soft: #e3ebd9;
+  --warning: #9a6b1f;
+  --warning-soft: #f6ead1;
+  --danger: #8b3a32;
+  --danger-soft: #f3dcd8;
+}
+
+/* =========================================================
+   Tema escuro
+   ========================================================= */
+.theme-dark {
+  --bg: #17120f;
+  --surface: #1f1814;
+  --surface-2: #261d18;
+  --surface-3: #2e241d;
+
+  --ink: #f4ece1;
+  --ink-2: #c9b9a9;
+  --ink-3: #8d7b6f;
+  --ink-4: #5a4a3f;
+
+  --line: #3a2d23;
+  --line-2: #2e241d;
+  --line-3: #4a382b;
+
+  --brand: #c26a44;
+  --brand-ink: #17120f;
+  --brand-soft: #3a2418;
+  --brand-soft-ink: #e0a17d;
+
+  --gold: #d4b188;
+  --gold-soft: #33271b;
+
+  --success: #87a372;
+  --success-soft: #293322;
+  --warning: #d4a25a;
+  --warning-soft: #352717;
+  --danger: #c77a71;
+  --danger-soft: #3a221f;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.4);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+}
+
+/* =========================================================
+   Reset + base
+   ========================================================= */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  font-size: var(--t-md);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+.theme-scope {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+.mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.display { font-family: var(--font-display); letter-spacing: -0.01em; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-3);
+}
+
+/* =========================================================
+   Botões
+   ========================================================= */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  font-family: var(--font-body);
+  font-size: var(--t-md);
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, border 0.15s;
+}
+.btn.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.btn.primary:hover { background: #72391f; }
+.theme-dark .btn.primary:hover { background: #d68458; }
+.btn.ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn.outline { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.btn.outline:hover { border-color: var(--ink-3); }
+.btn.sm { padding: 6px 10px; font-size: var(--t-sm); border-radius: var(--r-sm); }
+
+/* =========================================================
+   Chips / pills
+   ========================================================= */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.chip.brand { background: var(--brand-soft); color: var(--brand-soft-ink); border-color: transparent; }
+.chip.success { background: var(--success-soft); color: var(--success); border-color: transparent; }
+.chip.warning { background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+.chip.danger { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.chip.ghost { background: transparent; }
+.chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* =========================================================
+   Cards / surfaces
+   ========================================================= */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-6);
+}
+.card.flat { box-shadow: none; }
+.card.elevated { box-shadow: var(--shadow-sm); }
+
+/* =========================================================
+   Inputs
+   ========================================================= */
+.input {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-body);
+  font-size: var(--t-md);
+  display: flex; align-items: center; gap: 8px;
+}
+.input.placeholder-text { color: var(--ink-4); }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--sp-4); }
+.field .lbl {
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* =========================================================
+   Avatar
+   ========================================================= */
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--t-sm);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background-size: cover; background-position: center;
+}
+.avatar.lg { width: 56px; height: 56px; font-size: var(--t-lg); }
+.avatar.xl { width: 72px; height: 72px; font-size: var(--t-xl); }
+.avatar.sm { width: 28px; height: 28px; font-size: var(--t-xs); }
+
+/* Placeholder "photo" usando gradientes */
+.avatar.ph-1 { background: linear-gradient(135deg,#c9a57b,#8b4a2b); color: #fff; }
+.avatar.ph-2 { background: linear-gradient(135deg,#b7a08a,#5c443a); color: #fff; }
+.avatar.ph-3 { background: linear-gradient(135deg,#e1c9a5,#a37548); color: #fff; }
+.avatar.ph-4 { background: linear-gradient(135deg,#a89681,#3d2b24); color: #fff; }
+.avatar.ph-5 { background: linear-gradient(135deg,#d9b48a,#7a4c31); color: #fff; }
+.avatar.ph-6 { background: linear-gradient(135deg,#c2a682,#56392e); color: #fff; }
+
+/* =========================================================
+   Utility
+   ========================================================= */
+.row { display: flex; align-items: center; gap: var(--sp-3); }
+.col { display: flex; flex-direction: column; gap: var(--sp-3); }
+.sep { height: 1px; background: var(--line); margin: var(--sp-4) 0; }
+.grow { flex: 1; }
+.tr { text-align: right; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* =========================================================
+   Frame comparativo (claro vs escuro)
+   ========================================================= */
+.compare-wrap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: start;
+}
+.compare-label {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #8d7b6f;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.compare-label .swatch {
+  width: 12px; height: 12px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);
+}
+.screen-frame {
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: var(--bg);
+  box-shadow: 0 20px 48px rgba(42,30,24,0.08);
+}
+.theme-dark.screen-frame { border-color: rgba(0,0,0,0.4); box-shadow: 0 20px 48px rgba(0,0,0,0.5); }
+
+/* Browser chrome */
+.browser-chrome {
+  height: 38px; background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; padding: 0 14px; gap: 8px;
+}
+.browser-chrome .dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--line-3);
+}
+.browser-chrome .url {
+  margin-left: 10px; flex: 1; height: 22px; background: var(--surface);
+  border-radius: var(--r-sm); border: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+  padding: 0 10px; display: flex; align-items: center;
+}
+
+/* Status chips (variantes semânticas) */
+.status {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: var(--t-xs); font-weight: 500;
+}
+.status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status.pend { background: var(--warning-soft); color: var(--warning); }
+.status.conf { background: var(--success-soft); color: var(--success); }
+.status.done { background: var(--surface-2); color: var(--ink-3); }
+.status.canc { background: var(--danger-soft); color: var(--danger); }
+.status.open { background: var(--warning-soft); color: var(--warning); }
+.status.paid { background: var(--success-soft); color: var(--success); }
+
+/* Table */
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: var(--t-sm);
+  border-bottom: 1px solid var(--line-2);
+}
+.table th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  font-weight: 500;
+  background: transparent;
+}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--surface-2); }
+
+/* Progress bar */
+.bar {
+  height: 6px; background: var(--surface-3);
+  border-radius: 999px; overflow: hidden; width: 100%;
+}
+.bar > i {
+  display: block; height: 100%; background: var(--brand);
+  border-radius: 999px;
+}
+
+/* Sparkline placeholder */
+.spark {
+  height: 32px; background: var(--surface-2);
+  border-radius: var(--r-sm);
+  background-image: linear-gradient(to right, transparent 0, transparent 100%);
+}

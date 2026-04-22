@@ -1,0 +1,482 @@
+import { useState, useEffect, useCallback } from 'react'
+import AppLayout from '@/components/layout/AppLayout'
+import Sidebar from '@/components/layout/Sidebar'
+import Button from '@/components/ui/Button'
+import Icon from '@/components/ui/Icons'
+import Modal from '@/components/ui/Modal'
+import { PageSpinner } from '@/components/ui/Spinner'
+import EmptyState from '@/components/ui/EmptyState'
+import { useToast } from '@/context/ToastContext'
+import useAuthStore from '@/store/authStore'
+import api from '@/lib/api'
+
+const navItems = [
+  { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
+  { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
+  { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
+  { to: '/admin/convidar-profissional', icon: 'plus', label: 'Convidar profissional' },
+  { to: '/admin/servicos', icon: 'scissors', label: 'Serviços' },
+  { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
+  { type: 'label', label: 'Financeiro' },
+  { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
+  { type: 'label', label: 'Conta' },
+  { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+]
+
+function formatDuration(d) {
+  const [h, m] = d.split(':').map(Number)
+  if (h > 0 && m > 0) return `${h}h ${m}min`
+  if (h > 0) return `${h}h`
+  return `${m} min`
+}
+
+function formatPrice(p) {
+  if (!p && p !== 0) return '—'
+  return `R$ ${Number(p).toFixed(2).replace('.', ',')}`
+}
+
+const EMPTY_SERVICE = { Name: '', Duration: '01:00', Commission: '', Price: '', Category: '' }
+const EMPTY_CATEGORY = { Name: '' }
+
+export default function AdminServicos() {
+  const { user } = useAuthStore()
+  const { addToast } = useToast()
+
+  const [tab, setTab] = useState('servicos') // 'servicos' | 'categorias'
+
+  // ── Serviços
+  const [services, setServices] = useState([])
+  const [loadingServices, setLoadingServices] = useState(true)
+  const [categories, setCategories] = useState([])
+
+  // ── Categorias
+  const [loadingCats, setLoadingCats] = useState(true)
+
+  // ── Formulário serviço
+  const [svcForm, setSvcForm] = useState(EMPTY_SERVICE)
+  const [svcDrawer, setSvcDrawer] = useState(false)   // false | 'create' | uuid (edit)
+  const [savingSvc, setSavingSvc] = useState(false)
+  const [deleteSvc, setDeleteSvc] = useState(null)    // { UUID, Name }
+  const [deletingSvc, setDeletingSvc] = useState(false)
+
+  // ── Formulário categoria
+  const [catForm, setCatForm] = useState(EMPTY_CATEGORY)
+  const [catDrawer, setCatDrawer] = useState(false)   // false | 'create' | uuid (edit)
+  const [savingCat, setSavingCat] = useState(false)
+  const [deleteCat, setDeleteCat] = useState(null)    // { UUID, Name }
+  const [deletingCat, setDeletingCat] = useState(false)
+
+  const loadServices = useCallback(async () => {
+    setLoadingServices(true)
+    try {
+      const { data } = await api.get('/service')
+      setServices(data.data ?? [])
+    } catch {
+      setServices([])
+    } finally {
+      setLoadingServices(false)
+    }
+  }, [])
+
+  const loadCategories = useCallback(async () => {
+    setLoadingCats(true)
+    try {
+      const { data } = await api.get('/category')
+      setCategories(data.data ?? [])
+    } catch {
+      setCategories([])
+    } finally {
+      setLoadingCats(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadServices()
+    loadCategories()
+  }, [])
+
+  // ─── Serviço — handlers ───────────────────────────────────────────────────
+
+  function openCreateSvc() {
+    setSvcForm(EMPTY_SERVICE)
+    setSvcDrawer('create')
+  }
+
+  function openEditSvc(svc) {
+    setSvcForm({
+      Name: svc.Name,
+      Duration: svc.Duration.slice(0, 5), // "01:00:00" → "01:00"
+      Commission: svc.Commission,
+      Price: svc.Price,
+      Category: categories.find((c) => c.Name === svc.Category)?.UUID ?? '',
+    })
+    setSvcDrawer(svc.UUID)
+  }
+
+  async function handleSaveSvc(e) {
+    e.preventDefault()
+    if (!svcForm.Category) { addToast('Selecione uma categoria', 'warning'); return }
+    setSavingSvc(true)
+    const duration = svcForm.Duration.length === 5 ? `${svcForm.Duration}:00` : svcForm.Duration
+    const body = {
+      Name: svcForm.Name,
+      Duration: duration,
+      Commission: Number(svcForm.Commission),
+      Price: Number(svcForm.Price),
+      Category: svcForm.Category,
+    }
+    try {
+      if (svcDrawer === 'create') {
+        await api.post('/service', body)
+        addToast('Serviço criado', 'success')
+      } else {
+        await api.patch(`/service/${svcDrawer}`, body)
+        addToast('Serviço atualizado', 'success')
+      }
+      setSvcDrawer(false)
+      loadServices()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao salvar serviço', 'error')
+    } finally {
+      setSavingSvc(false)
+    }
+  }
+
+  async function handleDeleteSvc() {
+    if (!deleteSvc) return
+    setDeletingSvc(true)
+    try {
+      await api.delete(`/service/${deleteSvc.UUID}`)
+      addToast('Serviço excluído', 'success')
+      setDeleteSvc(null)
+      loadServices()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao excluir serviço', 'error')
+    } finally {
+      setDeletingSvc(false)
+    }
+  }
+
+  // ─── Categoria — handlers ─────────────────────────────────────────────────
+
+  function openCreateCat() {
+    setCatForm(EMPTY_CATEGORY)
+    setCatDrawer('create')
+  }
+
+  function openEditCat(cat) {
+    setCatForm({ Name: cat.Name })
+    setCatDrawer(cat.UUID)
+  }
+
+  async function handleSaveCat(e) {
+    e.preventDefault()
+    setSavingCat(true)
+    try {
+      if (catDrawer === 'create') {
+        await api.post('/category', catForm)
+        addToast('Categoria criada', 'success')
+      } else {
+        await api.patch(`/category/${catDrawer}`, catForm)
+        addToast('Categoria atualizada', 'success')
+      }
+      setCatDrawer(false)
+      loadCategories()
+      loadServices()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao salvar categoria', 'error')
+    } finally {
+      setSavingCat(false)
+    }
+  }
+
+  async function handleDeleteCat() {
+    if (!deleteCat) return
+    setDeletingCat(true)
+    try {
+      await api.delete(`/category/${deleteCat.UUID}`)
+      addToast('Categoria excluída', 'success')
+      setDeleteCat(null)
+      loadCategories()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao excluir categoria', 'error')
+    } finally {
+      setDeletingCat(false)
+    }
+  }
+
+  const sidebar = (
+    <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
+  )
+
+  return (
+    <AppLayout sidebar={sidebar}>
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h3 className="font-display font-medium text-[26px] tracking-tight">Serviços</h3>
+          <p className="text-[13px] text-ink-3 mt-1">Gerencie os serviços e categorias do salão</p>
+        </div>
+        <Button size="sm" onClick={tab === 'servicos' ? openCreateSvc : openCreateCat}>
+          <Icon name="plus" size={14} />
+          {tab === 'servicos' ? 'Novo serviço' : 'Nova categoria'}
+        </Button>
+      </div>
+
+      {/* Abas */}
+      <div className="flex gap-1 mb-5 p-1 bg-surface-2 border border-line rounded-lg w-fit">
+        {[['servicos', 'scissors', 'Serviços'], ['categorias', 'tag', 'Categorias']].map(([key, icon, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-[13px] font-medium transition-colors cursor-pointer
+              ${tab === key ? 'bg-surface border border-line shadow-sm text-ink' : 'text-ink-3 hover:text-ink-2'}`}
+          >
+            <Icon name={icon} size={14} />{label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── TAB SERVIÇOS ─────────────────────────────────────────────── */}
+      {tab === 'servicos' && (
+        loadingServices ? <PageSpinner /> : services.length === 0 ? (
+          <EmptyState icon="scissors" title="Nenhum serviço" description="Crie o primeiro serviço do salão." action={openCreateSvc} actionLabel="Novo serviço" />
+        ) : (
+          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  {['Serviço', 'Categoria', 'Duração', 'Preço', 'Comissão', ''].map((h) => (
+                    <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {services.map((svc) => (
+                  <tr key={svc.UUID} className="hover:bg-surface-2 transition-colors">
+                    <td className="px-3.5 py-3 text-[13px] font-medium border-b border-line-2">{svc.Name}</td>
+                    <td className="px-3.5 py-3 border-b border-line-2">
+                      <span className="font-mono text-[10.5px] uppercase tracking-widest text-brand bg-brand-soft px-2 py-0.5 rounded">
+                        {svc.Category}
+                      </span>
+                    </td>
+                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
+                      {formatDuration(svc.Duration)}
+                    </td>
+                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
+                      {formatPrice(svc.Price)}
+                    </td>
+                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
+                      {svc.Commission}%
+                    </td>
+                    <td className="px-3.5 py-3 text-right border-b border-line-2">
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="sm" onClick={() => openEditSvc(svc)}>
+                          <Icon name="edit" size={13} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteSvc(svc)}>
+                          <Icon name="trash" size={13} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {/* ── TAB CATEGORIAS ───────────────────────────────────────────── */}
+      {tab === 'categorias' && (
+        loadingCats ? <PageSpinner /> : categories.length === 0 ? (
+          <EmptyState icon="tag" title="Nenhuma categoria" description="Crie a primeira categoria." action={openCreateCat} actionLabel="Nova categoria" />
+        ) : (
+          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  {['Categoria', ''].map((h) => (
+                    <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map((cat) => (
+                  <tr key={cat.UUID} className="hover:bg-surface-2 transition-colors">
+                    <td className="px-3.5 py-3 text-[13px] font-medium border-b border-line-2">{cat.Name}</td>
+                    <td className="px-3.5 py-3 text-right border-b border-line-2">
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="sm" onClick={() => openEditCat(cat)}>
+                          <Icon name="edit" size={13} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteCat(cat)}>
+                          <Icon name="trash" size={13} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {/* ── DRAWER — Serviço ─────────────────────────────────────────── */}
+      {svcDrawer && (
+        <div className="fixed inset-0 z-40 flex">
+          <div className="flex-1 bg-ink/30" onClick={() => setSvcDrawer(false)} />
+          <div className="w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="font-display font-medium text-[20px] tracking-tight">
+                {svcDrawer === 'create' ? 'Novo serviço' : 'Editar serviço'}
+              </h4>
+              <button onClick={() => setSvcDrawer(false)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveSvc} className="flex flex-col gap-4 flex-1">
+              <Field label="Nome do serviço">
+                <input
+                  required
+                  value={svcForm.Name}
+                  onChange={(e) => setSvcForm((f) => ({ ...f, Name: e.target.value }))}
+                  placeholder="Ex: Corte feminino"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Categoria">
+                <select
+                  required
+                  value={svcForm.Category}
+                  onChange={(e) => setSvcForm((f) => ({ ...f, Category: e.target.value }))}
+                  className={inputCls}
+                >
+                  <option value="">Selecione...</option>
+                  {categories.map((c) => (
+                    <option key={c.UUID} value={c.UUID}>{c.Name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Duração (HH:MM)">
+                <input
+                  required
+                  type="time"
+                  value={svcForm.Duration}
+                  onChange={(e) => setSvcForm((f) => ({ ...f, Duration: e.target.value }))}
+                  className={inputCls}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Preço (R$)">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={svcForm.Price}
+                    onChange={(e) => setSvcForm((f) => ({ ...f, Price: e.target.value }))}
+                    placeholder="0,00"
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Comissão (%)">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={svcForm.Commission}
+                    onChange={(e) => setSvcForm((f) => ({ ...f, Commission: e.target.value }))}
+                    placeholder="0"
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+              <div className="flex gap-2 mt-auto pt-4">
+                <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setSvcDrawer(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingSvc}>
+                  {savingSvc ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── DRAWER — Categoria ───────────────────────────────────────── */}
+      {catDrawer && (
+        <div className="fixed inset-0 z-40 flex">
+          <div className="flex-1 bg-ink/30" onClick={() => setCatDrawer(false)} />
+          <div className="w-[360px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="font-display font-medium text-[20px] tracking-tight">
+                {catDrawer === 'create' ? 'Nova categoria' : 'Editar categoria'}
+              </h4>
+              <button onClick={() => setCatDrawer(false)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveCat} className="flex flex-col gap-4 flex-1">
+              <Field label="Nome da categoria">
+                <input
+                  required
+                  value={catForm.Name}
+                  onChange={(e) => setCatForm({ Name: e.target.value })}
+                  placeholder="Ex: Cabelo"
+                  className={inputCls}
+                />
+              </Field>
+              <div className="flex gap-2 mt-auto pt-4">
+                <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setCatDrawer(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingCat}>
+                  {savingCat ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAIS DE CONFIRMAÇÃO ────────────────────────────────────── */}
+      <Modal
+        isOpen={!!deleteSvc}
+        onClose={() => setDeleteSvc(null)}
+        onConfirm={handleDeleteSvc}
+        title="Excluir serviço"
+        message={`"${deleteSvc?.Name}" será removido permanentemente.`}
+        confirmLabel="Excluir"
+        loading={deletingSvc}
+      />
+      <Modal
+        isOpen={!!deleteCat}
+        onClose={() => setDeleteCat(null)}
+        onConfirm={handleDeleteCat}
+        title="Excluir categoria"
+        message={`"${deleteCat?.Name}" será removida permanentemente.`}
+        confirmLabel="Excluir"
+        loading={deletingCat}
+      />
+    </AppLayout>
+  )
+}
+
+const inputCls = `h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md
+  placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors w-full`
+
+function Field({ label, children }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[11px] text-ink-3 font-medium uppercase tracking-wider">{label}</label>
+      {children}
+    </div>
+  )
+}
