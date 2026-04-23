@@ -332,6 +332,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - `Acquired_at` pode ser `null` quando o pagamento ainda não foi confirmado — usar `Created_at` como fallback para exibição
 - Sessões restantes = `Total_quantity - Used_quantity` (calculado no frontend)
 - Permissão: `Usuario` (próprios combos), `Admin`, `Profissional`
+- **Ownership enforçado no servidor:** para `Usuario`, a API ignora o `:clientId` da URL e usa o ID do token — passar `user.id` é a convenção correta por consistência
 
 ---
 
@@ -419,6 +420,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - Páginas compartilhadas entre roles ficam em `src/pages/shared/` e detectam o role via `useAuthStore`
 - **API usa PascalCase** tanto na leitura quanto na escrita — sempre verificar o shape real antes de integrar
 - Exceção confirmada: `PATCH /users/:id` aceita `{ active: bool }` lowercase. **Todos os demais endpoints** exigem PascalCase no body — sempre verificar o schema Joi antes de integrar.
+- **Ownership server-side para `Usuario`:** `GET /appointment/client/:id`, `GET /package/client/:id`, `GET /tab`, `GET /transaction` ignoram o parâmetro e retornam apenas dados do próprio usuário autenticado. `POST /appointment` com `Client` diferente do token retorna 403. O frontend não precisa filtrar no lado cliente — passar `user.id` na URL por convenção.
 - `POST /transaction` sempre exige `Payment_date: new Date().toISOString()`. Tabs com `Value === 0` (uso de combo) não geram transação — só atualizar status da comanda.
 - Schemas PascalCase confirmados: `POST /package` → `Name, Price, Available_until` · `POST /package/:id/items` → `Service_id, Quantity` · `POST /package/:id/sell` → `Client_id`
 - Exceções lowercase confirmadas: `PATCH /users/:id` → `{ active }` · `POST /working-hours` → `{ professional_id, weekday, start_time, end_time }` · `PATCH /working-hours/:id` → `{ start_time, end_time }` · `POST /service/:id/professionals` → `{ professional_id }`

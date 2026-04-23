@@ -23,6 +23,14 @@ function formatPrice(price) {
   return `R$ ${price.toFixed(2).replace('.', ',')}`
 }
 
+function formatPhone(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 2) return digits.length ? `(${digits}` : ''
+  if (digits.length <= 3) return `(${digits.slice(0,2)}) ${digits[2]}`
+  if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3)}`
+  return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3,7)}-${digits.slice(7)}`
+}
+
 function buildCalendar(year, month) {
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -573,7 +581,7 @@ function maskPhone(v) {
   if (d.length <= 2) return d.length ? `(${d}` : ''
   if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`
   if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
-  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
+  return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
 }
 
 function AuthField({ label, type, placeholder, value, onChange }) {
