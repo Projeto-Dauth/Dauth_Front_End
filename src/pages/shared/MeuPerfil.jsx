@@ -148,7 +148,35 @@ export default function MeuPerfil() {
   )
 
   if (loading) {
-    return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
+    return (
+      <AppLayout sidebar={sidebar}>
+        <div className="max-w-lg">
+          <div className="flex justify-between items-start mb-7">
+            <div className="flex flex-col gap-2">
+              <div className="h-7 w-32 bg-surface-2 rounded-lg animate-pulse" />
+              <div className="h-4 w-24 bg-surface-2 rounded animate-pulse" />
+            </div>
+            <div className="h-8 w-20 bg-surface-2 rounded-lg animate-pulse" />
+          </div>
+          <div className="flex items-center gap-4 mb-5 p-5 bg-surface border border-line rounded-xl">
+            <div className="w-12 h-12 rounded-full bg-surface-2 animate-pulse shrink-0" />
+            <div className="flex flex-col gap-2">
+              <div className="h-4 w-36 bg-surface-2 rounded animate-pulse" />
+              <div className="h-3.5 w-44 bg-surface-2 rounded animate-pulse" />
+              <div className="h-3 w-16 bg-surface-2 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="bg-surface border border-line rounded-xl px-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 py-3.5 border-b border-line-2 last:border-0">
+                <div className="w-40 h-3.5 bg-surface-2 rounded animate-pulse shrink-0" />
+                <div className="h-3.5 bg-surface-2 rounded animate-pulse" style={{ width: `${[120, 160, 100, 90][i]}px` }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </AppLayout>
+    )
   }
 
   if (loadError) {

@@ -15,6 +15,7 @@ async function bootstrap() {
       // /users/perfil/me retorna { UUID, Name, Email, Role, Phone, Birthday, active }
       useAuthStore.getState().restoreSession({
         id: data.UUID,
+        publicId: localStorage.getItem('public_id'),
         email: data.Email,
         name: data.Name,
         role: data.Role,

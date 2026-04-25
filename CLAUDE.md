@@ -176,7 +176,8 @@ import EmptyState from '@/components/ui/EmptyState'
 { access_token, refresh_token, user: { id, email, role } }
 // IMPORTANTE: o `id` do payload pode divergir do UUID do banco.
 // Após o login, sempre buscar GET /users/perfil/me e sobrescrever o store:
-login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, access_token, refresh_token)
+login({ id: perfil.UUID, publicId: res.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, access_token, refresh_token)
+// publicId = res.user.id = Supabase Auth UUID → obrigatório para POST /appointment { Client }
 // Redireciona por role (usar perfil.Role, não res.user.role):
 Admin → /admin | Profissional → /profissional | Usuario → /cliente
 ```
@@ -210,7 +211,7 @@ Admin → /admin | Profissional → /profissional | Usuario → /cliente
 ```js
 // No bootstrap, se access_token existe no localStorage:
 GET /users/perfil/me → { UUID, Name, Email, Role, Phone, Birthday, active }
-// Mapeia para: restoreSession({ id: UUID, email: Email, name: Name, role: Role })
+// Mapeia para: restoreSession({ id: UUID, publicId: localStorage.get('public_id'), email: Email, name: Name, role: Role })
 ```
 
 ### Erros da API
@@ -218,8 +219,11 @@ A API retorna sempre `{ error: "mensagem" }` — usar `err.response?.data?.error
 
 ### authStore shape
 ```js
-{ user: { id, email, name, role }, isAuthenticated: boolean }
+{ user: { id, email, name, role, publicId }, isAuthenticated: boolean }
 ```
+- `id` → `perfil.UUID` (UUID da tabela `Users` — usado em URLs como `/appointment/client/:id`)
+- `publicId` → `data.user.id` da resposta de login (UUID do Supabase Auth — usado no body de `POST /appointment` como `Client`, pois o backend compara com `req.user.publicId` que vem do JWT)
+- Ambos são persistidos no localStorage: `access_token`, `refresh_token`, `public_id`
 
 ---
 
@@ -249,6 +253,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 { "Client": "uuid", "Professional": "uuid", "Service": "uuid", "Date": "YYYY-MM-DD", "Start_time": "HH:MM", "End_time": "HH:MM" }
 ```
 - Todos os campos **PascalCase** (incluindo `Start_time` e `End_time` com underscore)
+- `Client` deve ser o **`publicId`** do usuário (`user.publicId` no store), não o `user.id` — o backend compara com o Supabase Auth UUID via `req.user.publicId`
 
 ### GET /public/services
 ```json
@@ -370,6 +375,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - **Base URL:** `import.meta.env.VITE_API_URL` → `.env`: `VITE_API_URL=http://localhost:3000/api/v1`
 - **Auth:** Bearer token injetado automaticamente pelo interceptor de `api.js`
 - **Refresh:** 401 → tenta `POST /auth/refresh` → repete requisição → se falhar, redireciona `/login`
+- **Atenção:** o interceptor de 401 **ignora endpoints `/auth/*`** — sem isso, um login com credencial errada (que retorna 401) disparava o redirect para `/login` antes de exibir o erro
 - **Shapes completos:** ver `API-Documentation.md`
 
 ---

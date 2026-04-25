@@ -33,9 +33,8 @@ export default function RegisterPage() {
         email: data.email,
         password: data.password,
       })
-      login({ id: loginRes.user.id, email: loginRes.user.email, role: loginRes.user.role }, loginRes.access_token, loginRes.refresh_token)
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, loginRes.access_token, loginRes.refresh_token)
+      login({ id: perfil.UUID, publicId: loginRes.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, loginRes.access_token, loginRes.refresh_token)
       navigate('/cliente', { replace: true })
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao criar conta. Tente novamente.')

@@ -9,7 +9,7 @@ import api from '@/lib/api'
 
 const STEPS = ['Serviço', 'Profissional', 'Data e hora', 'Seus dados', 'Confirmar']
 const DOWS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
-const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 function formatDuration(duration) {
   const [h, m] = duration.split(':').map(Number)
@@ -26,9 +26,9 @@ function formatPrice(price) {
 function formatPhone(value) {
   const digits = value.replace(/\D/g, '').slice(0, 11)
   if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-  if (digits.length <= 3) return `(${digits.slice(0,2)}) ${digits[2]}`
-  if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3)}`
-  return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3,7)}-${digits.slice(7)}`
+  if (digits.length <= 3) return `(${digits.slice(0, 2)}) ${digits[2]}`
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits[2]} ${digits.slice(3)}`
+  return `(${digits.slice(0, 2)}) ${digits[2]} ${digits.slice(3, 7)}-${digits.slice(7)}`
 }
 
 function buildCalendar(year, month) {
@@ -171,9 +171,8 @@ export default function AgendarPage() {
     setAuthLoading(true)
     try {
       const { data } = await api.post('/auth/login', loginData)
-      login({ id: data.user.id, email: data.user.email, role: data.user.role }, data.access_token, data.refresh_token)
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, data.access_token, data.refresh_token)
+      login({ id: perfil.UUID, publicId: data.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, data.access_token, data.refresh_token)
       setStep(4)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao fazer login', 'error')
@@ -188,9 +187,8 @@ export default function AgendarPage() {
     try {
       await api.post('/auth/register', registerData)
       const { data } = await api.post('/auth/login', { email: registerData.email, password: registerData.password })
-      login({ id: data.user.id, email: data.user.email, role: data.user.role }, data.access_token, data.refresh_token)
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, data.access_token, data.refresh_token)
+      login({ id: perfil.UUID, publicId: data.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, data.access_token, data.refresh_token)
       setStep(4)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao criar conta', 'error')
@@ -203,9 +201,10 @@ export default function AgendarPage() {
     if (!user) return
     setConfirming(true)
     const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+    const clientId = user.publicId || localStorage.getItem('public_id') || user.id
     try {
       await api.post('/appointment', {
-        Client: user.id,
+        Client: clientId,
         Professional: selectedProf.professional_id,
         Service: selectedServiceId,
         Date: dateStr,
@@ -255,7 +254,7 @@ export default function AgendarPage() {
                 className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-mono text-[11.5px] font-semibold border flex-shrink-0
                   ${i === step ? 'bg-gold text-ink border-transparent'
                     : i < step ? 'bg-success-soft text-success border-transparent'
-                    : 'bg-surface-2 text-ink-3 border-line'}`}
+                      : 'bg-surface-2 text-ink-3 border-line'}`}
               >
                 {i < step ? <Icon name="check" size={11} /> : i + 1}
               </span>
@@ -379,7 +378,7 @@ export default function AgendarPage() {
                         className={`aspect-square flex items-center justify-center text-[13px] rounded-lg transition-colors
                           ${!d ? '' : selectedDay === d ? 'bg-ink text-bg font-semibold'
                             : past ? 'text-ink-4 cursor-not-allowed'
-                            : 'text-ink hover:bg-surface-2 cursor-pointer'}`}
+                              : 'text-ink hover:bg-surface-2 cursor-pointer'}`}
                       >
                         {d}
                       </button>
@@ -392,7 +391,7 @@ export default function AgendarPage() {
               <div>
                 <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-3">
                   {selectedDay
-                    ? `Horários disponíveis · ${String(selectedDay).padStart(2,'0')}/${String(calMonth+1).padStart(2,'0')}`
+                    ? `Horários disponíveis · ${String(selectedDay).padStart(2, '0')}/${String(calMonth + 1).padStart(2, '0')}`
                     : 'Selecione uma data'}
                 </div>
                 {!selectedDay ? (
@@ -579,9 +578,9 @@ export default function AgendarPage() {
 function maskPhone(v) {
   const d = v.replace(/\D/g, '').slice(0, 11)
   if (d.length <= 2) return d.length ? `(${d}` : ''
-  if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`
-  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
-  return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`
 }
 
 function AuthField({ label, type, placeholder, value, onChange }) {

@@ -31,9 +31,8 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
       })
-      login({ id: res.user.id, email: res.user.email, role: res.user.role }, res.access_token, res.refresh_token)
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, res.access_token, res.refresh_token)
+      login({ id: perfil.UUID, publicId: res.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, res.access_token, res.refresh_token)
       navigate(ROLE_REDIRECT[perfil.Role] ?? '/', { replace: true })
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao entrar. Tente novamente.')
