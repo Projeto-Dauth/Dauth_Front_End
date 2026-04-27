@@ -24,6 +24,7 @@ const navItems = [
 ]
 
 const EMPTY_PKG = { Name: '', Price: '', Available_until: '' }
+const EMPTY_DRAFT_ITEM = { service_id: '', quantity: 1 }
 
 function formatCurrency(v) {
   return `R$ ${Number(v).toFixed(2).replace('.', ',')}`
@@ -47,6 +48,8 @@ export default function AdminCombos() {
   // Drawer pacote
   const [pkgDrawer, setPkgDrawer] = useState(false)  // false | 'create' | uuid
   const [pkgForm, setPkgForm] = useState(EMPTY_PKG)
+  const [draftItems, setDraftItems] = useState([])   // serviços adicionados antes de salvar
+  const [draftItem, setDraftItem] = useState(EMPTY_DRAFT_ITEM)
   const [savingPkg, setSavingPkg] = useState(false)
   const [deletePkg, setDeletePkg] = useState(null)
   const [deletingPkg, setDeletingPkg] = useState(false)
@@ -92,7 +95,20 @@ export default function AdminCombos() {
 
   function openCreate() {
     setPkgForm(EMPTY_PKG)
+    setDraftItems([])
+    setDraftItem(EMPTY_DRAFT_ITEM)
     setPkgDrawer('create')
+  }
+
+  function addDraftItem() {
+    if (!draftItem.service_id) { addToast('Selecione um serviço', 'warning'); return }
+    const svc = services.find((s) => s.UUID === draftItem.service_id)
+    setDraftItems((prev) => [...prev, { service_id: draftItem.service_id, name: svc?.Name ?? '—', quantity: Number(draftItem.quantity) }])
+    setDraftItem(EMPTY_DRAFT_ITEM)
+  }
+
+  function removeDraftItem(idx) {
+    setDraftItems((prev) => prev.filter((_, i) => i !== idx))
   }
 
   function openEdit(pkg) {
@@ -114,7 +130,15 @@ export default function AdminCombos() {
     }
     try {
       if (pkgDrawer === 'create') {
-        await api.post('/package', body)
+        const { data: created } = await api.post('/package', body)
+        const newId = created.data?.UUID ?? created.UUID
+        if (draftItems.length > 0) {
+          await Promise.all(
+            draftItems.map((item) =>
+              api.post(`/package/${newId}/items`, { Service_id: item.service_id, Quantity: item.quantity })
+            )
+          )
+        }
         addToast('Pacote criado', 'success')
       } else {
         await api.patch(`/package/${pkgDrawer}`, body)
@@ -304,6 +328,49 @@ export default function AdminCombos() {
                   onChange={(e) => setPkgForm((f) => ({ ...f, Available_until: e.target.value }))}
                   className={inputCls} />
               </DrawerField>
+
+              {pkgDrawer === 'create' && (
+                <div className="border-t border-line pt-4 flex flex-col gap-3">
+                  <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Serviços (opcional)</div>
+
+                  {draftItems.length > 0 && (
+                    <div className="flex flex-col divide-y divide-line-2 border border-line rounded-lg overflow-hidden mb-1">
+                      {draftItems.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center px-3 py-2.5">
+                          <div>
+                            <div className="text-[13px]">{item.name}</div>
+                            <div className="font-mono text-[11px] text-ink-3">×{item.quantity}</div>
+                          </div>
+                          <button type="button" onClick={() => removeDraftItem(idx)}
+                            className="text-ink-3 hover:text-danger transition-colors cursor-pointer p-1">
+                            <Icon name="trash" size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <DrawerField label="Serviço">
+                    <select value={draftItem.service_id}
+                      onChange={(e) => setDraftItem((f) => ({ ...f, service_id: e.target.value }))}
+                      className={inputCls}>
+                      <option value="">Selecione...</option>
+                      {services.map((s) => (
+                        <option key={s.UUID} value={s.UUID}>{s.Name}</option>
+                      ))}
+                    </select>
+                  </DrawerField>
+                  <DrawerField label="Quantidade">
+                    <input type="number" min="1" value={draftItem.quantity}
+                      onChange={(e) => setDraftItem((f) => ({ ...f, quantity: e.target.value }))}
+                      className={inputCls} />
+                  </DrawerField>
+                  <Button type="button" variant="outline" size="sm" className="w-full justify-center" onClick={addDraftItem}>
+                    <Icon name="plus" size={13} />Adicionar serviço
+                  </Button>
+                </div>
+              )}
+
               <div className="flex gap-2 mt-auto pt-4">
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setPkgDrawer(false)}>
                   Cancelar

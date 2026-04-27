@@ -105,7 +105,7 @@ export default function ProfissionalServicos() {
     setUnlinking(true)
     setPermissionError(null)
     try {
-      await api.delete(`/service/${unlinkTarget.UUID}/professionals/${unlinkTarget.linkId}`)
+      await api.delete(`/service/professionals/${unlinkTarget.linkId}`)
       addToast(`Desvinculado de ${unlinkTarget.Name}`)
       setUnlinkTarget(null)
       load()

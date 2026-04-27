@@ -106,7 +106,7 @@ src/
     profissional/
       ProfissionalPainel.jsx    ← Now-card dark + próximos + grade de horários — integrado
       MinhaAgenda.jsx           ← GET /appointment/my + filtros data/status
-      ProfissionalServicos.jsx  ← Vincular/desvincular serviços — GET /service + GET/POST/DELETE /service/:id/professionals
+      ProfissionalServicos.jsx  ← Vincular/desvincular serviços — GET /service + GET/POST /service/:id/professionals + DELETE /service/professionals/:linkId
       ProfissionalHorarios.jsx  ← CRUD horários semanais — GET/POST/PATCH/DELETE /working-hours
     admin/
       AdminAgenda.jsx           ← Grade por profissional com navegação de dia — integrado
@@ -285,8 +285,9 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 ```
 - Body em **lowercase** (exceção ao padrão PascalCase)
 
-### DELETE /service/:id/professionals/:linkId
-- `linkId` é o `id` retornado pelo GET acima
+### DELETE /service/professionals/:linkId
+- Rota **não** inclui o service ID — é `/service/professionals/:linkId`
+- `linkId` é o campo `id` retornado pelo GET acima (UUID do vínculo, não o `professional_id`)
 
 ### GET /working-hours/professional/:id
 ```json
@@ -402,7 +403,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - Pacotes — grid + CRUD + vender combo (`GET/POST/PATCH/DELETE /package` · `GET/POST/DELETE /package/:id/items` · `POST /package/:id/sell`)
 - Agenda Admin — grade por profissional com navegação de dia (`GET /appointment?date=YYYY-MM-DD` + `GET /users?Role=Profissional` para colunas fixas)
 - Dashboard Profissional (`GET /appointment/my?date=` + `GET /working-hours/professional/:id` + `GET /service`)
-- Serviços do Profissional — vincular/desvincular (`GET /service` + `GET/POST/DELETE /service/:id/professionals`)
+- Serviços do Profissional — vincular/desvincular (`GET /service` + `GET/POST /service/:id/professionals` + `DELETE /service/professionals/:linkId`)
 - Horários do Profissional — CRUD semanal (`GET/POST/PATCH/DELETE /working-hours`)
 - Aceitar Convite — fluxo corrigido: JWT do hash → `POST /auth/accept-invite { access_token, refresh_token, phone, birthday, password }`
 - Dashboard Cliente — próximo agendamento real (`GET /appointment/client/:id` filtrado por data/status) + histórico recente + "cliente desde YYYY" via `created_at` + card dinâmico de combo (`GET /package/client/:id`)

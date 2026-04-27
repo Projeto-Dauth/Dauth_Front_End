@@ -66,6 +66,16 @@ export default function AdminServicos() {
   const [deleteCat, setDeleteCat] = useState(null)    // { UUID, Name }
   const [deletingCat, setDeletingCat] = useState(false)
 
+  // ── Drawer profissionais do serviço
+  const [profsDrawer, setProfsDrawer] = useState(null)  // null | { UUID, Name }
+  const [linkedProfs, setLinkedProfs] = useState([])
+  const [loadingProfs, setLoadingProfs] = useState(false)
+  const [allProfessionals, setAllProfessionals] = useState([])
+  const [selectedProfId, setSelectedProfId] = useState('')
+  const [linkingProf, setLinkingProf] = useState(false)
+  const [unlinkProf, setUnlinkProf] = useState(null)    // { linkId, name }
+  const [unlinkingProf, setUnlinkingProf] = useState(false)
+
   const loadServices = useCallback(async () => {
     setLoadingServices(true)
     try {
@@ -93,6 +103,9 @@ export default function AdminServicos() {
   useEffect(() => {
     loadServices()
     loadCategories()
+    api.get('/users', { params: { Role: 'Profissional' } })
+      .then(({ data }) => setAllProfessionals(data.data ?? []))
+      .catch(() => {})
   }, [])
 
   // ─── Serviço — handlers ───────────────────────────────────────────────────
@@ -154,6 +167,54 @@ export default function AdminServicos() {
       addToast(err.response?.data?.error || 'Erro ao excluir serviço', 'error')
     } finally {
       setDeletingSvc(false)
+    }
+  }
+
+  // ─── Profissionais do serviço — handlers ─────────────────────────────────
+
+  async function openProfsDrawer(svc) {
+    setProfsDrawer(svc)
+    setSelectedProfId('')
+    setLoadingProfs(true)
+    try {
+      const { data } = await api.get(`/service/${svc.UUID}/professionals`)
+      setLinkedProfs(data.data ?? [])
+    } catch {
+      setLinkedProfs([])
+    } finally {
+      setLoadingProfs(false)
+    }
+  }
+
+  async function handleLinkProf() {
+    if (!selectedProfId) { addToast('Selecione uma profissional', 'warning'); return }
+    setLinkingProf(true)
+    try {
+      await api.post(`/service/${profsDrawer.UUID}/professionals`, { professional_id: selectedProfId })
+      addToast('Profissional vinculada', 'success')
+      setSelectedProfId('')
+      const { data } = await api.get(`/service/${profsDrawer.UUID}/professionals`)
+      setLinkedProfs(data.data ?? [])
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao vincular profissional', 'error')
+    } finally {
+      setLinkingProf(false)
+    }
+  }
+
+  async function handleUnlinkProf() {
+    if (!unlinkProf) return
+    setUnlinkingProf(true)
+    try {
+      await api.delete(`/service/professionals/${unlinkProf.linkId}`)
+      addToast('Vínculo removido', 'success')
+      setUnlinkProf(null)
+      const { data } = await api.get(`/service/${profsDrawer.UUID}/professionals`)
+      setLinkedProfs(data.data ?? [])
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao remover vínculo', 'error')
+    } finally {
+      setUnlinkingProf(false)
     }
   }
 
@@ -245,7 +306,7 @@ export default function AdminServicos() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  {['Serviço', 'Categoria', 'Duração', 'Preço', 'Comissão', ''].map((h) => (
+                  {['Serviço', 'Categoria', 'Duração', 'Preço', 'Comissão', 'Profissionais', ''].map((h) => (
                     <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
                       {h}
                     </th>
@@ -269,6 +330,15 @@ export default function AdminServicos() {
                     </td>
                     <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
                       {svc.Commission}%
+                    </td>
+                    <td className="px-3.5 py-3 border-b border-line-2">
+                      <button
+                        onClick={() => openProfsDrawer(svc)}
+                        className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer"
+                      >
+                        <Icon name="users" size={13} />
+                        Gerenciar
+                      </button>
                     </td>
                     <td className="px-3.5 py-3 text-right border-b border-line-2">
                       <div className="flex gap-1 justify-end">
@@ -446,7 +516,77 @@ export default function AdminServicos() {
         </div>
       )}
 
+      {/* ── DRAWER — Profissionais do serviço ───────────────────────── */}
+      {profsDrawer && (
+        <div className="fixed inset-0 z-40 flex">
+          <div className="flex-1 bg-ink/30" onClick={() => setProfsDrawer(null)} />
+          <div className="w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+            <div className="flex justify-between items-center mb-1">
+              <h4 className="font-display font-medium text-[20px] tracking-tight">Profissionais</h4>
+              <button onClick={() => setProfsDrawer(null)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+            <div className="font-mono text-[11px] text-ink-3 mb-6">{profsDrawer.Name}</div>
+
+            {/* Lista vinculadas */}
+            <div className="mb-5">
+              {loadingProfs ? (
+                <div className="text-[13px] text-ink-3">Carregando...</div>
+              ) : linkedProfs.length === 0 ? (
+                <div className="text-[13px] text-ink-3 italic">Nenhuma profissional vinculada</div>
+              ) : linkedProfs.map((prof) => (
+                <div key={prof.id} className="flex justify-between items-center py-2.5 border-b border-line-2 last:border-0">
+                  <div>
+                    <div className="text-[13px] font-medium">{prof.name}</div>
+                    {prof.phone && <div className="font-mono text-[11px] text-ink-3">{prof.phone}</div>}
+                  </div>
+                  <button
+                    onClick={() => setUnlinkProf({ linkId: prof.id, name: prof.name })}
+                    className="text-ink-3 hover:text-danger transition-colors cursor-pointer p-1"
+                  >
+                    <Icon name="trash" size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Vincular nova */}
+            <div className="border-t border-line pt-5 flex flex-col gap-3">
+              <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Vincular profissional</div>
+              <Field label="Profissional">
+                <select
+                  value={selectedProfId}
+                  onChange={(e) => setSelectedProfId(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">Selecione...</option>
+                  {allProfessionals
+                    .filter((p) => !linkedProfs.some((l) => l.professional_id === p.UUID))
+                    .map((p) => (
+                      <option key={p.UUID} value={p.UUID}>{p.Name}</option>
+                    ))}
+                </select>
+              </Field>
+              <Button variant="primary" className="w-full justify-center" onClick={handleLinkProf} disabled={linkingProf}>
+                <Icon name="plus" size={14} />
+                {linkingProf ? 'Vinculando...' : 'Vincular'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAIS DE CONFIRMAÇÃO ────────────────────────────────────── */}
+      <Modal
+        isOpen={!!unlinkProf}
+        onClose={() => setUnlinkProf(null)}
+        onConfirm={handleUnlinkProf}
+        title="Remover vínculo"
+        message={`"${unlinkProf?.name}" será desvinculada deste serviço.`}
+        confirmLabel="Remover"
+        loading={unlinkingProf}
+      />
       <Modal
         isOpen={!!deleteSvc}
         onClose={() => setDeleteSvc(null)}

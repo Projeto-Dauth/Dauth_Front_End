@@ -39,7 +39,7 @@ export default function AcceptInvitePage() {
     const e = {}
     if (!phone.trim()) e.phone = 'Telefone obrigatório'
     if (!birthday) e.birthday = 'Data de nascimento obrigatória'
-    if (!password || password.length < 6) e.password = 'Senha deve ter no mínimo 6 caracteres'
+    if (!password || password.length < 8) e.password = 'Senha deve ter no mínimo 8 caracteres'
     if (password !== confirmPassword) e.confirmPassword = 'As senhas não coincidem'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -176,7 +176,7 @@ export default function AcceptInvitePage() {
                   type={showPass ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   className={`h-[42px] w-full px-[14px] pr-10 rounded-md border bg-surface text-ink-2 font-body text-md
                     placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors
                     ${errors.password ? 'border-danger' : 'border-line'}`}

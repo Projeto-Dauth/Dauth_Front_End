@@ -33,6 +33,7 @@ export default function RegisterPage() {
         email: data.email,
         password: data.password,
       })
+      localStorage.setItem('access_token', loginRes.access_token)
       const { data: perfil } = await api.get('/users/perfil/me')
       login({ id: perfil.UUID, publicId: loginRes.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, loginRes.access_token, loginRes.refresh_token)
       navigate('/cliente', { replace: true })

@@ -31,6 +31,7 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
       })
+      localStorage.setItem('access_token', res.access_token)
       const { data: perfil } = await api.get('/users/perfil/me')
       login({ id: perfil.UUID, publicId: res.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, res.access_token, res.refresh_token)
       navigate(ROLE_REDIRECT[perfil.Role] ?? '/', { replace: true })
