@@ -24,7 +24,7 @@ const navItems = [
   { to: '/perfil', icon: 'users', label: 'Meu perfil' },
 ]
 
-const STATUS_FILTERS = ['Todos', 'Em aberto', 'Paga', 'Expirado']
+const STATUS_FILTERS = ['Todos', 'Em aberto', 'Paga', 'Expirada']
 
 const PAY_METHODS = [
   { id: 'pix', icon: 'qr', label: 'Pix' },
@@ -132,10 +132,10 @@ export default function AdminCaixa() {
 
   return (
     <AppLayout sidebar={sidebar}>
-      <div className="flex justify-between items-end mb-6">
+      <div className="flex justify-between items-end mb-5 md:mb-6">
         <div>
-          <h3 className="font-display font-medium text-[26px] tracking-tight">Comandas</h3>
-          <p className="text-[13px] text-ink-3 mt-1">
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Comandas</h3>
+          <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">
             {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
           </p>
         </div>
@@ -155,7 +155,7 @@ export default function AdminCaixa() {
       {loading ? <PageSpinner /> : tabs.length === 0 ? (
         <EmptyState icon="receipt" title="Nenhuma comanda" description="Nenhuma comanda encontrada." />
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 400px' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
 
           {/* Lista */}
           <div className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
@@ -167,29 +167,28 @@ export default function AdminCaixa() {
               <div className="px-5 py-8 text-center text-ink-3 text-[13px]">Nenhuma comanda neste filtro</div>
             ) : filtered.map((t, idx) => (
               <button key={t.UUID} onClick={() => setSelectedId(t.UUID)}
-                className={`w-full grid items-center gap-4 px-5 py-4 border-b border-line-2 last:border-0 cursor-pointer transition-colors text-left
-                  ${t.UUID === selectedId ? 'bg-brand-soft' : 'hover:bg-surface-2'}`}
-                style={{ gridTemplateColumns: '36px 1fr auto auto' }}>
+                className={`w-full flex items-center gap-3 px-4 md:px-5 py-3.5 md:py-4 border-b border-line-2 last:border-0 cursor-pointer transition-colors text-left
+                  ${t.UUID === selectedId ? 'bg-brand-soft' : 'hover:bg-surface-2'}`}>
                 <Avatar name={t.Appointment?.Client ?? '?'} index={idx} size="sm" />
-                <div>
-                  <div className="text-[13.5px] font-medium">{t.Appointment?.Client ?? 'Sem agendamento'}</div>
-                  <div className="font-mono text-[11px] text-ink-3 mt-0.5">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] md:text-[13.5px] font-medium truncate">{t.Appointment?.Client ?? 'Sem agendamento'}</div>
+                  <div className="font-mono text-[11px] text-ink-3 mt-0.5 truncate">
                     {t.Appointment
                       ? `${t.Appointment.Service} · ${formatDate(t.Appointment.Date)} · ${formatTime(t.Appointment.Start_time)}`
                       : `Criada em ${formatDate(t.Created_at)}`}
                   </div>
                 </div>
-                <div className="font-mono text-[13px] font-medium text-right">
+                <div className="font-mono text-[12px] md:text-[13px] font-medium shrink-0">
                   {formatCurrency(t.Value)}
                 </div>
-                <Chip variant={statusVariant(t.Status)}>{statusLabel(t.Status)}</Chip>
+                <Chip variant={statusVariant(t.Status)} className="shrink-0">{statusLabel(t.Status)}</Chip>
               </button>
             ))}
           </div>
 
           {/* Painel de pagamento */}
           {selected && (
-            <div className="bg-surface border border-line rounded-[14px] h-fit sticky top-6">
+            <div className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
               <div className="px-6 py-5 border-b border-line">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Comanda selecionada</span>
                 <h4 className="font-display font-medium text-[19px] tracking-tight mt-1.5">

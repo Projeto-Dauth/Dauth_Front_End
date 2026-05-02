@@ -47,8 +47,7 @@ export default function AdminUsuarios() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [roleFilter, setRoleFilter] = useState('Todos')
-
-  const [toggleTarget, setToggleTarget] = useState(null) // { UUID, Name, active }
+  const [toggleTarget, setToggleTarget] = useState(null)
   const [toggling, setToggling] = useState(false)
 
   const load = useCallback(async () => {
@@ -91,10 +90,10 @@ export default function AdminUsuarios() {
 
   return (
     <AppLayout sidebar={sidebar}>
-      <div className="flex justify-between items-end mb-6">
+      <div className="flex justify-between items-end mb-5 md:mb-6">
         <div>
-          <h3 className="font-display font-medium text-[26px] tracking-tight">Usuários</h3>
-          <p className="text-[13px] text-ink-3 mt-1">Gerencie clientes, profissionais e administradores</p>
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Usuários</h3>
+          <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie clientes, profissionais e administradores</p>
         </div>
       </div>
 
@@ -117,58 +116,77 @@ export default function AdminUsuarios() {
       ) : items.length === 0 ? (
         <EmptyState icon="users" title="Nenhum usuário" description="Nenhum usuário encontrado." />
       ) : (
-        <div className="bg-surface border border-line rounded-lg overflow-hidden">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                {['Usuário', 'Role', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
-                  <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((u, idx) => (
-                <tr key={u.UUID} className="hover:bg-surface-2 transition-colors">
-                  <td className="px-3.5 py-3 border-b border-line-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar name={u.Name} index={idx} size="sm" />
-                      <div>
-                        <div className="text-[13px] font-medium">{u.Name}</div>
-                        <div className="font-mono text-[11px] text-ink-3">{u.Email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3.5 py-3 border-b border-line-2">
-                    <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{u.Role}</Chip>
-                  </td>
-                  <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
-                    {u.Phone ?? '—'}
-                  </td>
-                  <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
-                    {formatBirthday(u.Birthday)}
-                  </td>
-                  <td className="px-3.5 py-3 border-b border-line-2">
-                    <Chip variant={u.active ? 'success' : 'danger'}>
-                      {u.active ? 'Ativo' : 'Inativo'}
-                    </Chip>
-                  </td>
-                  <td className="px-3.5 py-3 text-right border-b border-line-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setToggleTarget(u)}
-                    >
-                      <Icon name={u.active ? 'lock' : 'check'} size={13} />
-                      {u.active ? 'Desativar' : 'Ativar'}
-                    </Button>
-                  </td>
+        <>
+          {/* Desktop table */}
+          <div className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  {['Usuário', 'Role', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
+                    <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {items.map((u, idx) => (
+                  <tr key={u.UUID} className="hover:bg-surface-2 transition-colors">
+                    <td className="px-3.5 py-3 border-b border-line-2">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={u.Name} index={idx} size="sm" />
+                        <div>
+                          <div className="text-[13px] font-medium">{u.Name}</div>
+                          <div className="font-mono text-[11px] text-ink-3">{u.Email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3.5 py-3 border-b border-line-2">
+                      <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{u.Role}</Chip>
+                    </td>
+                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{u.Phone ?? '—'}</td>
+                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatBirthday(u.Birthday)}</td>
+                    <td className="px-3.5 py-3 border-b border-line-2">
+                      <Chip variant={u.active ? 'success' : 'danger'}>{u.active ? 'Ativo' : 'Inativo'}</Chip>
+                    </td>
+                    <td className="px-3.5 py-3 text-right border-b border-line-2">
+                      <Button variant="ghost" size="sm" onClick={() => setToggleTarget(u)}>
+                        <Icon name={u.active ? 'lock' : 'check'} size={13} />
+                        {u.active ? 'Desativar' : 'Ativar'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-2 md:hidden">
+            {items.map((u, idx) => (
+              <div key={u.UUID} className="bg-surface border border-line rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Avatar name={u.Name} index={idx} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-[14px] truncate">{u.Name}</div>
+                    <div className="font-mono text-[11px] text-ink-3 truncate">{u.Email}</div>
+                  </div>
+                  <Chip variant={u.active ? 'success' : 'danger'}>{u.active ? 'Ativo' : 'Inativo'}</Chip>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{u.Role}</Chip>
+                    {u.Phone && <span className="font-mono text-[11px] text-ink-3">{u.Phone}</span>}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setToggleTarget(u)}>
+                    <Icon name={u.active ? 'lock' : 'check'} size={13} />
+                    {u.active ? 'Desativar' : 'Ativar'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <Modal

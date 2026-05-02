@@ -272,10 +272,10 @@ export default function AdminServicos() {
 
   return (
     <AppLayout sidebar={sidebar}>
-      <div className="flex justify-between items-end mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-5 md:mb-6">
         <div>
-          <h3 className="font-display font-medium text-[26px] tracking-tight">Serviços</h3>
-          <p className="text-[13px] text-ink-3 mt-1">Gerencie os serviços e categorias do salão</p>
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Serviços</h3>
+          <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie os serviços e categorias do salão</p>
         </div>
         <Button size="sm" onClick={tab === 'servicos' ? openCreateSvc : openCreateCat}>
           <Icon name="plus" size={14} />
@@ -302,59 +302,73 @@ export default function AdminServicos() {
         loadingServices ? <PageSpinner /> : services.length === 0 ? (
           <EmptyState icon="scissors" title="Nenhum serviço" description="Crie o primeiro serviço do salão." action={openCreateSvc} actionLabel="Novo serviço" />
         ) : (
-          <div className="bg-surface border border-line rounded-lg overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  {['Serviço', 'Categoria', 'Duração', 'Preço', 'Comissão', 'Profissionais', ''].map((h) => (
-                    <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {services.map((svc) => (
-                  <tr key={svc.UUID} className="hover:bg-surface-2 transition-colors">
-                    <td className="px-3.5 py-3 text-[13px] font-medium border-b border-line-2">{svc.Name}</td>
-                    <td className="px-3.5 py-3 border-b border-line-2">
-                      <span className="font-mono text-[10.5px] uppercase tracking-widest text-brand bg-brand-soft px-2 py-0.5 rounded">
-                        {svc.Category}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
-                      {formatDuration(svc.Duration)}
-                    </td>
-                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
-                      {formatPrice(svc.Price)}
-                    </td>
-                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">
-                      {svc.Commission}%
-                    </td>
-                    <td className="px-3.5 py-3 border-b border-line-2">
-                      <button
-                        onClick={() => openProfsDrawer(svc)}
-                        className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer"
-                      >
-                        <Icon name="users" size={13} />
-                        Gerenciar
-                      </button>
-                    </td>
-                    <td className="px-3.5 py-3 text-right border-b border-line-2">
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="sm" onClick={() => openEditSvc(svc)}>
-                          <Icon name="edit" size={13} />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setDeleteSvc(svc)}>
-                          <Icon name="trash" size={13} />
-                        </Button>
-                      </div>
-                    </td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    {['Serviço', 'Categoria', 'Duração', 'Preço', 'Comissão', 'Profissionais', ''].map((h) => (
+                      <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {services.map((svc) => (
+                    <tr key={svc.UUID} className="hover:bg-surface-2 transition-colors">
+                      <td className="px-3.5 py-3 text-[13px] font-medium border-b border-line-2">{svc.Name}</td>
+                      <td className="px-3.5 py-3 border-b border-line-2">
+                        <span className="font-mono text-[10.5px] uppercase tracking-widest text-brand bg-brand-soft px-2 py-0.5 rounded">{svc.Category}</span>
+                      </td>
+                      <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatDuration(svc.Duration)}</td>
+                      <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatPrice(svc.Price)}</td>
+                      <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{svc.Commission}%</td>
+                      <td className="px-3.5 py-3 border-b border-line-2">
+                        <button onClick={() => openProfsDrawer(svc)} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer">
+                          <Icon name="users" size={13} />Gerenciar
+                        </button>
+                      </td>
+                      <td className="px-3.5 py-3 text-right border-b border-line-2">
+                        <div className="flex gap-1 justify-end">
+                          <Button variant="ghost" size="sm" onClick={() => openEditSvc(svc)}><Icon name="edit" size={13} /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDeleteSvc(svc)}><Icon name="trash" size={13} /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="flex flex-col gap-2 md:hidden">
+              {services.map((svc) => (
+                <div key={svc.UUID} className="bg-surface border border-line rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <div className="font-medium text-[14px]">{svc.Name}</div>
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-brand bg-brand-soft px-2 py-0.5 rounded mt-1 inline-block">{svc.Category}</span>
+                    </div>
+                    <div className="font-display text-[16px] font-medium shrink-0">{formatPrice(svc.Price)}</div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[12px] text-ink-3 mb-3">
+                    <span>{formatDuration(svc.Duration)}</span>
+                    <span>·</span>
+                    <span>Comissão {svc.Commission}%</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-3 border-t border-line-2">
+                    <button onClick={() => openProfsDrawer(svc)} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer flex-1">
+                      <Icon name="users" size={13} />Profissionais
+                    </button>
+                    <Button variant="ghost" size="sm" onClick={() => openEditSvc(svc)}><Icon name="edit" size={13} /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteSvc(svc)}><Icon name="trash" size={13} /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )
       )}
 
@@ -363,36 +377,50 @@ export default function AdminServicos() {
         loadingCats ? <PageSpinner /> : categories.length === 0 ? (
           <EmptyState icon="tag" title="Nenhuma categoria" description="Crie a primeira categoria." action={openCreateCat} actionLabel="Nova categoria" />
         ) : (
-          <div className="bg-surface border border-line rounded-lg overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  {['Categoria', ''].map((h) => (
-                    <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {categories.map((cat) => (
-                  <tr key={cat.UUID} className="hover:bg-surface-2 transition-colors">
-                    <td className="px-3.5 py-3 text-[13px] font-medium border-b border-line-2">{cat.Name}</td>
-                    <td className="px-3.5 py-3 text-right border-b border-line-2">
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="sm" onClick={() => openEditCat(cat)}>
-                          <Icon name="edit" size={13} />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setDeleteCat(cat)}>
-                          <Icon name="trash" size={13} />
-                        </Button>
-                      </div>
-                    </td>
+          <>
+            <div className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    {['Categoria', ''].map((h) => (
+                      <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {categories.map((cat) => (
+                    <tr key={cat.UUID} className="hover:bg-surface-2 transition-colors">
+                      <td className="px-3.5 py-3 text-[13px] font-medium border-b border-line-2">{cat.Name}</td>
+                      <td className="px-3.5 py-3 text-right border-b border-line-2">
+                        <div className="flex gap-1 justify-end">
+                          <Button variant="ghost" size="sm" onClick={() => openEditCat(cat)}>
+                            <Icon name="edit" size={13} />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDeleteCat(cat)}>
+                            <Icon name="trash" size={13} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col gap-2 md:hidden">
+              {categories.map((cat) => (
+                <div key={cat.UUID} className="bg-surface border border-line rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="font-medium text-[14px]">{cat.Name}</div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="sm" onClick={() => openEditCat(cat)}><Icon name="edit" size={13} /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteCat(cat)}><Icon name="trash" size={13} /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )
       )}
 
@@ -400,7 +428,7 @@ export default function AdminServicos() {
       {svcDrawer && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-ink/30" onClick={() => setSvcDrawer(false)} />
-          <div className="w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+          <div className="w-full md:w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <h4 className="font-display font-medium text-[20px] tracking-tight">
                 {svcDrawer === 'create' ? 'Novo serviço' : 'Editar serviço'}
@@ -484,7 +512,7 @@ export default function AdminServicos() {
       {catDrawer && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-ink/30" onClick={() => setCatDrawer(false)} />
-          <div className="w-[360px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+          <div className="w-full md:w-[360px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <h4 className="font-display font-medium text-[20px] tracking-tight">
                 {catDrawer === 'create' ? 'Nova categoria' : 'Editar categoria'}
@@ -520,7 +548,7 @@ export default function AdminServicos() {
       {profsDrawer && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-ink/30" onClick={() => setProfsDrawer(null)} />
-          <div className="w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+          <div className="w-full md:w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col">
             <div className="flex justify-between items-center mb-1">
               <h4 className="font-display font-medium text-[20px] tracking-tight">Profissionais</h4>
               <button onClick={() => setProfsDrawer(null)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">

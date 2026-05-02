@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import Button from '@/components/ui/Button'
 import { PageSpinner } from '@/components/ui/Spinner'
 import api from '@/lib/api'
+import useAuthStore from '@/store/authStore'
+import logo from '@/logo-dauth-agendamentos.png'
 
 // Lê os parâmetros do hash fragment: #access_token=...&refresh_token=...&type=invite
 function parseHash() {
@@ -12,6 +14,7 @@ function parseHash() {
 
 export default function AcceptInvitePage() {
   const navigate = useNavigate()
+  const login = useAuthStore((s) => s.login)
 
   const [params, setParams] = useState(null)   // { access_token, refresh_token, type }
   const [invalid, setInvalid] = useState(false)
@@ -24,7 +27,6 @@ export default function AcceptInvitePage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
 
   useEffect(() => {
     const p = parseHash()
@@ -57,7 +59,10 @@ export default function AcceptInvitePage() {
         birthday,
         password,
       })
-      setDone(true)
+      // Servidor setou os cookies — busca perfil e redireciona
+      const { data: perfil } = await api.get('/users/perfil/me')
+      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
+      navigate('/profissional', { replace: true })
     } catch (err) {
       setErrors({ api: err.response?.data?.error ?? 'Erro ao ativar conta. O link pode ter expirado.' })
     } finally {
@@ -91,43 +96,16 @@ export default function AcceptInvitePage() {
     )
   }
 
-  // Conta ativada com sucesso
-  if (done) {
-    return (
-      <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-        <div className="w-full max-w-sm text-center">
-          <Brand />
-          <div className="bg-success-soft border border-success/20 rounded-xl p-7 mt-6">
-            <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </div>
-            <h3 className="font-display font-medium text-[20px] tracking-tight mb-2">
-              Conta ativada!
-            </h3>
-            <p className="text-[13px] text-ink-2 mb-6">
-              Seu cadastro foi concluído. Faça login com seu e-mail e a senha que você acabou de definir.
-            </p>
-            <Button className="w-full justify-center" onClick={() => navigate('/profissional')}>
-              Ir para o Painel
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <Brand />
-          <h1 className="font-display font-medium text-[28px] tracking-tight mt-4">Dauth</h1>
+          <h1 className="font-display font-medium text-[28px] tracking-tight mt-4">Dauth Agendamentos</h1>
           <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
         </div>
 
-        <div className="bg-surface border border-line rounded-[14px] p-8">
+        <div className="bg-surface border border-line rounded-[14px] p-5 md:p-8">
           <h3 className="font-display font-medium text-[20px] tracking-tight mb-1">
             Complete seu cadastro
           </h3>
@@ -237,8 +215,6 @@ function formatPhone(value) {
 
 function Brand() {
   return (
-    <div className="w-11 h-11 rounded-xl bg-ink text-bg flex items-center justify-center font-display font-bold text-xl mx-auto">
-      d
-    </div>
+    <img src={logo} alt="Dauth" className="w-12 h-12 rounded-xl object-cover mx-auto" />
   )
 }

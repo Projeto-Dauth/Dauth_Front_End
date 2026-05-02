@@ -145,14 +145,17 @@ export default function MinhaAgenda() {
             <div
               key={row.UUID}
               onClick={() => navigate(`/agendamento/${row.UUID}`)}
-              className="bg-surface border border-line rounded-xl p-4 flex items-center gap-4 hover:border-line-3 transition-colors cursor-pointer"
+              className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3.5 hover:border-line-3 transition-colors cursor-pointer"
             >
               <Avatar name={row.Client ?? '?'} index={0} size="md" />
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-[13.5px] truncate">{row.Client ?? '—'}</div>
-                <div className="text-[12.5px] text-ink-3 mt-0.5">{row.Service ?? '—'}</div>
+                <div className="text-[12.5px] text-ink-3 mt-0.5 truncate">{row.Service ?? '—'}</div>
+                <div className="font-mono text-[11.5px] text-ink-3 mt-1 md:hidden">
+                  {formatDate(row.Date)} · {row.Start_time?.slice(0,5)} → {row.End_time?.slice(0,5)}
+                </div>
               </div>
-              <div className="text-right shrink-0">
+              <div className="text-right shrink-0 hidden md:block">
                 <div className="font-mono text-[12.5px] font-medium">{row.Start_time?.slice(0,5)} → {row.End_time?.slice(0,5)}</div>
                 <div className="font-mono text-[11px] text-ink-3 mt-0.5">{formatDate(row.Date)}</div>
               </div>

@@ -234,10 +234,10 @@ export default function AdminCombos() {
 
   return (
     <AppLayout sidebar={sidebar}>
-      <div className="flex justify-between items-end mb-7">
+      <div className="flex justify-between items-end mb-5 md:mb-7">
         <div>
-          <h3 className="font-display font-medium text-[26px] tracking-tight">Pacotes</h3>
-          <p className="text-[13px] text-ink-3 mt-1">{packages.length} pacote{packages.length !== 1 ? 's' : ''} no catálogo</p>
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Pacotes</h3>
+          <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">{packages.length} pacote{packages.length !== 1 ? 's' : ''} no catálogo</p>
         </div>
         <Button size="sm" onClick={openCreate}>
           <Icon name="plus" size={14} />Novo pacote
@@ -247,7 +247,7 @@ export default function AdminCombos() {
       {loading ? <PageSpinner /> : packages.length === 0 ? (
         <EmptyState icon="package" title="Nenhum pacote" description="Crie o primeiro combo do salão." action={openCreate} actionLabel="Novo pacote" />
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {packages.map((pkg) => (
             <div key={pkg.UUID} className="bg-surface border border-line rounded-2xl p-6 flex flex-col">
               <div className="flex justify-between items-start pb-4 border-b border-line-2 mb-4">
@@ -303,7 +303,7 @@ export default function AdminCombos() {
       {pkgDrawer && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-ink/30" onClick={() => setPkgDrawer(false)} />
-          <div className="w-[400px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+          <div className="w-full md:w-[400px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <h4 className="font-display font-medium text-[20px] tracking-tight">
                 {pkgDrawer === 'create' ? 'Novo pacote' : 'Editar pacote'}
@@ -388,7 +388,7 @@ export default function AdminCombos() {
       {itemsDrawer && currentPkg && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-ink/30" onClick={() => setItemsDrawer(null)} />
-          <div className="w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+          <div className="w-full md:w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col">
             <div className="flex justify-between items-center mb-1">
               <h4 className="font-display font-medium text-[20px] tracking-tight">Serviços do pacote</h4>
               <button onClick={() => setItemsDrawer(null)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">
@@ -450,7 +450,7 @@ export default function AdminCombos() {
       {sellPkg && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-ink/30" onClick={() => setSellPkg(null)} />
-          <div className="relative bg-surface border border-line rounded-2xl p-7 w-[400px] shadow-lg">
+          <div className="relative bg-surface border border-line rounded-2xl p-5 md:p-7 w-full max-w-[400px] mx-4 shadow-lg">
             <div className="flex justify-between items-center mb-5">
               <h4 className="font-display font-medium text-[20px] tracking-tight">Vender pacote</h4>
               <button onClick={() => setSellPkg(null)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">

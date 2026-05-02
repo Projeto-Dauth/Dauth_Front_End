@@ -147,7 +147,7 @@ export default function DetalhesAgendamento() {
         <Chip status={item.Status} dot>{STATUS_LABELS[item.Status] ?? item.Status}</Chip>
       </div>
 
-      <div className="grid gap-5" style={{ gridTemplateColumns: '1fr 340px' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         {/* Main info */}
         <div className="bg-surface border border-line rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-line-2">

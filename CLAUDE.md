@@ -1,4 +1,4 @@
-# CLAUDE.md — Dauth Frontend
+# CLAUDE.md — Dauth Agendamentos Frontend
 
 Briefing técnico completo para sessões com Claude Code.
 
@@ -6,7 +6,7 @@ Briefing técnico completo para sessões com Claude Code.
 
 ## Visão Geral
 
-Frontend do **Dauth**, sistema de gerenciamento para o Salão Bela Arte.
+Frontend do **Dauth Agendamentos**, sistema de gerenciamento para o Salão Bela Arte.
 SPA React com 3 perfis de usuário: `Admin`, `Profissional`, `Usuario`.
 
 - **Backend:** Express.js + Supabase, rodando em `http://localhost:3000`
@@ -23,7 +23,7 @@ SPA React com 3 perfis de usuário: `Admin`, `Profissional`, `Usuario`.
 | UI | React 18 (JS, sem TS) |
 | Estilo | Tailwind CSS v3 com design tokens customizados |
 | Roteamento | React Router v6 (`createBrowserRouter`) |
-| HTTP | Axios com interceptors de token e refresh automático |
+| HTTP | Axios com `withCredentials: true` e interceptor de refresh automático |
 | Estado global | Zustand (`useAuthStore`) |
 | Formulários | React Hook Form |
 | Fontes | Space Grotesk (display) · Inter (body) · JetBrains Mono (mono) |
@@ -66,7 +66,7 @@ border-line  (normal) | border-danger (com erro)
 
 ```
 src/
-  lib/api.js                    ← Axios: injeta Bearer token, auto-refresh no 401
+  lib/api.js                    ← Axios: withCredentials: true, interceptor de refresh no 401
   store/authStore.js            ← Zustand: { user, isAuthenticated, login, logout, restoreSession }
   context/
     ToastContext.jsx             ← ToastProvider + useToast() — wraps app em main.jsx
@@ -85,37 +85,37 @@ src/
       Spinner.jsx               ← <Spinner size="sm|md|lg" /> + <PageSpinner /> (centered)
       EmptyState.jsx            ← icon/title/description/action/actionLabel
     layout/
-      AppLayout.jsx             ← flex: sidebar + main (bg-bg px-8 py-7)
-      Sidebar.jsx               ← NavLinks com navItems[], footerUser, footerRole
+      AppLayout.jsx             ← mobile-first: sidebar hidden em mobile, drawer overlay com hamburger (usa cloneElement para injetar onClose); logo + nome no header mobile; desktop: flex normal; conteúdo px-4 py-5 mobile / px-8 py-7 desktop
+      Sidebar.jsx               ← logo-dauth-agendamentos.png + "Dauth Agendamentos"; NavLinks com navItems[], footerUser, footerRole; aceita prop onClose (fecha drawer mobile ao navegar); h-full overflow-y-auto obrigatório
   pages/
     public/
-      PortalPage.jsx            ← Landing page (/)
-      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação)
+      PortalPage.jsx            ← Landing page (/) — sem implementação
+      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação); barra sticky no rodapé mobile (translate-y-full→0 ao selecionar) com ← voltar + resumo + botão continuar; nav desktop hidden md:flex; auth step com tabs mobile login/cadastro; logo no top bar
     auth/
-      LoginPage.jsx             ← POST /auth/login → redireciona por role
-      RegisterPage.jsx          ← POST /auth/register + auto-login → /cliente
-      AcceptInvitePage.jsx      ← POST /auth/accept-invite — lê access_token do hash fragment, envia { access_token, refresh_token, phone, birthday, password }
+      LoginPage.jsx             ← POST /auth/login → GET /users/perfil/me → redireciona por role; logo-dauth-agendamentos.png na brand section
+      RegisterPage.jsx          ← POST /auth/register + auto-login → /cliente; logo-dauth-agendamentos.png na brand section
+      AcceptInvitePage.jsx      ← POST /auth/accept-invite → GET /users/perfil/me → /profissional; logo via componente Brand; card padding p-5 md:p-8
     shared/
-      MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil
+      MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row)
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
       DetalhesAgendamento.jsx   ← GET /appointment/:id + PATCH Status — rota /agendamento/:id
     cliente/
-      ClienteDashboard.jsx      ← Sidebar com avatar XL + card dinâmico de combo + histórico
-      MeusAgendamentos.jsx      ← GET /appointment/client/:id + filtro status
-      MeusCombos.jsx            ← GET /package/client/:id — cards com barra de progresso, seções Ativos/Histórico
+      ClienteDashboard.jsx      ← ClienteSidebar local com logo; grid hero empilhado mobile / 1.3fr·1fr desktop; histórico como cards mobile (md:hidden) / tabela desktop (hidden md:block)
+      MeusAgendamentos.jsx      ← GET /appointment/client/:id + filtro status; tabela hidden md:block / cards md:hidden
+      MeusCombos.jsx            ← GET /package/client/:id — cards com barra de progresso, seções Ativos/Histórico; grid grid-cols-1 lg:grid-cols-2
     profissional/
       ProfissionalPainel.jsx    ← Now-card dark + próximos + grade de horários — integrado
       MinhaAgenda.jsx           ← GET /appointment/my + filtros data/status
       ProfissionalServicos.jsx  ← Vincular/desvincular serviços — GET /service + GET/POST /service/:id/professionals + DELETE /service/professionals/:linkId
       ProfissionalHorarios.jsx  ← CRUD horários semanais — GET/POST/PATCH/DELETE /working-hours
     admin/
-      AdminAgenda.jsx           ← Grade por profissional com navegação de dia — integrado
-      AdminAgendamentos.jsx     ← GET /appointment + filtros data/status
-      AdminCaixa.jsx            ← Lista de comandas + painel de pagamento — integrado
-      AdminCombos.jsx           ← Grid de pacotes + CRUD + vender combo — integrado
-      AdminUsuarios.jsx         ← GET /users + PATCH /users/:id (ativar/desativar)
-      AdminServicos.jsx         ← CRUD serviços + categorias com drawer — integrado
-      ConvidarProfissional.jsx  ← POST /auth/invite — rota /admin/convidar-profissional
+      AdminAgenda.jsx           ← Grade por profissional + navegação de dia; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight)
+      AdminAgendamentos.jsx     ← GET /appointment + filtros data/status; tabela hidden md:block / cards md:hidden
+      AdminCaixa.jsx            ← Lista de comandas + painel de pagamento; grid grid-cols-1 lg:grid-cols-[1fr_400px]; painel lg:sticky top-6
+      AdminCombos.jsx           ← Grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 + CRUD + vender combo; drawers w-full md:w-[400-420px] com p-5 md:p-7
+      AdminUsuarios.jsx         ← GET /users + PATCH /users/:id (ativar/desativar); tabela hidden md:block / cards md:hidden
+      AdminServicos.jsx         ← CRUD serviços + categorias; tabelas hidden md:block / cards md:hidden; todos os drawers w-full md:w-[360-420px] com p-5 md:p-7
+      ConvidarProfissional.jsx  ← POST /auth/invite — max-w-md, já responsivo
     NaoAutorizado.jsx
     NotFound.jsx
 ```
@@ -170,22 +170,56 @@ import EmptyState from '@/components/ui/EmptyState'
 
 ## Autenticação
 
+O backend usa **httpOnly cookies** para sessão. Os tokens nunca aparecem no corpo das respostas nem no localStorage — o navegador os gerencia automaticamente.
+
+### Modelo de sessão
+
+- Cookies `access_token` e `refresh_token` são httpOnly — JS não consegue lê-los
+- `withCredentials: true` em toda requisição axios garante que o navegador os envie
+- O estado da aplicação (`useAuthStore`) só guarda dados do usuário, nunca tokens
+- Nenhum token é persistido no localStorage
+- **Exceção intencional:** `auth_public_id` é salvo no localStorage — é o UUID do Supabase Auth (`res.user.id`), necessário para `POST /appointment { Client }`. Não é dado sensível (é só um identificador), mas não existe no retorno de `GET /users/perfil/me`, então precisa sobreviver a reloads
+
 ### Fluxo de login
 ```js
-// POST /auth/login retorna:
-{ access_token, refresh_token, user: { id, email, role } }
-// IMPORTANTE: o `id` do payload pode divergir do UUID do banco.
-// Após o login, sempre buscar GET /users/perfil/me e sobrescrever o store:
-login({ id: perfil.UUID, publicId: res.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role }, access_token, refresh_token)
-// publicId = res.user.id = Supabase Auth UUID → obrigatório para POST /appointment { Client }
+// POST /auth/login retorna apenas: { expires_in, user: { id, email, role } }
+// Cookies são setados pelo servidor via Set-Cookie
+// Após o login, sempre buscar GET /users/perfil/me para obter UUID correto:
+const { data: res } = await api.post('/auth/login', { email, password })
+const { data: perfil } = await api.get('/users/perfil/me')
+login({ id: perfil.UUID, publicId: res.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role })
 // Redireciona por role (usar perfil.Role, não res.user.role):
 Admin → /admin | Profissional → /profissional | Usuario → /cliente
 ```
 
 ### Fluxo de register
 ```js
-// POST /auth/register retorna apenas { message, user: { id, email, name } } — SEM tokens
-// Por isso RegisterPage faz login automático em seguida
+// POST /auth/register retorna apenas { message, user: { id, email, name } } — sem tokens, sem cookies
+// RegisterPage faz login automático logo em seguida (mesmo padrão do login acima)
+```
+
+### Fluxo de logout
+```js
+// authStore.logout() apenas limpa o estado local — NÃO chama a API
+// Quem dispara o logout deve chamar POST /auth/logout explicitamente antes:
+import api from '@/lib/api'
+import useAuthStore from '@/store/authStore'
+
+async function handleLogout() {
+  try { await api.post('/auth/logout') } catch {}
+  useAuthStore.getState().logout()
+  navigate('/login')
+}
+// NÃO basta limpar estado local — o endpoint é obrigatório para o servidor apagar os cookies
+// O interceptor de 401 também chama logout() ao detectar sessão expirada (sem chamar a API,
+// pois já sabemos que o servidor rejeitou)
+```
+
+### Fluxo de refresh silencioso
+```js
+// 401 em qualquer rota não-/auth/* → interceptor chama POST /auth/refresh (sem body)
+// Servidor lê o cookie refresh_token e responde { expires_in } + novos cookies via Set-Cookie
+// Se refresh falhar → window.location.href = '/login'
 ```
 
 ### Fluxo de convite de profissional
@@ -199,8 +233,8 @@ Admin → /admin | Profissional → /profissional | Usuario → /cliente
 // 4. AcceptInvitePage lê access_token e refresh_token do HASH FRAGMENT (window.location.hash)
 // 5. Profissional preenche phone, birthday e password
 // 6. POST /auth/accept-invite { access_token, refresh_token, phone, birthday, password }
-//    Backend valida via supabase.auth.getUser(access_token), atualiza senha e perfil
-// 7. Profissional redirecionado para /profissional
+//    Servidor valida via supabase.auth.getUser(access_token), atualiza perfil e seta cookies
+// 7. Frontend busca GET /users/perfil/me (cookies já válidos) e redireciona para /profissional
 ```
 
 > **Atenção:** o Supabase consome o OTP antes de redirecionar — o `access_token` no hash é um **JWT de sessão**, não o token hash original. O backend NÃO deve usar `verifyOtp` — deve usar `supabase.auth.getUser(access_token)`.
@@ -209,9 +243,15 @@ Admin → /admin | Profissional → /profissional | Usuario → /cliente
 
 ### Session restore (main.jsx)
 ```js
-// No bootstrap, se access_token existe no localStorage:
-GET /users/perfil/me → { UUID, Name, Email, Role, Phone, Birthday, active }
-// Mapeia para: restoreSession({ id: UUID, publicId: localStorage.get('public_id'), email: Email, name: Name, role: Role })
+// No bootstrap, sem verificação de localStorage — sempre tenta GET /users/perfil/me
+// Se 200 → sessão válida, popula store via restoreSession()
+// Se 401 → sem sessão, renderiza app sem autenticação (ProtectedRoute redireciona se necessário)
+try {
+  const { data } = await api.get('/users/perfil/me')
+  restoreSession({ id: data.UUID, publicId: data.UUID, email: data.Email, name: data.Name, role: data.Role })
+} catch {
+  // sem sessão — continua
+}
 ```
 
 ### Erros da API
@@ -220,14 +260,42 @@ A API retorna sempre `{ error: "mensagem" }` — usar `err.response?.data?.error
 ### authStore shape
 ```js
 { user: { id, email, name, role, publicId }, isAuthenticated: boolean }
+// login(user)          → seta estado + salva publicId em localStorage('auth_public_id')
+// logout()             → limpa estado + remove auth_public_id — quem chamar deve POST /auth/logout antes
+// restoreSession(user) → seta estado restaurando publicId do localStorage
 ```
 - `id` → `perfil.UUID` (UUID da tabela `Users` — usado em URLs como `/appointment/client/:id`)
-- `publicId` → `data.user.id` da resposta de login (UUID do Supabase Auth — usado no body de `POST /appointment` como `Client`, pois o backend compara com `req.user.publicId` que vem do JWT)
-- Ambos são persistidos no localStorage: `access_token`, `refresh_token`, `public_id`
+- `publicId` → `res.user.id` da resposta de login (UUID do Supabase Auth — usado no body de `POST /appointment` como `Client`, pois o backend compara com `req.user.publicId` que vem do cookie JWT)
+- `id` e `publicId` são **valores distintos** — `GET /users/perfil/me` retorna apenas o `UUID` da tabela Users, não o UUID do Supabase Auth. Por isso o `publicId` é persistido separadamente em `localStorage('auth_public_id')` e restaurado no bootstrap
+- Tokens nunca vão para o localStorage — só `auth_public_id`, que não é dado sensível
+
+### CORS
+Cookies com `credentials` **não funcionam** com `Access-Control-Allow-Origin: *`.
+O backend precisa ter `CORS_ORIGIN=http://localhost:5173` (ou a URL exata do frontend).
 
 ---
 
 ## Shapes reais da API (confirmados em produção)
+
+### POST /auth/login
+```json
+{ "expires_in": 3600, "user": { "id": "supabase-auth-uuid", "email": "string", "role": "string" } }
+```
+- Tokens chegam via `Set-Cookie` httpOnly — não estão no body
+
+### POST /auth/refresh
+- Sem body — servidor lê o cookie `refresh_token` automaticamente
+- Responde `{ "expires_in": 3600 }` + novos cookies via `Set-Cookie`
+
+### POST /auth/logout
+- Sem body — invalida sessão no Supabase e apaga cookies
+- Responde `{ "message": "..." }`
+
+### POST /auth/accept-invite
+```json
+{ "access_token": "jwt", "refresh_token": "rt", "phone": "string", "birthday": "YYYY-MM-DD", "password": "string" }
+```
+- Responde `{ "message": "..." }` — cookies setados automaticamente pelo servidor
 
 ### GET /users/perfil/me
 ```json
@@ -253,7 +321,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 { "Client": "uuid", "Professional": "uuid", "Service": "uuid", "Date": "YYYY-MM-DD", "Start_time": "HH:MM", "End_time": "HH:MM" }
 ```
 - Todos os campos **PascalCase** (incluindo `Start_time` e `End_time` com underscore)
-- `Client` deve ser o **`publicId`** do usuário (`user.publicId` no store), não o `user.id` — o backend compara com o Supabase Auth UUID via `req.user.publicId`
+- `Client` deve ser o **`publicId`** do usuário (`user.publicId` no store), não o `user.id` — o backend compara com o Supabase Auth UUID via cookie JWT
 
 ### GET /public/services
 ```json
@@ -374,9 +442,9 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 ## API
 
 - **Base URL:** `import.meta.env.VITE_API_URL` → `.env`: `VITE_API_URL=http://localhost:3000/api/v1`
-- **Auth:** Bearer token injetado automaticamente pelo interceptor de `api.js`
-- **Refresh:** 401 → tenta `POST /auth/refresh` → repete requisição → se falhar, redireciona `/login`
-- **Atenção:** o interceptor de 401 **ignora endpoints `/auth/*`** — sem isso, um login com credencial errada (que retorna 401) disparava o redirect para `/login` antes de exibir o erro
+- **Auth:** cookies httpOnly enviados automaticamente pelo navegador (`withCredentials: true`)
+- **Refresh:** 401 em rota não-`/auth/*` → interceptor chama `POST /auth/refresh` (sem body) → repete requisição → se falhar, redireciona `/login`
+- **Interceptor ignora `/auth/*`** — evita redirect indevido em credencial errada no login
 - **Shapes completos:** ver `API-Documentation.md`
 
 ---
@@ -386,7 +454,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 ### Integrado com API real
 - Login (`POST /auth/login`)
 - Register (`POST /auth/register` + auto-login)
-- Session restore (`GET /users/perfil/me` no bootstrap)
+- Logout (`POST /auth/logout` via `authStore.logout()` async)
+- Session restore (`GET /users/perfil/me` no bootstrap — sem verificação de localStorage)
 - Auth guard ativo (`DEV_BYPASS = false`)
 - Meu Perfil (`GET/PATCH /users/perfil/me`)
 - Trocar Senha (`PATCH /users/perfil/me/password`)
@@ -395,7 +464,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - Gerenciar Agendamentos — admin (`GET /appointment`)
 - Detalhes do Agendamento (`GET /appointment/:id` + `PATCH /appointment/:id` com `{ Status }`)
 - Convidar Profissional (`POST /auth/invite`)
-- Aceitar Convite (`POST /auth/accept-invite`)
+- Aceitar Convite (`POST /auth/accept-invite` → GET /users/perfil/me → /profissional direto)
 - Agendar — stepper público (`GET /public/services` · `GET /public/services/:id/professionals` · `GET /public/availability/:id` · `POST /appointment`)
 - Gerenciar Usuários (`GET /users` + `PATCH /users/:id` para ativar/desativar)
 - Gerenciar Serviços + Categorias — CRUD completo com drawer (`GET/POST/PATCH/DELETE /service` · `GET/POST/PATCH/DELETE /category`)
@@ -405,14 +474,22 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - Dashboard Profissional (`GET /appointment/my?date=` + `GET /working-hours/professional/:id` + `GET /service`)
 - Serviços do Profissional — vincular/desvincular (`GET /service` + `GET/POST /service/:id/professionals` + `DELETE /service/professionals/:linkId`)
 - Horários do Profissional — CRUD semanal (`GET/POST/PATCH/DELETE /working-hours`)
-- Aceitar Convite — fluxo corrigido: JWT do hash → `POST /auth/accept-invite { access_token, refresh_token, phone, birthday, password }`
-- Dashboard Cliente — próximo agendamento real (`GET /appointment/client/:id` filtrado por data/status) + histórico recente + "cliente desde YYYY" via `created_at` + card dinâmico de combo (`GET /package/client/:id`)
-- Meus Combos — cliente (`GET /package/client/:id`) — cards com barra de progresso + breakdown por serviço + seções Ativos/Histórico
-- Máscara de telefone no stepper de agendamento (campo registro)
-- Normalização do store após login — todos os fluxos (`LoginPage`, `RegisterPage`, `AgendarPage`) buscam `GET /users/perfil/me` após login para garantir `UUID` e `name` corretos no store
+- Dashboard Cliente — próximo agendamento real + histórico recente + "cliente desde YYYY" + card dinâmico de combo
+- Meus Combos — cliente — cards com barra de progresso + breakdown por serviço + seções Ativos/Histórico
+- Migração para httpOnly cookies — removido todo acesso a localStorage para tokens
+- **Mobile-first completo** — todas as páginas (cliente, público, admin, profissional, shared) são responsivas (breakpoints `md:` e `lg:`)
+- **Logo e nome atualizados** — `logo-dauth-agendamentos.png` + "Dauth Agendamentos" em todas as páginas (auth, cliente sidebars, AgendarPage top bar, AppLayout/Sidebar compartilhados)
+- **AdminAgenda mobile** — seletor de profissional prev/next para visualizar um profissional por vez em telas pequenas
+- **AdminAgenda blocos de agendamento** — bloco único por agendamento com altura calculada pela duração: `spanSlots(appt) × 64px - 4` desktop / `× 56px - 4` mobile; célula de início com `overflow: visible` e bloco com `z-10`; exibe horário início → fim dentro do bloco
+- **Drawers mobile** — todos os drawers (admin e profissional) usam `w-full md:w-[Xpx]` + `p-5 md:p-7` para ocupar tela cheia em mobile
+- **ProfissionalPainel mobile** — grids "Agora + A seguir" e "Horários + Serviços" empilham em mobile (`grid-cols-1 md:grid-cols-[...]`); grade de horários exibe lista compacta em mobile (`md:hidden`) e grade de 7 colunas no desktop (`hidden md:grid`)
+- **MinhaAgenda mobile** — data/horário exibidos abaixo do nome em mobile (`md:hidden`), coluna separada visível apenas no desktop (`hidden md:block`)
+- **DetalhesAgendamento mobile** — grid `1fr 340px` empilha em mobile, aplica duas colunas a partir de `lg`
+- **AdminCombos modal mobile** — modal "Vender pacote" usa `w-full max-w-[400px] mx-4` para não estourar em telas pequenas
 
 ### Ainda com dados mockados / não implementado
 - `PortalPage` — landing page pública, sem implementação
+- Botão de logout — padrão definido (`POST /auth/logout` + `store.logout()` + `navigate('/login')`), mas ainda não há botão de sair implementado nas páginas
 
 ---
 
@@ -422,6 +499,15 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - **Sem comentários** salvo quando o porquê não é óbvio
 - **Sem abstrações prematuras** — componentes locais ficam no próprio arquivo
 - Tailwind inline — sem CSS modules ou styled-components
+- **Mobile-first obrigatório** — nunca usar `style={{ gridTemplateColumns }}` inline exceto quando o número de colunas é dinâmico (ex.: grade de profissionais em AdminAgenda — nesse caso usar `hidden md:grid` no desktop e `grid md:hidden` no mobile com layout simplificado). Sempre preferir classes Tailwind com breakpoints (`grid-cols-1 md:grid-cols-2`). Breakpoints usados: `sm` (640px), `md` (768px), `lg` (1024px)
+- **Sidebar em páginas internas** — `ClienteSidebar` local (páginas de cliente) e `Sidebar` compartilhado (admin/profissional/shared) devem sempre aceitar prop `onClose` e passar `h-full overflow-y-auto` para funcionar como drawer mobile via `AppLayout`. `AppLayout` injeta `onClose` via `cloneElement` — não é necessário passar manualmente
+- **Tabelas em mobile** — toda tabela HTML deve ter alternativa em cards para telas menores: `hidden md:block` na tabela, `md:hidden` nos cards
+- **Drawers em mobile** — todo drawer lateral usa `w-full md:w-[Xpx]` + `p-5 md:p-7` para ocupar tela cheia em mobile
+- **Modais em mobile** — todo modal centralizado usa `w-full max-w-[Xpx] mx-4` (nunca `w-[Xpx]` fixo) para não estourar em telas pequenas
+- **Grids de painel em mobile** — grids com proporções assimétricas (ex.: `1.4fr 1fr`, `1fr 340px`) devem usar `grid-cols-1 md:grid-cols-[...]` ou `grid-cols-1 lg:grid-cols-[...]` para empilhar em telas menores; nunca usar `style={{ gridTemplateColumns }}` com valores fixos nesses casos
+- **Logo** — importar sempre com `import logo from '@/logo-dauth-agendamentos.png'`; usar `<img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover" />`. Nome do sistema: **"Dauth Agendamentos"** (não "Dauth" sozinho)
+- **Ícone nativo de senha suprimido** — `index.css` já contém regra global que oculta `::-ms-reveal`, `::-ms-clear` e `::-webkit-credentials-auto-fill-button` em todos os `input[type='password']`. Não adicionar CSS extra — o ícone custom dos inputs de senha já é o único visível
+- **Grade de agenda (AdminAgenda)** — células de slot usam `overflow: visible` para permitir que o bloco de agendamento vaze verticalmente sobre os slots seguintes. Células com `h-16` desktop / `h-14` mobile. Função `spanSlots(appt)` calcula quantos slots de 30min o agendamento ocupa. Nunca renderizar divs de "continuação" — apenas o bloco no slot de início com `style={{ height: spans * cellPx - 4 }}`. Bloco usa `flex flex-col justify-center items-center text-center` para centralizar o conteúdo horizontal e verticalmente
 - Dados de mock ficam em constantes no topo do arquivo enquanto a integração não está pronta
 - `navItems` de cada página é definido localmente no arquivo (sem contexto global de nav)
 - Páginas compartilhadas entre roles ficam em `src/pages/shared/` e detectam o role via `useAuthStore`
