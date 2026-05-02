@@ -1,49 +1,45 @@
 import axios from 'axios'
+import useAuthStore from '@/store/authStore'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
-// Injeta o access_token em toda requisição
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-
-// Se receber 401, tenta renovar o token e repete a requisição original
+// Se receber 401, tenta renovar a sessão via cookie e repete a requisição original.
+// Só redireciona para /login se o usuário já estava autenticado — evita loop no bootstrap.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
 
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthEndpoint = original.url?.includes('/auth/')
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true
 
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (!refreshToken) {
-        // Sem refresh token — redireciona para login
-        localStorage.clear()
-        window.location.href = '/login'
+      const isAuthenticated = useAuthStore.getState().isAuthenticated
+      if (!isAuthenticated) {
         return Promise.reject(error)
       }
 
       try {
-        const { data } = await axios.post(
+        await axios.post(
           `${import.meta.env.VITE_API_URL}/auth/refresh`,
-          { refresh_token: refreshToken }
+          {},
+          { withCredentials: true }
         )
-
-        localStorage.setItem('access_token', data.access_token)
-        localStorage.setItem('refresh_token', data.refresh_token)
-
-        original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)
       } catch {
-        localStorage.clear()
+        try {
+          await axios.post(
+            `${import.meta.env.VITE_API_URL}/auth/logout`,
+            {},
+            { withCredentials: true }
+          )
+        } catch {}
+        useAuthStore.getState().logout()
+        sessionStorage.setItem('session_expired', '1')
         window.location.href = '/login'
         return Promise.reject(error)
       }

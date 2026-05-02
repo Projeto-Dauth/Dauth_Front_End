@@ -55,6 +55,7 @@ const paths = {
   arrowRight: <path d="M5 12h14M12 5l7 7-7 7"/>,
   check: <path d="M20 6L9 17l-5-5"/>,
   filter: <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>,
+  menu: <><path d="M3 12h18M3 6h18M3 18h18"/></>,
   clock: (
     <>
       <circle cx="12" cy="12" r="10"/>

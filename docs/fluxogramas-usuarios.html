@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fluxogramas de Usuários — Dauth</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #fbf7f4;
+      --surface: #ffffff;
+      --surface-2: #f5ede7;
+      --surface-3: #ecddd5;
+      --ink: #1a1209;
+      --ink-2: #3d2b1f;
+      --ink-3: #7a5c4a;
+      --ink-4: #b59b8a;
+      --line: #e8d5c8;
+      --line-2: #d4bfb0;
+      --brand: #8b4a2b;
+      --brand-dark: #6e3820;
+      --brand-soft: #f5ede7;
+      --gold: #c9a57b;
+      --gold-soft: #fdf5ec;
+      --success: #2d7a4f;
+      --success-soft: #e8f5ee;
+      --warning: #916c00;
+      --warning-soft: #fdf8e1;
+      --danger: #b53a2f;
+      --danger-soft: #fdecea;
+      --sidebar-w: 220px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink-2);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ─────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      padding: 20px 18px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sidebar-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--brand);
+      letter-spacing: -0.5px;
+    }
+
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: var(--ink-4);
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sidebar-nav { padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; }
+
+    .role-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--ink-3);
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s, color 0.15s;
+      width: 100%;
+    }
+
+    .role-btn:hover { background: var(--surface-2); color: var(--ink-2); }
+
+    .role-btn.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+
+    .role-icon {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .role-icon.usuario  { background: #e8f5ee; }
+    .role-icon.profissional { background: #fdf5ec; }
+    .role-icon.admin    { background: #fdecea; }
+
+    .role-btn.active .role-icon.usuario  { background: #d1ece0; }
+    .role-btn.active .role-icon.profissional { background: #f9e8d0; }
+    .role-btn.active .role-icon.admin    { background: #f8d8d5; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 14px 18px;
+      border-top: 1px solid var(--line);
+      font-size: 11px;
+      color: var(--ink-4);
+    }
+
+    /* ── MAIN ────────────────────────────────── */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 40px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .view-header { margin-bottom: 28px; }
+    .view-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.5px;
+    }
+    .view-desc {
+      font-size: 14px;
+      color: var(--ink-3);
+      margin-top: 4px;
+    }
+
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .badge-usuario     { background: var(--success-soft); color: var(--success); }
+    .badge-profissional { background: var(--gold-soft); color: #7a5200; }
+    .badge-admin       { background: var(--danger-soft); color: var(--danger); }
+
+    /* ── CATEGORIES ──────────────────────────── */
+    .categories { display: flex; flex-direction: column; gap: 28px; }
+
+    .category-section {}
+
+    .category-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink-4);
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .flows-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+
+    /* ── FLOW CARD ───────────────────────────── */
+    .flow-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+    .flow-card:hover { box-shadow: 0 2px 10px rgba(139,74,43,0.08); }
+
+    .flow-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+
+    .flow-card-icon {
+      width: 30px; height: 30px;
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .flow-card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .flow-card-trigger {
+      font-size: 10.5px;
+      color: var(--ink-4);
+      margin-top: 1px;
+    }
+
+    .flow-steps { padding: 14px 16px; display: flex; flex-direction: column; gap: 0; }
+
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      position: relative;
+    }
+
+    .step:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 26px;
+      width: 1px;
+      height: calc(100% + 2px);
+      background: var(--line-2);
+    }
+
+    .step-num {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--surface-3);
+      color: var(--ink-3);
+      font-size: 10.5px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-content { flex: 1; padding: 3px 0 14px; }
+
+    .step-label {
+      font-size: 13px;
+      color: var(--ink-2);
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    .step-detail {
+      font-size: 11.5px;
+      color: var(--ink-4);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+
+    .step-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 5px;
+    }
+
+    .tag-post  { background: #e8f5ee; color: #1a6b3c; }
+    .tag-get   { background: #e8f0fd; color: #2c4fb3; }
+    .tag-patch { background: #fdf8e1; color: #7a5800; }
+    .tag-delete { background: #fdecea; color: #a02020; }
+    .tag-ui    { background: var(--surface-3); color: var(--ink-3); }
+
+    .step-outcome {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--success);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .step-outcome.warn { color: var(--warning); }
+    .step-outcome.err  { color: var(--danger); }
+
+    /* ── NOTES ───────────────────────────────── */
+    .note {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: var(--warning-soft);
+      border: 1px solid #e8d97a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+
+    .note-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── LEGEND ──────────────────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--ink-3);
+    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ SIDEBAR ══ -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">Dauth</div>
+    <div class="sidebar-subtitle">Fluxogramas por perfil</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <button class="role-btn active" onclick="showView('usuario', this)">
+      <span class="role-icon usuario">👤</span>
+      Usuário (Cliente)
+    </button>
+    <button class="role-btn" onclick="showView('profissional', this)">
+      <span class="role-icon profissional">✂️</span>
+      Profissional
+    </button>
+    <button class="role-btn" onclick="showView('admin', this)">
+      <span class="role-icon admin">🛡️</span>
+      Admin
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    Salão Bela Arte · Dauth v1 · Beta 2026-05-01
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════ MAIN ══ -->
+<main class="main">
+
+  <!-- ════════════════════════════════ USUÁRIO ══ -->
+  <div id="view-usuario" class="view active">
+    <div class="view-header">
+      <div class="role-badge badge-usuario">👤 Usuário / Cliente</div>
+      <h1 class="view-title">Fluxos do Cliente</h1>
+      <p class="view-desc">Ações disponíveis para clientes cadastrados no sistema Dauth.</p>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#2d7a4f"></div> Acesso público (sem login)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8b4a2b"></div> Requer autenticação</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c9a57b"></div> Ação irreversível</div>
+    </div>
+
+    <div class="categories">
+
+      <!-- ONBOARDING -->
+      <div class="category-section">
+        <div class="category-title">Onboarding & Autenticação</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">🚀</div>
+              <div>
+                <div class="flow-card-title">Criar Conta</div>
+                <div class="flow-card-trigger">Trigger: cliente acessa /register</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Preenche e-mail, nome e senha</div>
+                  <div class="step-detail">Formulário de cadastro</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Submete cadastro</div>
+                  <span class="step-tag tag-post">POST /auth/register</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Login automático em seguida</div>
+                  <span class="step-tag tag-post">POST /auth/login</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-content">
+                  <div class="step-label">Busca perfil completo</div>
+                  <span class="step-tag tag-get">GET /users/perfil/me</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">5</div>
+                <div class="step-content">
+                  <div class="step-label">Redireciona para /cliente</div>
+                  <div class="step-outcome">✓ Conta criada e autenticado</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f0fd">🔑</div>
+              <div>
+                <div class="flow-card-title">Fazer Login</div>
+                <div class="flow-card-trigger">Trigger: acessa /login</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Se sessão expirou anteriormente, exibe aviso</div>
+                  <div class="step-detail">Flag session_expired no sessionStorage → toast "Sua sessão expirou"</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Informa e-mail e senha</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Autentica na API</div>
+                  <span class="step-tag tag-post">POST /auth/login</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-content">
+                  <div class="step-label">Busca perfil real do banco</div>
+                  <span class="step-tag tag-get">GET /users/perfil/me</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">5</div>
+                <div class="step-content">
+                  <div class="step-label">Redireciona por role (Admin/Profissional/Usuario)</div>
+                  <div class="step-outcome">✓ Sessão iniciada</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- AGENDAMENTO -->
+      <div class="category-section">
+        <div class="category-title">Agendamento</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdf5ec">📅</div>
+              <div>
+                <div class="flow-card-title">Agendar Serviço (Stepper Público)</div>
+                <div class="flow-card-trigger">Trigger: acessa /agendar</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Etapa 1 — Escolhe o serviço</div>
+                  <span class="step-tag tag-get">GET /public/services</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Etapa 2 — Escolhe o profissional</div>
+                  <span class="step-tag tag-get">GET /public/services/:id/professionals</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Etapa 3 — Escolhe data e horário</div>
+                  <span class="step-tag tag-get">GET /public/availability/:id?date=&service_id=</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-content">
+                  <div class="step-label">Etapa 4 — Login ou cadastro (se não autenticado)</div>
+                  <div class="step-detail">Fluxo de login inline ou redirecionamento</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">5</div>
+                <div class="step-content">
+                  <div class="step-label">Etapa 5 — Confirmação do agendamento</div>
+                  <span class="step-tag tag-post">POST /appointment</span>
+                  <div class="step-outcome">✓ Agendamento criado com status "pendente"</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">🗂️</div>
+              <div>
+                <div class="flow-card-title">Ver Meus Agendamentos</div>
+                <div class="flow-card-trigger">Trigger: acessa /cliente/agendamentos</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Lista todos os agendamentos</div>
+                  <span class="step-tag tag-get">GET /appointment/client/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Filtra por status (todos/pendente/confirmado/cancelado/concluido)</div>
+                  <span class="step-tag tag-ui">UI (filtro local)</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Clica em um agendamento para ver detalhes</div>
+                  <div class="step-detail">Redireciona para /agendamento/:id</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">📋</div>
+              <div>
+                <div class="flow-card-title">Ver Detalhes de Agendamento</div>
+                <div class="flow-card-trigger">Trigger: acessa /agendamento/:id</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega dados do agendamento</div>
+                  <span class="step-tag tag-get">GET /appointment/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Visualiza serviço, profissional, data, horário, status</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              <span class="note-icon">ℹ️</span>
+              Cliente não pode cancelar diretamente — deve contatar o salão. Apenas Admin pode alterar status.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- COMANDAS -->
+      <div class="category-section">
+        <div class="category-title">Comandas</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">🧾</div>
+              <div>
+                <div class="flow-card-title">Ver Minhas Comandas</div>
+                <div class="flow-card-trigger">Trigger: acessa /cliente/comandas</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega comandas do cliente autenticado</div>
+                  <span class="step-tag tag-get">GET /tab</span>
+                  <div class="step-detail">Servidor filtra automaticamente pelo token — não é necessário passar o ID</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Filtra por status (Todos / Em aberto / Paga / Expirada)</div>
+                  <span class="step-tag tag-ui">UI (filtro local)</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Exibe serviço, profissional, data, valor, status e vencimento</div>
+                  <div class="step-detail">Comanda com Value=0 exibe badge "Combo" (uso de pacote já pago)</div>
+                  <div class="step-outcome">✓ Histórico financeiro do cliente</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- COMBOS -->
+      <div class="category-section">
+        <div class="category-title">Pacotes & Combos</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdf5ec">🎁</div>
+              <div>
+                <div class="flow-card-title">Ver Meus Combos</div>
+                <div class="flow-card-trigger">Trigger: acessa /cliente/combos</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega pacotes do cliente</div>
+                  <span class="step-tag tag-get">GET /package/client/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Exibe seção Ativos (status=ativo)</div>
+                  <div class="step-detail">Cards com barra de progresso e breakdown por serviço</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Exibe seção Histórico (concluido/cancelado)</div>
+                  <div class="step-outcome">✓ Sessões restantes: Total − Usadas</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PERFIL -->
+      <div class="category-section">
+        <div class="category-title">Perfil & Conta</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f0fd">✏️</div>
+              <div>
+                <div class="flow-card-title">Editar Perfil</div>
+                <div class="flow-card-trigger">Trigger: acessa /perfil</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega dados atuais</div>
+                  <span class="step-tag tag-get">GET /users/perfil/me</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Edita nome, telefone, data de nascimento</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Salva alterações</div>
+                  <span class="step-tag tag-patch">PATCH /users/perfil/me</span>
+                  <div class="step-outcome">✓ Perfil atualizado</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">🔒</div>
+              <div>
+                <div class="flow-card-title">Trocar Senha</div>
+                <div class="flow-card-trigger">Trigger: acessa /trocar-senha</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Informa senha atual e nova senha</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Confirma nova senha</div>
+                  <span class="step-tag tag-patch">PATCH /users/perfil/me/password</span>
+                  <div class="step-outcome">✓ Senha alterada</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">🚪</div>
+              <div>
+                <div class="flow-card-title">Sair (Logout)</div>
+                <div class="flow-card-trigger">Trigger: botão sair (sidebar ou header mobile)</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Chama endpoint de logout</div>
+                  <span class="step-tag tag-post">POST /auth/logout</span>
+                  <div class="step-detail">Servidor apaga os cookies httpOnly</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Limpa estado local (Zustand)</div>
+                  <span class="step-tag tag-ui">store.logout()</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Redireciona para /login</div>
+                  <div class="step-outcome">✓ Sessão encerrada</div>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              <span class="note-icon">ℹ️</span>
+              Em mobile, o botão de logout fica no header superior direito (ícone de saída). Em desktop, fica no rodapé da sidebar.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /categories -->
+  </div><!-- /view-usuario -->
+
+
+  <!-- ══════════════════════════════ PROFISSIONAL ══ -->
+  <div id="view-profissional" class="view">
+    <div class="view-header">
+      <div class="role-badge badge-profissional">✂️ Profissional</div>
+      <h1 class="view-title">Fluxos do Profissional</h1>
+      <p class="view-desc">Ações disponíveis para profissionais vinculados ao salão via convite.</p>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#8b4a2b"></div> Requer autenticação como Profissional</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c9a57b"></div> Alterações aplicadas imediatamente</div>
+    </div>
+
+    <div class="categories">
+
+      <!-- ONBOARDING -->
+      <div class="category-section">
+        <div class="category-title">Onboarding (Convite)</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdf5ec">📨</div>
+              <div>
+                <div class="flow-card-title">Aceitar Convite do Admin</div>
+                <div class="flow-card-trigger">Trigger: clica no link do e-mail</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Admin envia convite por e-mail</div>
+                  <div class="step-detail">Admin acessa /admin/convidar-profissional</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Supabase envia e-mail com link único</div>
+                  <div class="step-detail">Link redireciona para /auth/accept-invite#access_token=JWT</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Preenche telefone, data de nascimento e senha</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-content">
+                  <div class="step-label">Finaliza cadastro</div>
+                  <span class="step-tag tag-post">POST /auth/accept-invite</span>
+                  <div class="step-outcome">✓ Conta ativada, redireciona para /profissional</div>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              <span class="note-icon">⚠️</span>
+              O link de convite é de uso único. Tokens JWT do hash são lidos apenas uma vez.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- AGENDA -->
+      <div class="category-section">
+        <div class="category-title">Agenda & Atendimentos</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">📊</div>
+              <div>
+                <div class="flow-card-title">Painel Principal</div>
+                <div class="flow-card-trigger">Trigger: acessa /profissional</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega agendamentos de hoje</div>
+                  <span class="step-tag tag-get">GET /appointment/my?date=HOJE</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega horários de trabalho cadastrados</div>
+                  <span class="step-tag tag-get">GET /working-hours/professional/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Exibe now-card (atendimento atual), próximos e grade de horários</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f0fd">📋</div>
+              <div>
+                <div class="flow-card-title">Minha Agenda (lista)</div>
+                <div class="flow-card-trigger">Trigger: acessa /profissional/agendamentos</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega todos os agendamentos</div>
+                  <span class="step-tag tag-get">GET /appointment/my</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Filtra por data ou status</div>
+                  <span class="step-tag tag-ui">UI (filtros)</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Clica para ver detalhes</div>
+                  <div class="step-detail">Redireciona para /agendamento/:id</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SERVIÇOS -->
+      <div class="category-section">
+        <div class="category-title">Serviços Vinculados</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdf5ec">✂️</div>
+              <div>
+                <div class="flow-card-title">Gerenciar Serviços Próprios</div>
+                <div class="flow-card-trigger">Trigger: acessa /profissional/servicos</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega catálogo completo de serviços</div>
+                  <span class="step-tag tag-get">GET /service</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Para cada serviço, verifica se está vinculado</div>
+                  <span class="step-tag tag-get">GET /service/:id/professionals</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3a</div>
+                <div class="step-content">
+                  <div class="step-label">Vincular serviço</div>
+                  <span class="step-tag tag-post">POST /service/:id/professionals</span>
+                  <div class="step-outcome">✓ Aparece no agendamento público</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3b</div>
+                <div class="step-content">
+                  <div class="step-label">Desvincular serviço</div>
+                  <span class="step-tag tag-delete">DELETE /service/:id/professionals/:linkId</span>
+                  <div class="step-outcome warn">⚠ Serviço deixa de aparecer para agendamento</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- HORÁRIOS -->
+      <div class="category-section">
+        <div class="category-title">Horários de Trabalho</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">⏰</div>
+              <div>
+                <div class="flow-card-title">Configurar Horários Semanais</div>
+                <div class="flow-card-trigger">Trigger: acessa /profissional/horarios</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega horários cadastrados</div>
+                  <span class="step-tag tag-get">GET /working-hours/professional/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2a</div>
+                <div class="step-content">
+                  <div class="step-label">Adicionar horário para um dia da semana</div>
+                  <span class="step-tag tag-post">POST /working-hours</span>
+                  <div class="step-detail">Body: { professional_id, weekday (0–6), start_time, end_time }</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2b</div>
+                <div class="step-content">
+                  <div class="step-label">Editar horário existente</div>
+                  <span class="step-tag tag-patch">PATCH /working-hours/:id</span>
+                  <div class="step-detail">Body: { start_time, end_time }</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2c</div>
+                <div class="step-content">
+                  <div class="step-label">Remover horário de um dia</div>
+                  <span class="step-tag tag-delete">DELETE /working-hours/:id</span>
+                  <div class="step-outcome warn">⚠ Bloqueia novos agendamentos naquele dia</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PERFIL -->
+      <div class="category-section">
+        <div class="category-title">Perfil & Conta</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f0fd">✏️</div>
+              <div>
+                <div class="flow-card-title">Editar Perfil</div>
+                <div class="flow-card-trigger">Trigger: acessa /perfil</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega dados atuais</div>
+                  <span class="step-tag tag-get">GET /users/perfil/me</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Edita nome, telefone, data de nascimento</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Salva alterações</div>
+                  <span class="step-tag tag-patch">PATCH /users/perfil/me</span>
+                  <div class="step-outcome">✓ Perfil atualizado</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">🔒</div>
+              <div>
+                <div class="flow-card-title">Trocar Senha</div>
+                <div class="flow-card-trigger">Trigger: acessa /trocar-senha</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Informa senha atual e nova senha</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Confirma alteração</div>
+                  <span class="step-tag tag-patch">PATCH /users/perfil/me/password</span>
+                  <div class="step-outcome">✓ Senha alterada</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /view-profissional -->
+
+
+  <!-- ══════════════════════════════════ ADMIN ══ -->
+  <div id="view-admin" class="view">
+    <div class="view-header">
+      <div class="role-badge badge-admin">🛡️ Admin</div>
+      <h1 class="view-title">Fluxos do Administrador</h1>
+      <p class="view-desc">Ações completas de gestão do salão disponíveis para administradores.</p>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#b53a2f"></div> Ação crítica / irreversível</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8b4a2b"></div> Requer autenticação como Admin</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2d7a4f"></div> Afeta fluxo de outros usuários</div>
+    </div>
+
+    <div class="categories">
+
+      <!-- AGENDA -->
+      <div class="category-section">
+        <div class="category-title">Agenda & Agendamentos</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">📅</div>
+              <div>
+                <div class="flow-card-title">Agenda Geral (Grade por Profissional)</div>
+                <div class="flow-card-trigger">Trigger: acessa /admin</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega profissionais (colunas fixas)</div>
+                  <span class="step-tag tag-get">GET /users?Role=Profissional</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega agendamentos do dia selecionado</div>
+                  <span class="step-tag tag-get">GET /appointment?date=YYYY-MM-DD</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Navega entre dias (← →) para ver agenda de outros dias</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdf5ec">📋</div>
+              <div>
+                <div class="flow-card-title">Gerenciar Agendamentos</div>
+                <div class="flow-card-trigger">Trigger: acessa /admin/agendamentos</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Lista todos os agendamentos</div>
+                  <span class="step-tag tag-get">GET /appointment</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Filtra por data ou status</div>
+                  <span class="step-tag tag-ui">UI (filtros)</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Abre detalhes e altera status</div>
+                  <span class="step-tag tag-patch">PATCH /appointment/:id</span>
+                  <div class="step-detail">Body: { Status: 'confirmado' | 'cancelado' | 'concluido' }</div>
+                  <div class="step-outcome">✓ Status atualizado — visível ao cliente e profissional</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CAIXA -->
+      <div class="category-section">
+        <div class="category-title">Caixa & Pagamentos</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">💰</div>
+              <div>
+                <div class="flow-card-title">Registrar Pagamento de Comanda</div>
+                <div class="flow-card-trigger">Trigger: acessa /admin/caixa</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Lista comandas abertas</div>
+                  <span class="step-tag tag-get">GET /tab</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Abre painel de pagamento da comanda selecionada</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3a</div>
+                <div class="step-content">
+                  <div class="step-label">Se comanda tem valor (serviço pago): registra transação</div>
+                  <span class="step-tag tag-post">POST /transaction</span>
+                  <div class="step-detail">Body: { Payment_date: ISO8601, ... }</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3b</div>
+                <div class="step-content">
+                  <div class="step-label">Se comanda é uso de combo (Value=0): sem transação</div>
+                  <span class="step-tag tag-ui">Apenas atualiza status</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-content">
+                  <div class="step-label">Fecha a comanda</div>
+                  <span class="step-tag tag-patch">PATCH /tab/:id</span>
+                  <div class="step-outcome">✓ Comanda fechada</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- COMBOS ADMIN -->
+      <div class="category-section">
+        <div class="category-title">Pacotes & Combos</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdf5ec">🎁</div>
+              <div>
+                <div class="flow-card-title">Criar Pacote/Combo</div>
+                <div class="flow-card-trigger">Trigger: acessa /admin/combos → botão Novo</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Preenche nome, preço e validade</div>
+                  <span class="step-tag tag-post">POST /package</span>
+                  <div class="step-detail">Body: { Name, Price, Available_until }</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Adiciona serviços ao pacote (itens)</div>
+                  <span class="step-tag tag-post">POST /package/:id/items</span>
+                  <div class="step-detail">Body: { Service_id, Quantity }</div>
+                  <div class="step-outcome">✓ Pacote disponível para venda</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">🛒</div>
+              <div>
+                <div class="flow-card-title">Vender Combo para Cliente</div>
+                <div class="flow-card-trigger">Trigger: botão Vender no card do combo</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Seleciona o cliente</div>
+                  <span class="step-tag tag-ui">UI (busca de cliente)</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Confirma a venda</div>
+                  <span class="step-tag tag-post">POST /package/:id/sell</span>
+                  <div class="step-detail">Body: { Client_id }</div>
+                  <div class="step-outcome">✓ Combo aparece em "Meus Combos" do cliente</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">🗑️</div>
+              <div>
+                <div class="flow-card-title">Editar / Excluir Pacote</div>
+                <div class="flow-card-trigger">Trigger: ações no card do combo</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">E</div>
+                <div class="step-content">
+                  <div class="step-label">Editar informações do pacote</div>
+                  <span class="step-tag tag-patch">PATCH /package/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">R</div>
+                <div class="step-content">
+                  <div class="step-label">Remover item do pacote</div>
+                  <span class="step-tag tag-delete">DELETE /package/:id/items/:itemId</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">X</div>
+                <div class="step-content">
+                  <div class="step-label">Excluir pacote inteiro</div>
+                  <span class="step-tag tag-delete">DELETE /package/:id</span>
+                  <div class="step-outcome err">✕ Ação irreversível</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SERVIÇOS ADMIN -->
+      <div class="category-section">
+        <div class="category-title">Serviços & Categorias</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f0fd">✂️</div>
+              <div>
+                <div class="flow-card-title">CRUD de Serviços</div>
+                <div class="flow-card-trigger">Trigger: acessa /admin/servicos</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">L</div>
+                <div class="step-content">
+                  <div class="step-label">Listar serviços e categorias</div>
+                  <span class="step-tag tag-get">GET /service · GET /category</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">C</div>
+                <div class="step-content">
+                  <div class="step-label">Criar novo serviço (drawer lateral)</div>
+                  <span class="step-tag tag-post">POST /service</span>
+                  <div class="step-detail">Nome, preço, duração, categoria, comissão</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">E</div>
+                <div class="step-content">
+                  <div class="step-label">Editar serviço existente</div>
+                  <span class="step-tag tag-patch">PATCH /service/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">X</div>
+                <div class="step-content">
+                  <div class="step-label">Excluir serviço</div>
+                  <span class="step-tag tag-delete">DELETE /service/:id</span>
+                  <div class="step-outcome err">✕ Remove do catálogo e do agendamento público</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdf5ec">🏷️</div>
+              <div>
+                <div class="flow-card-title">CRUD de Categorias</div>
+                <div class="flow-card-trigger">Trigger: aba Categorias em /admin/servicos</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">C</div>
+                <div class="step-content">
+                  <div class="step-label">Criar categoria</div>
+                  <span class="step-tag tag-post">POST /category</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">E</div>
+                <div class="step-content">
+                  <div class="step-label">Editar categoria</div>
+                  <span class="step-tag tag-patch">PATCH /category/:id</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">X</div>
+                <div class="step-content">
+                  <div class="step-label">Excluir categoria</div>
+                  <span class="step-tag tag-delete">DELETE /category/:id</span>
+                  <div class="step-outcome warn">⚠ Serviços vinculados ficam sem categoria</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- USUÁRIOS -->
+      <div class="category-section">
+        <div class="category-title">Usuários & Profissionais</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">👥</div>
+              <div>
+                <div class="flow-card-title">Gerenciar Usuários</div>
+                <div class="flow-card-trigger">Trigger: acessa /admin/usuarios</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Lista todos os usuários cadastrados</div>
+                  <span class="step-tag tag-get">GET /users</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2a</div>
+                <div class="step-content">
+                  <div class="step-label">Ativar usuário</div>
+                  <span class="step-tag tag-patch">PATCH /users/:id</span>
+                  <div class="step-detail">Body: { active: true }</div>
+                  <div class="step-outcome">✓ Usuário pode fazer login</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2b</div>
+                <div class="step-content">
+                  <div class="step-label">Desativar usuário</div>
+                  <span class="step-tag tag-patch">PATCH /users/:id</span>
+                  <div class="step-detail">Body: { active: false }</div>
+                  <div class="step-outcome warn">⚠ Acesso bloqueado imediatamente</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">📩</div>
+              <div>
+                <div class="flow-card-title">Convidar Profissional</div>
+                <div class="flow-card-trigger">Trigger: acessa /admin/convidar-profissional</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Informa nome e e-mail do profissional</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Envia convite</div>
+                  <span class="step-tag tag-post">POST /auth/invite</span>
+                  <div class="step-detail">Body: { email, name }</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Supabase envia e-mail com link de ativação único</div>
+                  <div class="step-outcome">✓ Profissional recebe e-mail e completa cadastro</div>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              <span class="note-icon">⚠️</span>
+              O link expira e é de uso único. Se o profissional não receber, é necessário reenviar o convite.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PERFIL ADMIN -->
+      <div class="category-section">
+        <div class="category-title">Perfil & Conta</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f0fd">✏️</div>
+              <div>
+                <div class="flow-card-title">Editar Perfil</div>
+                <div class="flow-card-trigger">Trigger: acessa /perfil</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega dados atuais</div>
+                  <span class="step-tag tag-get">GET /users/perfil/me</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Salva alterações</div>
+                  <span class="step-tag tag-patch">PATCH /users/perfil/me</span>
+                  <div class="step-outcome">✓ Perfil atualizado</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">🔒</div>
+              <div>
+                <div class="flow-card-title">Trocar Senha</div>
+                <div class="flow-card-trigger">Trigger: acessa /trocar-senha</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Informa senha atual e nova senha</div>
+                  <span class="step-tag tag-patch">PATCH /users/perfil/me/password</span>
+                  <div class="step-outcome">✓ Senha alterada</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /view-admin -->
+
+</main>
+
+<script>
+  function showView(role, btn) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-' + role).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

@@ -132,7 +132,31 @@ export default function ProfissionalHorarios() {
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Profissional" />
   )
 
-  if (loading) return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
+  if (loading) return (
+    <AppLayout sidebar={sidebar}>
+      <div className="flex justify-between items-end mb-7">
+        <div className="flex flex-col gap-2">
+          <div className="h-7 w-44 bg-surface-2 rounded-lg animate-pulse" />
+          <div className="h-4 w-28 bg-surface-2 rounded animate-pulse" />
+        </div>
+      </div>
+      <div className="grid gap-3">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-5 p-5 bg-surface border border-line rounded-xl">
+            <div className="w-28 shrink-0 flex flex-col gap-1.5">
+              <div className="h-4 w-20 bg-surface-2 rounded animate-pulse" />
+              <div className="h-3 w-8 bg-surface-2 rounded animate-pulse" />
+            </div>
+            <div className="flex-1 flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-surface-2 shrink-0" />
+              <div className="h-4 w-32 bg-surface-2 rounded animate-pulse" />
+            </div>
+            <div className="h-8 w-20 bg-surface-2 rounded-lg animate-pulse shrink-0" />
+          </div>
+        ))}
+      </div>
+    </AppLayout>
+  )
 
   return (
     <AppLayout sidebar={sidebar}>
@@ -207,8 +231,8 @@ export default function ProfissionalHorarios() {
       {drawer && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-black/30" onClick={() => !saving && setDrawer(null)} />
-          <div className="w-80 bg-surface border-l border-line h-full flex flex-col shadow-xl">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-line">
+          <div className="w-full md:w-80 bg-surface border-l border-line h-full flex flex-col shadow-xl">
+            <div className="flex items-center justify-between px-5 md:px-6 py-5 border-b border-line">
               <h4 className="font-display font-medium text-[17px]">
                 {drawer.mode === 'add' ? 'Adicionar horário' : 'Editar horário'}
               </h4>
@@ -217,7 +241,7 @@ export default function ProfissionalHorarios() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto px-5 md:px-6 py-5 md:py-6 flex flex-col gap-4">
               <div>
                 <p className="text-[13px] font-medium text-ink-2 mb-3">
                   {DOW_LABELS[drawer.weekday]}
@@ -247,7 +271,7 @@ export default function ProfissionalHorarios() {
               </div>
             </div>
 
-            <div className="px-6 py-5 border-t border-line flex gap-2.5">
+            <div className="px-5 md:px-6 py-5 border-t border-line flex gap-2.5">
               <Button onClick={handleSave} disabled={saving} className="flex-1">
                 {saving ? 'Salvando...' : 'Salvar'}
               </Button>

@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
+import { useToast } from '@/context/ToastContext'
+import logo from '@/logo-dauth-agendamentos.png'
 
 const ROLE_REDIRECT = {
   Admin: '/admin',
@@ -17,6 +19,14 @@ export default function LoginPage() {
   const [apiError, setApiError] = useState('')
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
+  const { addToast } = useToast()
+
+  useEffect(() => {
+    if (sessionStorage.getItem('session_expired')) {
+      sessionStorage.removeItem('session_expired')
+      addToast('Sua sessão expirou. Faça login novamente.', 'warning')
+    }
+  }, [])
 
   const {
     register,
@@ -31,9 +41,8 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
       })
-      login({ id: res.user.id, email: res.user.email, role: res.user.role }, res.access_token, res.refresh_token)
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, res.access_token, res.refresh_token)
+      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
       navigate(ROLE_REDIRECT[perfil.Role] ?? '/', { replace: true })
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao entrar. Tente novamente.')
@@ -46,10 +55,8 @@ export default function LoginPage() {
 
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-11 h-11 rounded-xl bg-ink text-bg flex items-center justify-center font-display font-bold text-xl mb-4">
-            d
-          </div>
-          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth</h1>
+          <img src={logo} alt="Dauth" className="w-12 h-12 rounded-xl object-cover mb-4" />
+          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
           <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
         </div>
 

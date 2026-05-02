@@ -80,7 +80,7 @@ export default function TrocarSenha() {
   function validate() {
     const e = {}
     if (!current) e.current = 'Informe a senha atual'
-    if (!newPass || newPass.length < 6) e.newPass = 'Nova senha deve ter no mínimo 6 caracteres'
+    if (!newPass || newPass.length < 8) e.newPass = 'Nova senha deve ter no mínimo 8 caracteres'
     if (newPass !== confirm) e.confirm = 'As senhas não coincidem'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -130,7 +130,7 @@ export default function TrocarSenha() {
             value={newPass}
             onChange={e => setNewPass(e.target.value)}
             error={errors.newPass}
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Mínimo 8 caracteres"
           />
           <PasswordInput
             label="Confirmar nova senha"

@@ -48,9 +48,9 @@ function formatDate(str) {
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex items-center gap-4 py-3.5 border-b border-line-2 last:border-0">
-      <div className="w-40 text-[12px] text-ink-3 font-medium shrink-0">{label}</div>
-      <div className="text-[13.5px] text-ink-2">{value || '—'}</div>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-4 py-3 md:py-3.5 border-b border-line-2 last:border-0">
+      <div className="text-[11px] sm:text-[12px] text-ink-3 font-medium sm:w-40 sm:shrink-0">{label}</div>
+      <div className="text-[13px] md:text-[13.5px] text-ink-2">{value || '—'}</div>
     </div>
   )
 }
@@ -93,7 +93,6 @@ export default function MeuPerfil() {
         const msg = err.response?.data?.error ?? `Erro ${err.response?.status ?? 'de conexão'} ao carregar perfil`
         setLoadError(msg)
         console.error('[MeuPerfil] GET /users/perfil/me falhou:', err.response?.status, err.response?.data)
-        console.log('[MeuPerfil] access_token no localStorage:', localStorage.getItem('access_token'))
       })
       .finally(() => setLoading(false))
   }, [])
@@ -148,7 +147,35 @@ export default function MeuPerfil() {
   )
 
   if (loading) {
-    return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
+    return (
+      <AppLayout sidebar={sidebar}>
+        <div className="max-w-lg">
+          <div className="flex justify-between items-start mb-7">
+            <div className="flex flex-col gap-2">
+              <div className="h-7 w-32 bg-surface-2 rounded-lg animate-pulse" />
+              <div className="h-4 w-24 bg-surface-2 rounded animate-pulse" />
+            </div>
+            <div className="h-8 w-20 bg-surface-2 rounded-lg animate-pulse" />
+          </div>
+          <div className="flex items-center gap-4 mb-5 p-5 bg-surface border border-line rounded-xl">
+            <div className="w-12 h-12 rounded-full bg-surface-2 animate-pulse shrink-0" />
+            <div className="flex flex-col gap-2">
+              <div className="h-4 w-36 bg-surface-2 rounded animate-pulse" />
+              <div className="h-3.5 w-44 bg-surface-2 rounded animate-pulse" />
+              <div className="h-3 w-16 bg-surface-2 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="bg-surface border border-line rounded-xl px-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 py-3.5 border-b border-line-2 last:border-0">
+                <div className="w-40 h-3.5 bg-surface-2 rounded animate-pulse shrink-0" />
+                <div className="h-3.5 bg-surface-2 rounded animate-pulse" style={{ width: `${[120, 160, 100, 90][i]}px` }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </AppLayout>
+    )
   }
 
   if (loadError) {
@@ -170,10 +197,10 @@ export default function MeuPerfil() {
     <AppLayout sidebar={sidebar}>
       <div className="max-w-lg">
         {/* Header */}
-        <div className="flex justify-between items-start mb-7">
+        <div className="flex justify-between items-start mb-5 md:mb-7">
           <div>
-            <h3 className="font-display font-medium text-[26px] tracking-tight">Meu perfil</h3>
-            <p className="text-[13px] text-ink-3 mt-1">Seus dados pessoais</p>
+            <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Meu perfil</h3>
+            <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Seus dados pessoais</p>
           </div>
           {!editing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
