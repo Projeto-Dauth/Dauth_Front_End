@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
+import logo from '@/logo-dauth-agendamentos.png'
 
 export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false)
@@ -33,9 +34,8 @@ export default function RegisterPage() {
         email: data.email,
         password: data.password,
       })
-      login({ id: loginRes.user.id, email: loginRes.user.email, role: loginRes.user.role }, loginRes.access_token, loginRes.refresh_token)
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, loginRes.access_token, loginRes.refresh_token)
+      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
       navigate('/cliente', { replace: true })
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao criar conta. Tente novamente.')
@@ -48,10 +48,8 @@ export default function RegisterPage() {
 
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-11 h-11 rounded-xl bg-ink text-bg flex items-center justify-center font-display font-bold text-xl mb-4">
-            d
-          </div>
-          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth</h1>
+          <img src={logo} alt="Dauth" className="w-12 h-12 rounded-xl object-cover mb-4" />
+          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
           <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
         </div>
 

@@ -30,13 +30,13 @@ for (let h = 8; h < 18; h++) {
 }
 
 const WEEK_DAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
-const MONTHS = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 
 const STATUS_STYLE = {
-  pendente:   { card: 'bg-warning-soft border-warning/30 text-warning',   dot: 'bg-warning' },
-  confirmado: { card: 'bg-success-soft border-success/30 text-success',   dot: 'bg-success' },
-  concluido:  { card: 'bg-surface-2 border-line text-ink-3',              dot: 'bg-ink-3' },
-  cancelado:  { card: 'bg-danger-soft border-danger/30 text-danger',      dot: 'bg-danger' },
+  pendente: { card: 'bg-warning-soft border-warning/30 text-warning', dot: 'bg-warning' },
+  confirmado: { card: 'bg-success-soft border-success/30 text-success', dot: 'bg-success' },
+  concluido: { card: 'bg-surface-2 border-line text-ink-3', dot: 'bg-ink-3' },
+  cancelado: { card: 'bg-danger-soft border-danger/30 text-danger', dot: 'bg-danger' },
 }
 
 function parseTime(t) {
@@ -51,8 +51,8 @@ function toMinutes(t) {
 
 function coversSlot(appt, slot) {
   const start = toMinutes(parseTime(appt.Start_time))
-  const end   = toMinutes(parseTime(appt.End_time))
-  const s     = toMinutes(slot)
+  const end = toMinutes(parseTime(appt.End_time))
+  const s = toMinutes(slot)
   return s >= start && s < end
 }
 
@@ -60,14 +60,20 @@ function isStart(appt, slot) {
   return parseTime(appt.Start_time) === slot
 }
 
+function spanSlots(appt) {
+  const start = toMinutes(parseTime(appt.Start_time))
+  const end = toMinutes(parseTime(appt.End_time))
+  return Math.max(1, Math.ceil((end - start) / 30))
+}
+
 function toDateStr(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 function formatHeader(date) {
-  const dow  = WEEK_DAYS[date.getDay()]
-  const d    = date.getDate()
-  const mon  = MONTHS[date.getMonth()]
+  const dow = WEEK_DAYS[date.getDay()]
+  const d = date.getDate()
+  const mon = MONTHS[date.getMonth()]
   const year = date.getFullYear()
   return `${dow.charAt(0).toUpperCase() + dow.slice(1)}, ${d} de ${mon} de ${year}`
 }
@@ -84,6 +90,7 @@ export default function AdminAgenda() {
   const [appointments, setAppointments] = useState([])
   const [professionals, setProfessionals] = useState([])
   const [loading, setLoading] = useState(true)
+  const [mobileProfIdx, setMobileProfIdx] = useState(0)
 
   // Carrega profissionais uma vez ao montar
   useEffect(() => {
@@ -122,32 +129,32 @@ export default function AdminAgenda() {
 
   return (
     <AppLayout sidebar={sidebar}>
-      <div className="flex justify-between items-end mb-6">
+      <div className="flex justify-between items-end mb-5 md:mb-6">
         <div>
-          <h3 className="font-display font-medium text-[26px] tracking-tight">Agenda</h3>
-          <p className="text-[13px] text-ink-3 mt-1">
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agenda</h3>
+          <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">
             {appointments.length} atendimento{appointments.length !== 1 ? 's' : ''} · {formatHeader(date)}
           </p>
         </div>
         <Button size="sm" onClick={() => navigate('/admin/agendamentos')}>
-          <Icon name="receipt" size={14} />Ver todos
+          <Icon name="receipt" size={14} /><span className="hidden sm:inline">Ver todos</span>
         </Button>
       </div>
 
       {/* Navegação de dia */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-2 md:gap-3 mb-5 overflow-x-auto">
         <button onClick={prevDay}
-          className="w-[34px] h-[34px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
+          className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowLeft" size={14} />
         </button>
-        <div className="font-display font-medium text-[17px]">{formatHeader(date)}</div>
+        <div className="font-display font-medium text-[14px] md:text-[17px] truncate">{formatHeader(date)}</div>
         <button onClick={nextDay}
-          className="w-[34px] h-[34px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
+          className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowRight" size={14} />
         </button>
         <button
-          onClick={() => { const d = new Date(); d.setHours(0,0,0,0); setDate(d) }}
-          className="ml-1 px-3 py-1.5 rounded-lg border border-line bg-surface text-[12.5px] text-ink-2 hover:border-ink-3 transition-colors cursor-pointer"
+          onClick={() => { const d = new Date(); d.setHours(0, 0, 0, 0); setDate(d) }}
+          className="ml-1 px-3 py-1.5 shrink-0 rounded-lg border border-line bg-surface text-[12.5px] text-ink-2 hover:border-ink-3 transition-colors cursor-pointer"
         >
           Hoje
         </button>
@@ -161,65 +168,127 @@ export default function AdminAgenda() {
         </div>
       ) : (
         <>
-          {/* Grade */}
-          <div
-            className="bg-surface border border-line rounded-lg overflow-hidden"
-            style={{ display: 'grid', gridTemplateColumns: `64px repeat(${profNames.length}, 1fr)` }}
-          >
-            {/* Header */}
-            <div className="px-3 py-3 border-b border-r border-line bg-surface-2" />
-            {profNames.map((name, idx) => (
-              <div key={name} className="px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5">
-                <Avatar name={name} index={idx} size="sm" />
-                <div className="font-medium text-[13px] truncate">{name}</div>
+          {/* Mobile: seletor de profissional */}
+          {profNames.length > 1 && (
+            <div className="flex items-center gap-2 mb-4 md:hidden">
+              <button
+                onClick={() => setMobileProfIdx((i) => Math.max(0, i - 1))}
+                disabled={mobileProfIdx === 0}
+                className="w-[32px] h-[32px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center disabled:opacity-30 transition-colors"
+              >
+                <Icon name="arrowLeft" size={13} />
+              </button>
+              <div className="flex-1 flex items-center gap-2 bg-surface border border-line rounded-lg px-3 py-2">
+                <Avatar name={profNames[mobileProfIdx]} index={mobileProfIdx} size="sm" />
+                <div className="font-medium text-[13px] truncate">{profNames[mobileProfIdx]}</div>
+                <div className="font-mono text-[10.5px] text-ink-3 ml-auto shrink-0">{mobileProfIdx + 1}/{profNames.length}</div>
               </div>
-            ))}
+              <button
+                onClick={() => setMobileProfIdx((i) => Math.min(profNames.length - 1, i + 1))}
+                disabled={mobileProfIdx === profNames.length - 1}
+                className="w-[32px] h-[32px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center disabled:opacity-30 transition-colors"
+              >
+                <Icon name="arrowRight" size={13} />
+              </button>
+            </div>
+          )}
 
-            {/* Slots */}
-            {TIME_SLOTS.map((slot, si) => {
-              const isHour = slot.endsWith(':00')
-              return [
-                // Célula de hora
-                <div key={`t-${slot}`}
-                  className={`px-2.5 py-1.5 text-right font-mono text-[10.5px] text-ink-3 border-r border-line
-                    ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2 border-dashed'}`}>
-                  {isHour ? slot : ''}
-                </div>,
-                // Células por profissional
-                ...profNames.map((prof, pi) => {
-                  const appt = appointments.find((a) => a.Professional === prof && coversSlot(a, slot))
-                  const isApptStart = appt && isStart(appt, slot)
-                  const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
+          {/* Grade — desktop: todos profissionais · mobile: profissional selecionado */}
+          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+            {/* Desktop */}
+            <div
+              className="hidden md:grid"
+              style={{ gridTemplateColumns: `64px repeat(${profNames.length}, 1fr)` }}
+            >
+              <div className="px-3 py-3 border-b border-r border-line bg-surface-2" />
+              {profNames.map((name, idx) => (
+                <div key={name} className="px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5">
+                  <Avatar name={name} index={idx} size="sm" />
+                  <div className="font-medium text-[13px] truncate">{name}</div>
+                </div>
+              ))}
+              {TIME_SLOTS.map((slot) => {
+                const isHour = slot.endsWith(':00')
+                return [
+                  <div key={`t-${slot}`}
+                    className={`px-2.5 py-1.5 text-right font-mono text-[10.5px] text-ink-3 border-r border-line
+                      ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2 border-dashed'}`}>
+                    {isHour ? slot : ''}
+                  </div>,
+                  ...profNames.map((prof, pi) => {
+                    const appt = appointments.find((a) => a.Professional === prof && isStart(a, slot))
+                    const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
+                    const spans = appt ? spanSlots(appt) : 0
+                    return (
+                      <div key={`${slot}-${prof}-${pi}`}
+                        className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
+                          ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}`}>
+                        {appt && (
+                          <button
+                            onClick={() => navigate(`/agendamento/${appt.UUID}`)}
+                            style={{ height: spans * 64 - 4 }}
+                            className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
+                              hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}
+                          >
+                            <div className="flex items-center gap-1.5 leading-none">
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
+                              <span className="font-semibold text-[11px] truncate">{appt.Client}</span>
+                            </div>
+                            <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{appt.Service}</div>
+                            <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                              {parseTime(appt.Start_time)} → {parseTime(appt.End_time)}
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    )
+                  }),
+                ]
+              })}
+            </div>
 
-                  return (
-                    <div key={`${slot}-${prof}-${pi}`}
-                      className={`relative h-16 border-r last:border-r-0 border-line-2
-                        ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}`}>
-                      {isApptStart && (
-                        <button
-                          onClick={() => navigate(`/agendamento/${appt.UUID}`)}
-                          className={`absolute inset-x-[3px] top-[2px] bottom-[2px] rounded-md px-2 py-1 text-left border cursor-pointer
-                            hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}
-                        >
-                          <div className="flex items-center gap-1.5 leading-none">
-                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
-                            <span className="font-semibold text-[11px] truncate">{appt.Client}</span>
-                          </div>
-                          <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{appt.Service}</div>
-                        </button>
-                      )}
-                      {appt && !isApptStart && (
-                        <div className={`absolute inset-x-[3px] top-0 bottom-0 opacity-30 rounded-sm ${style.card}`} />
-                      )}
-                    </div>
-                  )
-                }),
-              ]
-            })}
+            {/* Mobile: 1 profissional por vez */}
+            <div className="grid md:hidden" style={{ gridTemplateColumns: '56px 1fr' }}>
+              {TIME_SLOTS.map((slot) => {
+                const prof = profNames[mobileProfIdx]
+                const isHour = slot.endsWith(':00')
+                const appt = prof ? appointments.find((a) => a.Professional === prof && isStart(a, slot)) : null
+                const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
+                const spans = appt ? spanSlots(appt) : 0
+                return [
+                  <div key={`mt-${slot}`}
+                    className={`px-2 py-1.5 text-right font-mono text-[10.5px] text-ink-3 border-r border-line
+                      ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2 border-dashed'}`}>
+                    {isHour ? slot : ''}
+                  </div>,
+                  <div key={`mc-${slot}`}
+                    className={`relative h-14 overflow-visible border-line-2
+                      ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}`}>
+                    {appt && (
+                      <button
+                        onClick={() => navigate(`/agendamento/${appt.UUID}`)}
+                        style={{ height: spans * 56 - 4 }}
+                        className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
+                          hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}
+                      >
+                        <div className="flex items-center gap-1.5 leading-none">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
+                          <span className="font-semibold text-[11px] truncate">{appt.Client}</span>
+                        </div>
+                        <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{appt.Service}</div>
+                        <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                          {parseTime(appt.Start_time)} → {parseTime(appt.End_time)}
+                        </div>
+                      </button>
+                    )}
+                  </div>,
+                ]
+              })}
+            </div>
           </div>
 
           {/* Legenda */}
-          <div className="flex gap-4 mt-3">
+          <div className="flex gap-4 mt-3 flex-wrap">
             {Object.entries(STATUS_STYLE).map(([status, { dot }]) => (
               <span key={status} className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
                 <i className={`w-2 h-2 rounded-full ${dot}`} />

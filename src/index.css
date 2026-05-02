@@ -13,6 +13,13 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
   }
+
+  /* Suprime ícone nativo de revelar senha (Edge / Chrome) */
+  input[type='password']::-ms-reveal,
+  input[type='password']::-ms-clear,
+  input[type='password']::-webkit-credentials-auto-fill-button {
+    display: none !important;
+  }
 }
 
 @layer utilities {
@@ -20,3 +27,39 @@
     @apply font-mono text-xs uppercase tracking-widest text-ink-3;
   }
 }
+
+/* ── Portal landing page ── */
+.ph-warm-1 { background: linear-gradient(135deg, #ead9bc 0%, #d4a89a 50%, #b87a5e 100%); }
+.ph-warm-2 { background: linear-gradient(160deg, #f1e3d6 0%, #c9a57b 100%); }
+.ph-warm-3 { background: linear-gradient(135deg, #6f4534 0%, #b87a5e 60%, #ead9bc 100%); }
+.ph-warm-4 { background: linear-gradient(180deg, #f5ece2 0%, #d4a89a 100%); }
+.ph-warm-5 { background: linear-gradient(135deg, #3a2f29 0%, #8b4a2b 80%, #c9a57b 100%); }
+.ph-warm-6 { background: linear-gradient(160deg, #ead9bc 0%, #8b4a2b 100%); }
+
+.grain { position: relative; }
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+    radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1px 1px;
+  mix-blend-mode: overlay;
+}
+
+@keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-track { animation: drift 50s linear infinite; display: flex; align-items: center; gap: 3rem; white-space: nowrap; }
+
+.phone {
+  width: 280px; height: 580px; border-radius: 44px;
+  background: #1f1714;
+  padding: 12px;
+  box-shadow: 0 30px 60px -20px rgba(31,23,20,0.35), 0 0 0 1px rgba(31,23,20,0.06);
+}
+.phone-screen { background: #fbf7f4; border-radius: 32px; height: 100%; overflow: hidden; position: relative; }
+
+details summary::-webkit-details-marker { display: none; }
+details summary { list-style: none; }

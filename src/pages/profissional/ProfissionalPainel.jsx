@@ -14,6 +14,8 @@ import api from '@/lib/api'
 const navItems = [
   { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
   { to: '/profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
+  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
+  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
   { type: 'label', label: 'Conta' },
   { to: '/perfil', icon: 'users', label: 'Meu perfil' },
 ]
@@ -66,12 +68,22 @@ export default function ProfissionalPainel() {
     Promise.all([
       api.get('/appointment/my', { params: { date: todayStr } }),
       api.get(`/working-hours/professional/${user.id}`),
-      api.get('/service'),
+      api.get('/service', { params: { limit: 100 } }),
     ])
-      .then(([apptRes, whRes, svcRes]) => {
+      .then(async ([apptRes, whRes, svcRes]) => {
         setAppointments(apptRes.data.data ?? [])
         setWorkingHours(whRes.data.data ?? [])
-        setServices(svcRes.data.data ?? [])
+        const allServices = svcRes.data.data ?? []
+        const profsPerService = await Promise.all(
+          allServices.map((s) =>
+            api.get(`/service/${s.UUID}/professionals`)
+              .then(({ data }) => data.data ?? [])
+              .catch(() => [])
+          )
+        )
+        setServices(allServices.filter((_, i) =>
+          profsPerService[i].some((p) => p.professional_id === user.id)
+        ))
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -104,7 +116,69 @@ export default function ProfissionalPainel() {
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Profissional" />
   )
 
-  if (loading) return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
+  if (loading) return (
+    <AppLayout sidebar={sidebar}>
+      <div className="flex justify-between items-end mb-7">
+        <div className="flex flex-col gap-2">
+          <div className="h-7 w-56 bg-surface-2 rounded-lg animate-pulse" />
+          <div className="h-4 w-36 bg-surface-2 rounded animate-pulse" />
+        </div>
+        <div className="h-8 w-36 bg-surface-2 rounded-lg animate-pulse" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-3.5 mb-5">
+        <div className="rounded-2xl p-7 animate-pulse" style={{ background: '#2a1e18', opacity: 0.6 }}>
+          <div className="h-3 w-32 bg-white/20 rounded mb-4" />
+          <div className="h-9 w-48 bg-white/20 rounded mb-2" />
+          <div className="h-4 w-36 bg-white/20 rounded mb-7" />
+          <div className="h-9 w-28 bg-white/20 rounded" />
+        </div>
+        <div className="bg-surface border border-line rounded-2xl p-6">
+          <div className="flex justify-between items-center mb-4">
+            <div className="h-5 w-20 bg-surface-2 rounded animate-pulse" />
+            <div className="h-6 w-20 bg-surface-2 rounded-full animate-pulse" />
+          </div>
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 py-3 border-b border-line-2 last:border-0">
+                <div className="h-4 w-10 bg-surface-2 rounded animate-pulse" />
+                <div className="w-7 h-7 rounded-full bg-surface-2 animate-pulse shrink-0" />
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <div className="h-3.5 w-28 bg-surface-2 rounded animate-pulse" />
+                  <div className="h-3 w-20 bg-surface-2 rounded animate-pulse" />
+                </div>
+                <div className="h-5 w-16 bg-surface-2 rounded-full animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <div className="bg-surface border border-line rounded-[14px] p-5">
+          <div className="h-5 w-32 bg-surface-2 rounded animate-pulse mb-4" />
+          <div className="flex flex-col gap-1.5 md:hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-9 bg-surface-2 rounded-[10px] animate-pulse" />
+            ))}
+          </div>
+          <div className="hidden md:grid grid-cols-7 gap-1.5">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="py-2.5 px-1 bg-surface-2 rounded-[10px] animate-pulse h-14" />
+            ))}
+          </div>
+        </div>
+        <div className="bg-surface border border-line rounded-[14px] p-5">
+          <div className="h-5 w-28 bg-surface-2 rounded animate-pulse mb-4" />
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-7 rounded-full bg-surface-2 animate-pulse" style={{ width: `${[80, 100, 72, 90][i]}px` }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  )
 
   return (
     <AppLayout sidebar={sidebar}>
@@ -123,7 +197,7 @@ export default function ProfissionalPainel() {
       </div>
 
       {/* Now + Next grid */}
-      <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
+      <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-3.5 mb-5">
 
         {/* Card Agora */}
         <div className="rounded-2xl p-7 relative overflow-hidden" style={{ background: '#2a1e18' }}>
@@ -210,7 +284,7 @@ export default function ProfissionalPainel() {
       </div>
 
       {/* Bottom grid */}
-      <div className="grid grid-cols-2 gap-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
 
         {/* Meus horários */}
         <Card>
@@ -220,23 +294,41 @@ export default function ProfissionalPainel() {
           {workingHours.length === 0 ? (
             <div className="text-[13px] text-ink-3 py-4 text-center">Nenhum horário cadastrado</div>
           ) : (
-            <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
-              {DOW_LABELS.map((label, idx) => {
-                const wh = whByDay[idx]
-                return (
-                  <div
-                    key={label}
-                    className={`py-2.5 px-1 text-center bg-surface-2 rounded-[10px] border border-line-2
-                      ${!wh ? 'opacity-40' : ''}`}
-                  >
-                    <div className="font-mono text-[10px] uppercase tracking-widest text-ink-3">{label}</div>
-                    <div className="font-mono text-[11px] mt-1.5 font-medium text-ink-2">
-                      {wh ? `${wh.Start_time.slice(0,5)}–${wh.End_time.slice(0,5)}` : '—'}
+            <>
+              {/* Mobile: lista compacta */}
+              <div className="flex flex-col gap-1.5 md:hidden">
+                {DOW_LABELS.map((label, idx) => {
+                  const wh = whByDay[idx]
+                  if (!wh) return null
+                  return (
+                    <div key={label} className="flex items-center justify-between px-3 py-2 bg-surface-2 rounded-[10px] border border-line-2">
+                      <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">{label}</span>
+                      <span className="font-mono text-[12px] font-medium text-ink-2">
+                        {wh.Start_time.slice(0,5)} – {wh.End_time.slice(0,5)}
+                      </span>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+              {/* Desktop: grade de 7 colunas */}
+              <div className="hidden md:grid grid-cols-7 gap-1.5">
+                {DOW_LABELS.map((label, idx) => {
+                  const wh = whByDay[idx]
+                  return (
+                    <div
+                      key={label}
+                      className={`py-2.5 px-1 text-center bg-surface-2 rounded-[10px] border border-line-2
+                        ${!wh ? 'opacity-40' : ''}`}
+                    >
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-3">{label}</div>
+                      <div className="font-mono text-[11px] mt-1.5 font-medium text-ink-2">
+                        {wh ? `${wh.Start_time.slice(0,5)}–${wh.End_time.slice(0,5)}` : '—'}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )}
         </Card>
 
@@ -248,7 +340,7 @@ export default function ProfissionalPainel() {
             </h4>
           </div>
           {services.length === 0 ? (
-            <div className="text-[13px] text-ink-3 py-4 text-center">Nenhum serviço cadastrado</div>
+            <div className="text-[13px] text-ink-3 py-4 text-center">Nenhum serviço vinculado</div>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {services.map((s) => (

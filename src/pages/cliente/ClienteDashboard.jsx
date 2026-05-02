@@ -7,11 +7,13 @@ import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import logo from '@/logo-dauth-agendamentos.png'
 
 const navItems = [
   { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
   { to: '/cliente/agendamentos', icon: 'receipt', label: 'Meus agendamentos' },
   { to: '/cliente/combos', icon: 'package', label: 'Meus combos' },
+  { to: '/cliente/comandas', icon: 'cash', label: 'Minhas comandas' },
   { to: '/perfil', icon: 'users', label: 'Perfil e senha' },
 ]
 
@@ -43,12 +45,26 @@ function daysUntil(dateStr) {
   return Math.round((target - today) / 86400000)
 }
 
-function ClienteSidebar({ user, sinceYear }) {
+function ClienteSidebar({ user, sinceYear, onClose }) {
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
+
+  async function handleLogout() {
+    try { await api.post('/auth/logout') } catch {}
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
-    <aside className="flex flex-col gap-0.5 bg-surface-2 border-r border-line px-4 py-6 w-60 min-w-[240px]">
+    <aside className="flex flex-col gap-0.5 bg-surface-2 border-r border-line px-4 py-6 w-60 min-w-[240px] h-full overflow-y-auto">
       <div className="flex items-center gap-2.5 px-2 pb-4 mb-1 border-b border-line">
-        <div className="w-8 h-8 rounded-lg bg-ink text-bg flex items-center justify-center font-display font-bold text-base">d</div>
-        <div className="font-display font-semibold text-base">Dauth</div>
+        <img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+        <div className="flex-1 font-display font-semibold text-[13.5px] truncate">Dauth Agendamentos</div>
+        {onClose && (
+          <button onClick={onClose} className="p-1.5 rounded-lg text-ink-4 hover:bg-surface-3 transition-colors">
+            <Icon name="x" size={16} />
+          </button>
+        )}
       </div>
       <div className="text-center py-3 pb-[18px] border-b border-line mb-3">
         <Avatar name={user?.name ?? ''} index={2} size="xl" className="mx-auto mb-2" />
@@ -62,6 +78,7 @@ function ClienteSidebar({ user, sinceYear }) {
           key={item.to}
           to={item.to}
           end={item.end}
+          onClick={onClose}
           className={({ isActive }) =>
             `flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors
             ${isActive ? 'bg-surface text-ink border border-line shadow-xs' : ''}`
@@ -72,11 +89,20 @@ function ClienteSidebar({ user, sinceYear }) {
         </NavLink>
       ))}
       <div className="flex-1" />
-      <NavLink to="/agendar">
+      <NavLink to="/agendar" onClick={onClose}>
         <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-brand text-white border border-brand cursor-pointer hover:bg-[#72391f] transition-colors">
           <Icon name="plus" size={14} />Novo agendamento
         </button>
       </NavLink>
+      <div className="border-t border-line mt-2.5">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] text-ink-3 hover:bg-danger-soft hover:text-danger transition-colors cursor-pointer mt-0.5"
+        >
+          <Icon name="logout" size={16} />
+          Sair
+        </button>
+      </div>
     </aside>
   )
 }
@@ -145,10 +171,10 @@ export default function ClienteDashboard() {
       ) : (
         <>
           {/* Topbar */}
-          <div className="flex justify-between items-end mb-7">
+          <div className="flex justify-between items-end mb-5 md:mb-7">
             <div>
-              <h3 className="font-display font-medium text-[26px] tracking-tight">Olá, {firstName}</h3>
-              <div className="text-[13px] text-ink-3 mt-1">
+              <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Olá, {firstName}</h3>
+              <div className="text-[12px] md:text-[13px] text-ink-3 mt-1">
                 {next
                   ? `Seu próximo atendimento é ${diffLabel}`
                   : 'Nenhum atendimento agendado'}
@@ -157,39 +183,39 @@ export default function ClienteDashboard() {
           </div>
 
           {/* Hero grid */}
-          <div className="grid gap-4 mb-6" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
+          <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-4 mb-5 md:mb-6">
             {/* Next appointment */}
             {next ? (
-              <div className="bg-surface border border-line rounded-2xl p-7 flex gap-7 items-center relative">
-                <div className="text-center pr-7 border-r border-line-2">
-                  <div className="font-display font-medium text-[56px] leading-none tracking-tighter">
+              <div className="bg-surface border border-line rounded-2xl p-5 md:p-7 flex gap-5 md:gap-7 items-center relative">
+                <div className="text-center pr-5 md:pr-7 border-r border-line-2">
+                  <div className="font-display font-medium text-[44px] md:text-[56px] leading-none tracking-tighter">
                     {nextDate.getDate()}
                   </div>
-                  <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mt-1.5">
+                  <div className="font-mono text-[10px] md:text-[11px] uppercase tracking-widest text-ink-3 mt-1.5">
                     {MONTH_SHORT[nextDate.getMonth()]} · {DOW_FULL[nextDate.getDay()].slice(0, 3)}
                   </div>
-                  <div className="font-mono text-[14px] mt-2.5">
+                  <div className="font-mono text-[12px] md:text-[14px] mt-2">
                     {next.Start_time?.slice(0, 5)} → {next.End_time?.slice(0, 5)}
                   </div>
                 </div>
-                <div className="flex-1">
-                  <div className="font-display font-medium text-[22px] tracking-tight mb-0.5">{next.Service}</div>
-                  <div className="font-mono text-[12px] text-ink-3">com {next.Professional}</div>
-                  <div className="flex gap-2 mt-4">
+                <div className="flex-1 min-w-0">
+                  <div className="font-display font-medium text-[18px] md:text-[22px] tracking-tight mb-0.5 truncate">{next.Service}</div>
+                  <div className="font-mono text-[11px] md:text-[12px] text-ink-3">com {next.Professional}</div>
+                  <div className="flex gap-2 mt-3 md:mt-4">
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/agendamento/${next.UUID}`)}>
                       Ver detalhes
                     </Button>
                   </div>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-xs font-medium absolute top-5 right-5 ${statusStyle[next.Status]}`}>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-xs font-medium absolute top-4 right-4 ${statusStyle[next.Status]}`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-current" />
                   {statusLabel[next.Status]}
                 </span>
               </div>
             ) : (
-              <div className="bg-surface border border-line border-dashed rounded-2xl p-7 flex flex-col items-center justify-center gap-3 text-center">
+              <div className="bg-surface border border-line border-dashed rounded-2xl p-6 md:p-7 flex flex-col items-center justify-center gap-3 text-center">
                 <Icon name="cal" size={28} className="text-ink-4" />
-                <div className="font-display font-medium text-[17px] tracking-tight">Sem agendamentos futuros</div>
+                <div className="font-display font-medium text-[16px] md:text-[17px] tracking-tight">Sem agendamentos futuros</div>
                 <div className="text-[13px] text-ink-3 max-w-[220px]">Agende um horário e apareça aqui.</div>
                 <NavLink to="/agendar">
                   <Button size="sm"><Icon name="plus" size={13} />Agendar agora</Button>
@@ -207,7 +233,7 @@ export default function ClienteDashboard() {
               const remaining = totalSessions - usedSessions
               const pct = totalSessions > 0 ? Math.min((usedSessions / totalSessions) * 100, 100) : 0
               return (
-                <div className="rounded-2xl p-6 border border-line bg-surface flex flex-col justify-between">
+                <div className="rounded-2xl p-5 md:p-6 border border-line bg-surface flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-widest text-brand">
@@ -219,10 +245,10 @@ export default function ClienteDashboard() {
                         </span>
                       )}
                     </div>
-                    <h4 className="font-display font-medium text-[18px] tracking-tight mb-0.5">
+                    <h4 className="font-display font-medium text-[17px] md:text-[18px] tracking-tight mb-0.5">
                       {destaque.Service_package?.Name ?? '—'}
                     </h4>
-                    <div className="text-[12.5px] text-ink-3 mb-4">
+                    <div className="text-[12px] md:text-[12.5px] text-ink-3 mb-4">
                       {remaining} sessão{remaining !== 1 ? 'ões' : ''} restante{remaining !== 1 ? 's' : ''} de {totalSessions}
                     </div>
                     <div className="h-1.5 bg-line rounded-full overflow-hidden mb-1">
@@ -237,7 +263,7 @@ export default function ClienteDashboard() {
                       ))}
                     </div>
                   </div>
-                  <div className="mt-5">
+                  <div className="mt-4 md:mt-5">
                     <NavLink to="/cliente/combos">
                       <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md font-medium text-[13px] bg-brand text-white cursor-pointer hover:bg-[#72391f] transition-colors">
                         <Icon name="package" size={13} />Ver meus combos
@@ -248,17 +274,17 @@ export default function ClienteDashboard() {
               )
             })() : (
               <div
-                className="rounded-2xl p-6 border border-line flex flex-col justify-between"
+                className="rounded-2xl p-5 md:p-6 border border-line flex flex-col justify-between"
                 style={{ background: 'linear-gradient(135deg, #f1e3d6 0%, #f4e9d6 100%)' }}
               >
                 <div>
                   <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-widest text-brand mb-2.5">
                     <Icon name="package" size={12} />Pacotes e combos
                   </div>
-                  <h4 className="font-display font-medium text-[20px] tracking-tight mb-1.5">
+                  <h4 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-1.5">
                     Economize com combos
                   </h4>
-                  <div className="text-[12.5px] text-ink-2">
+                  <div className="text-[12px] md:text-[12.5px] text-ink-2">
                     Compre sessões em pacote e pague menos em cada atendimento.
                   </div>
                 </div>
@@ -272,54 +298,81 @@ export default function ClienteDashboard() {
           </div>
 
           {/* History header */}
-          <div className="flex justify-between items-end mb-3.5">
-            <h4 className="font-display font-medium text-[18px] tracking-tight">Histórico recente</h4>
+          <div className="flex justify-between items-end mb-3">
+            <h4 className="font-display font-medium text-[16px] md:text-[18px] tracking-tight">Histórico recente</h4>
             <NavLink to="/cliente/agendamentos">
               <Button variant="ghost" size="sm">Ver todos <Icon name="arrowRight" size={13} /></Button>
             </NavLink>
           </div>
 
-          {/* History table */}
+          {/* History — table on md+, cards on mobile */}
           {recent.length === 0 ? (
             <div className="flex items-center justify-center h-32 bg-surface border border-line border-dashed rounded-lg text-ink-3 text-[13px]">
               Nenhum agendamento ainda
             </div>
           ) : (
-            <div className="bg-surface border border-line rounded-lg overflow-hidden">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr>
-                    {['Data', 'Serviço', 'Profissional', 'Status', ''].map((h) => (
-                      <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.map((row) => (
-                    <tr key={row.UUID} className="hover:bg-surface-2 transition-colors">
-                      <td className="px-3.5 py-3 font-mono text-[12.5px] border-b border-line-2 last:border-0">
-                        {row.Date ? `${row.Date.slice(8,10)}/${row.Date.slice(5,7)} · ${row.Start_time?.slice(0,5)}` : '—'}
-                      </td>
-                      <td className="px-3.5 py-3 text-[12.5px] border-b border-line-2">{row.Service ?? '—'}</td>
-                      <td className="px-3.5 py-3 text-[12.5px] border-b border-line-2">{row.Professional ?? '—'}</td>
-                      <td className="px-3.5 py-3 border-b border-line-2">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-xs font-medium ${statusStyle[row.Status] ?? ''}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          {statusLabel[row.Status] ?? row.Status}
-                        </span>
-                      </td>
-                      <td className="px-3.5 py-3 text-right border-b border-line-2">
-                        <Button variant="ghost" size="sm" onClick={() => navigate(`/agendamento/${row.UUID}`)}>
-                          Detalhes
-                        </Button>
-                      </td>
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      {['Data', 'Serviço', 'Profissional', 'Status', ''].map((h) => (
+                        <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                          {h}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {recent.map((row) => (
+                      <tr key={row.UUID} className="hover:bg-surface-2 transition-colors">
+                        <td className="px-3.5 py-3 font-mono text-[12.5px] border-b border-line-2">
+                          {row.Date ? `${row.Date.slice(8,10)}/${row.Date.slice(5,7)} · ${row.Start_time?.slice(0,5)}` : '—'}
+                        </td>
+                        <td className="px-3.5 py-3 text-[12.5px] border-b border-line-2">{row.Service ?? '—'}</td>
+                        <td className="px-3.5 py-3 text-[12.5px] border-b border-line-2">{row.Professional ?? '—'}</td>
+                        <td className="px-3.5 py-3 border-b border-line-2">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-xs font-medium ${statusStyle[row.Status] ?? ''}`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            {statusLabel[row.Status] ?? row.Status}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-3 text-right border-b border-line-2">
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/agendamento/${row.UUID}`)}>
+                            Detalhes
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="flex flex-col gap-2 md:hidden">
+                {recent.map((row) => (
+                  <div
+                    key={row.UUID}
+                    className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3"
+                    onClick={() => navigate(`/agendamento/${row.UUID}`)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-[14px] truncate">{row.Service ?? '—'}</div>
+                      <div className="text-[12px] text-ink-3 mt-0.5">
+                        {row.Date ? `${row.Date.slice(8,10)}/${row.Date.slice(5,7)} · ${row.Start_time?.slice(0,5)}` : '—'}
+                        {row.Professional ? ` · ${row.Professional}` : ''}
+                      </div>
+                    </div>
+                    <span className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-full text-[11px] font-medium shrink-0 ${statusStyle[row.Status] ?? ''}`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {statusLabel[row.Status] ?? row.Status}
+                    </span>
+                    <Icon name="chevronRight" size={14} className="text-ink-4 shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </>
       )}

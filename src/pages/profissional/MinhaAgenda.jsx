@@ -29,6 +29,10 @@ function formatDate(str) {
   return `${d}/${m}/${y}`
 }
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export default function MinhaAgenda() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
@@ -37,6 +41,7 @@ export default function MinhaAgenda() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [dateFilter, setDateFilter] = useState('')
+  const [periodo, setPeriodo] = useState('proximos')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -52,6 +57,10 @@ export default function MinhaAgenda() {
       setLoading(false)
     }
   }, [statusFilter, dateFilter])
+
+  const visibleItems = periodo === 'proximos'
+    ? items.filter(r => r.Date >= todayStr())
+    : items.filter(r => r.Date < todayStr())
 
   useEffect(() => { load() }, [load])
 
@@ -70,6 +79,18 @@ export default function MinhaAgenda() {
 
       {/* Filters */}
       <div className="flex gap-3 mb-5 items-center flex-wrap">
+        <div className="flex rounded-lg border border-line overflow-hidden">
+          {[['proximos', 'Próximos'], ['historico', 'Histórico']].map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => setPeriodo(val)}
+              className={`px-3.5 py-[6px] text-[12.5px] font-medium transition-colors cursor-pointer
+                ${periodo === val ? 'bg-ink text-bg' : 'bg-surface text-ink-3 hover:text-ink'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <input
           type="date"
           value={dateFilter}
@@ -99,23 +120,42 @@ export default function MinhaAgenda() {
       </div>
 
       {loading ? (
-        <PageSpinner />
-      ) : items.length === 0 ? (
+        <div className="flex flex-col gap-2.5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-surface border border-line rounded-xl p-4 flex items-center gap-4">
+              <div className="w-9 h-9 rounded-full bg-surface-2 animate-pulse shrink-0" />
+              <div className="flex-1 flex flex-col gap-1.5">
+                <div className="h-3.5 w-36 bg-surface-2 rounded animate-pulse" />
+                <div className="h-3 w-24 bg-surface-2 rounded animate-pulse" />
+              </div>
+              <div className="flex flex-col gap-1.5 items-end shrink-0">
+                <div className="h-3.5 w-24 bg-surface-2 rounded animate-pulse" />
+                <div className="h-3 w-16 bg-surface-2 rounded animate-pulse" />
+              </div>
+              <div className="h-6 w-20 rounded-full bg-surface-2 animate-pulse shrink-0" />
+              <div className="w-3.5 h-3.5 bg-surface-2 rounded animate-pulse shrink-0" />
+            </div>
+          ))}
+        </div>
+      ) : visibleItems.length === 0 ? (
         <EmptyState icon="cal" title="Nenhum agendamento" description="Não há agendamentos para os filtros selecionados." />
       ) : (
         <div className="flex flex-col gap-2.5">
-          {items.map(row => (
+          {visibleItems.map(row => (
             <div
               key={row.UUID}
               onClick={() => navigate(`/agendamento/${row.UUID}`)}
-              className="bg-surface border border-line rounded-xl p-4 flex items-center gap-4 hover:border-line-3 transition-colors cursor-pointer"
+              className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3.5 hover:border-line-3 transition-colors cursor-pointer"
             >
               <Avatar name={row.Client ?? '?'} index={0} size="md" />
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-[13.5px] truncate">{row.Client ?? '—'}</div>
-                <div className="text-[12.5px] text-ink-3 mt-0.5">{row.Service ?? '—'}</div>
+                <div className="text-[12.5px] text-ink-3 mt-0.5 truncate">{row.Service ?? '—'}</div>
+                <div className="font-mono text-[11.5px] text-ink-3 mt-1 md:hidden">
+                  {formatDate(row.Date)} · {row.Start_time?.slice(0,5)} → {row.End_time?.slice(0,5)}
+                </div>
               </div>
-              <div className="text-right shrink-0">
+              <div className="text-right shrink-0 hidden md:block">
                 <div className="font-mono text-[12.5px] font-medium">{row.Start_time?.slice(0,5)} → {row.End_time?.slice(0,5)}</div>
                 <div className="font-mono text-[11px] text-ink-3 mt-0.5">{formatDate(row.Date)}</div>
               </div>

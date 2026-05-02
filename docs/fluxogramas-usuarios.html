@@ -356,7 +356,7 @@
   </nav>
 
   <div class="sidebar-footer">
-    Salão Bela Arte · Dauth v1
+    Salão Bela Arte · Dauth v1 · Beta 2026-05-01
   </div>
 </aside>
 
@@ -444,28 +444,36 @@
               <div class="step">
                 <div class="step-num">1</div>
                 <div class="step-content">
-                  <div class="step-label">Informa e-mail e senha</div>
+                  <div class="step-label">Se sessão expirou anteriormente, exibe aviso</div>
+                  <div class="step-detail">Flag session_expired no sessionStorage → toast "Sua sessão expirou"</div>
                   <span class="step-tag tag-ui">UI</span>
                 </div>
               </div>
               <div class="step">
                 <div class="step-num">2</div>
                 <div class="step-content">
+                  <div class="step-label">Informa e-mail e senha</div>
+                  <span class="step-tag tag-ui">UI</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
                   <div class="step-label">Autentica na API</div>
                   <span class="step-tag tag-post">POST /auth/login</span>
                 </div>
               </div>
               <div class="step">
-                <div class="step-num">3</div>
+                <div class="step-num">4</div>
                 <div class="step-content">
                   <div class="step-label">Busca perfil real do banco</div>
                   <span class="step-tag tag-get">GET /users/perfil/me</span>
                 </div>
               </div>
               <div class="step">
-                <div class="step-num">4</div>
+                <div class="step-num">5</div>
                 <div class="step-content">
-                  <div class="step-label">Redireciona para /cliente</div>
+                  <div class="step-label">Redireciona por role (Admin/Profissional/Usuario)</div>
                   <div class="step-outcome">✓ Sessão iniciada</div>
                 </div>
               </div>
@@ -595,6 +603,49 @@
         </div>
       </div>
 
+      <!-- COMANDAS -->
+      <div class="category-section">
+        <div class="category-title">Comandas</div>
+        <div class="flows-grid">
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#e8f5ee">🧾</div>
+              <div>
+                <div class="flow-card-title">Ver Minhas Comandas</div>
+                <div class="flow-card-trigger">Trigger: acessa /cliente/comandas</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Carrega comandas do cliente autenticado</div>
+                  <span class="step-tag tag-get">GET /tab</span>
+                  <div class="step-detail">Servidor filtra automaticamente pelo token — não é necessário passar o ID</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Filtra por status (Todos / Em aberto / Paga / Expirada)</div>
+                  <span class="step-tag tag-ui">UI (filtro local)</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Exibe serviço, profissional, data, valor, status e vencimento</div>
+                  <div class="step-detail">Comanda com Value=0 exibe badge "Combo" (uso de pacote já pago)</div>
+                  <div class="step-outcome">✓ Histórico financeiro do cliente</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- COMBOS -->
       <div class="category-section">
         <div class="category-title">Pacotes & Combos</div>
@@ -699,6 +750,44 @@
                   <div class="step-outcome">✓ Senha alterada</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <div class="flow-card-icon" style="background:#fdecea">🚪</div>
+              <div>
+                <div class="flow-card-title">Sair (Logout)</div>
+                <div class="flow-card-trigger">Trigger: botão sair (sidebar ou header mobile)</div>
+              </div>
+            </div>
+            <div class="flow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                  <div class="step-label">Chama endpoint de logout</div>
+                  <span class="step-tag tag-post">POST /auth/logout</span>
+                  <div class="step-detail">Servidor apaga os cookies httpOnly</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                  <div class="step-label">Limpa estado local (Zustand)</div>
+                  <span class="step-tag tag-ui">store.logout()</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                  <div class="step-label">Redireciona para /login</div>
+                  <div class="step-outcome">✓ Sessão encerrada</div>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              <span class="note-icon">ℹ️</span>
+              Em mobile, o botão de logout fica no header superior direito (ícone de saída). Em desktop, fica no rodapé da sidebar.
             </div>
           </div>
 

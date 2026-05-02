@@ -24,6 +24,7 @@ const navItems = [
 ]
 
 const EMPTY_PKG = { Name: '', Price: '', Available_until: '' }
+const EMPTY_DRAFT_ITEM = { service_id: '', quantity: 1 }
 
 function formatCurrency(v) {
   return `R$ ${Number(v).toFixed(2).replace('.', ',')}`
@@ -47,6 +48,8 @@ export default function AdminCombos() {
   // Drawer pacote
   const [pkgDrawer, setPkgDrawer] = useState(false)  // false | 'create' | uuid
   const [pkgForm, setPkgForm] = useState(EMPTY_PKG)
+  const [draftItems, setDraftItems] = useState([])   // serviços adicionados antes de salvar
+  const [draftItem, setDraftItem] = useState(EMPTY_DRAFT_ITEM)
   const [savingPkg, setSavingPkg] = useState(false)
   const [deletePkg, setDeletePkg] = useState(null)
   const [deletingPkg, setDeletingPkg] = useState(false)
@@ -92,7 +95,20 @@ export default function AdminCombos() {
 
   function openCreate() {
     setPkgForm(EMPTY_PKG)
+    setDraftItems([])
+    setDraftItem(EMPTY_DRAFT_ITEM)
     setPkgDrawer('create')
+  }
+
+  function addDraftItem() {
+    if (!draftItem.service_id) { addToast('Selecione um serviço', 'warning'); return }
+    const svc = services.find((s) => s.UUID === draftItem.service_id)
+    setDraftItems((prev) => [...prev, { service_id: draftItem.service_id, name: svc?.Name ?? '—', quantity: Number(draftItem.quantity) }])
+    setDraftItem(EMPTY_DRAFT_ITEM)
+  }
+
+  function removeDraftItem(idx) {
+    setDraftItems((prev) => prev.filter((_, i) => i !== idx))
   }
 
   function openEdit(pkg) {
@@ -114,7 +130,15 @@ export default function AdminCombos() {
     }
     try {
       if (pkgDrawer === 'create') {
-        await api.post('/package', body)
+        const { data: created } = await api.post('/package', body)
+        const newId = created.data?.UUID ?? created.UUID
+        if (draftItems.length > 0) {
+          await Promise.all(
+            draftItems.map((item) =>
+              api.post(`/package/${newId}/items`, { Service_id: item.service_id, Quantity: item.quantity })
+            )
+          )
+        }
         addToast('Pacote criado', 'success')
       } else {
         await api.patch(`/package/${pkgDrawer}`, body)
@@ -210,10 +234,10 @@ export default function AdminCombos() {
 
   return (
     <AppLayout sidebar={sidebar}>
-      <div className="flex justify-between items-end mb-7">
+      <div className="flex justify-between items-end mb-5 md:mb-7">
         <div>
-          <h3 className="font-display font-medium text-[26px] tracking-tight">Pacotes</h3>
-          <p className="text-[13px] text-ink-3 mt-1">{packages.length} pacote{packages.length !== 1 ? 's' : ''} no catálogo</p>
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Pacotes</h3>
+          <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">{packages.length} pacote{packages.length !== 1 ? 's' : ''} no catálogo</p>
         </div>
         <Button size="sm" onClick={openCreate}>
           <Icon name="plus" size={14} />Novo pacote
@@ -223,7 +247,7 @@ export default function AdminCombos() {
       {loading ? <PageSpinner /> : packages.length === 0 ? (
         <EmptyState icon="package" title="Nenhum pacote" description="Crie o primeiro combo do salão." action={openCreate} actionLabel="Novo pacote" />
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {packages.map((pkg) => (
             <div key={pkg.UUID} className="bg-surface border border-line rounded-2xl p-6 flex flex-col">
               <div className="flex justify-between items-start pb-4 border-b border-line-2 mb-4">
@@ -279,7 +303,7 @@ export default function AdminCombos() {
       {pkgDrawer && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-ink/30" onClick={() => setPkgDrawer(false)} />
-          <div className="w-[400px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+          <div className="w-full md:w-[400px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <h4 className="font-display font-medium text-[20px] tracking-tight">
                 {pkgDrawer === 'create' ? 'Novo pacote' : 'Editar pacote'}
@@ -304,6 +328,49 @@ export default function AdminCombos() {
                   onChange={(e) => setPkgForm((f) => ({ ...f, Available_until: e.target.value }))}
                   className={inputCls} />
               </DrawerField>
+
+              {pkgDrawer === 'create' && (
+                <div className="border-t border-line pt-4 flex flex-col gap-3">
+                  <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Serviços (opcional)</div>
+
+                  {draftItems.length > 0 && (
+                    <div className="flex flex-col divide-y divide-line-2 border border-line rounded-lg overflow-hidden mb-1">
+                      {draftItems.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center px-3 py-2.5">
+                          <div>
+                            <div className="text-[13px]">{item.name}</div>
+                            <div className="font-mono text-[11px] text-ink-3">×{item.quantity}</div>
+                          </div>
+                          <button type="button" onClick={() => removeDraftItem(idx)}
+                            className="text-ink-3 hover:text-danger transition-colors cursor-pointer p-1">
+                            <Icon name="trash" size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <DrawerField label="Serviço">
+                    <select value={draftItem.service_id}
+                      onChange={(e) => setDraftItem((f) => ({ ...f, service_id: e.target.value }))}
+                      className={inputCls}>
+                      <option value="">Selecione...</option>
+                      {services.map((s) => (
+                        <option key={s.UUID} value={s.UUID}>{s.Name}</option>
+                      ))}
+                    </select>
+                  </DrawerField>
+                  <DrawerField label="Quantidade">
+                    <input type="number" min="1" value={draftItem.quantity}
+                      onChange={(e) => setDraftItem((f) => ({ ...f, quantity: e.target.value }))}
+                      className={inputCls} />
+                  </DrawerField>
+                  <Button type="button" variant="outline" size="sm" className="w-full justify-center" onClick={addDraftItem}>
+                    <Icon name="plus" size={13} />Adicionar serviço
+                  </Button>
+                </div>
+              )}
+
               <div className="flex gap-2 mt-auto pt-4">
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setPkgDrawer(false)}>
                   Cancelar
@@ -321,7 +388,7 @@ export default function AdminCombos() {
       {itemsDrawer && currentPkg && (
         <div className="fixed inset-0 z-40 flex">
           <div className="flex-1 bg-ink/30" onClick={() => setItemsDrawer(null)} />
-          <div className="w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-7 flex flex-col">
+          <div className="w-full md:w-[420px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col">
             <div className="flex justify-between items-center mb-1">
               <h4 className="font-display font-medium text-[20px] tracking-tight">Serviços do pacote</h4>
               <button onClick={() => setItemsDrawer(null)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">
@@ -383,7 +450,7 @@ export default function AdminCombos() {
       {sellPkg && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-ink/30" onClick={() => setSellPkg(null)} />
-          <div className="relative bg-surface border border-line rounded-2xl p-7 w-[400px] shadow-lg">
+          <div className="relative bg-surface border border-line rounded-2xl p-5 md:p-7 w-full max-w-[400px] mx-4 shadow-lg">
             <div className="flex justify-between items-center mb-5">
               <h4 className="font-display font-medium text-[20px] tracking-tight">Vender pacote</h4>
               <button onClick={() => setSellPkg(null)} className="text-ink-3 hover:text-ink cursor-pointer transition-colors">

@@ -105,7 +105,7 @@ export default function ProfissionalServicos() {
     setUnlinking(true)
     setPermissionError(null)
     try {
-      await api.delete(`/service/${unlinkTarget.UUID}/professionals/${unlinkTarget.linkId}`)
+      await api.delete(`/service/professionals/${unlinkTarget.linkId}`)
       addToast(`Desvinculado de ${unlinkTarget.Name}`)
       setUnlinkTarget(null)
       load()
@@ -128,7 +128,42 @@ export default function ProfissionalServicos() {
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Profissional" />
   )
 
-  if (loading) return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
+  if (loading) return (
+    <AppLayout sidebar={sidebar}>
+      <div className="flex flex-col gap-2 mb-7">
+        <div className="h-7 w-40 bg-surface-2 rounded-lg animate-pulse" />
+        <div className="h-4 w-32 bg-surface-2 rounded animate-pulse" />
+      </div>
+      <section className="mb-8">
+        <div className="h-5 w-24 bg-surface-2 rounded animate-pulse mb-3" />
+        <div className="flex flex-col gap-2.5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4 bg-surface border border-line rounded-xl">
+              <div className="flex-1 flex flex-col gap-1.5">
+                <div className="h-4 w-36 bg-surface-2 rounded animate-pulse" />
+                <div className="h-3 w-24 bg-surface-2 rounded animate-pulse" />
+              </div>
+              <div className="h-8 w-24 bg-surface-2 rounded-lg animate-pulse shrink-0" />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        <div className="h-5 w-44 bg-surface-2 rounded animate-pulse mb-3" />
+        <div className="flex flex-col gap-2.5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4 bg-surface border border-line rounded-xl">
+              <div className="flex-1 flex flex-col gap-1.5">
+                <div className="h-4 bg-surface-2 rounded animate-pulse" style={{ width: `${[140, 110, 160, 120][i]}px` }} />
+                <div className="h-3 w-20 bg-surface-2 rounded animate-pulse" />
+              </div>
+              <div className="h-8 w-20 bg-surface-2 rounded-lg animate-pulse shrink-0" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </AppLayout>
+  )
 
   return (
     <AppLayout sidebar={sidebar}>

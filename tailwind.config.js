@@ -48,6 +48,7 @@ export default {
         display: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         body: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
       },
       borderRadius: {
         sm: '6px',

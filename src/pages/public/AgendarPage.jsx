@@ -6,10 +6,11 @@ import Icon from '@/components/ui/Icons'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import logo from '@/logo-dauth-agendamentos.png'
 
 const STEPS = ['Serviço', 'Profissional', 'Data e hora', 'Seus dados', 'Confirmar']
 const DOWS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
-const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 function formatDuration(duration) {
   const [h, m] = duration.split(':').map(Number)
@@ -21,14 +22,6 @@ function formatDuration(duration) {
 function formatPrice(price) {
   if (!price || price === 0) return 'Consultar'
   return `R$ ${price.toFixed(2).replace('.', ',')}`
-}
-
-function formatPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-  if (digits.length <= 3) return `(${digits.slice(0,2)}) ${digits[2]}`
-  if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3)}`
-  return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3,7)}-${digits.slice(7)}`
 }
 
 function buildCalendar(year, month) {
@@ -47,17 +40,17 @@ export default function AgendarPage() {
 
   const [step, setStep] = useState(0)
 
-  // Step 0 — serviços
+  // Step 0
   const [services, setServices] = useState([])
   const [categories, setCategories] = useState(['Todas'])
   const [activeCategory, setActiveCategory] = useState('Todas')
   const [loadingServices, setLoadingServices] = useState(true)
 
-  // Step 1 — profissionais
+  // Step 1
   const [professionals, setProfessionals] = useState([])
   const [loadingProfs, setLoadingProfs] = useState(false)
 
-  // Step 2 — calendário + slots
+  // Step 2
   const today = new Date()
   const [calYear, setCalYear] = useState(today.getFullYear())
   const [calMonth, setCalMonth] = useState(today.getMonth())
@@ -66,7 +59,7 @@ export default function AgendarPage() {
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [slotsMessage, setSlotsMessage] = useState('')
 
-  // Step 3 — auth
+  // Step 3
   const [authMode, setAuthMode] = useState('login')
   const [authLoading, setAuthLoading] = useState(false)
   const [loginData, setLoginData] = useState({ email: '', password: '' })
@@ -74,16 +67,15 @@ export default function AgendarPage() {
 
   // Seleções
   const [selectedServiceId, setSelectedServiceId] = useState(null)
-  const [selectedProf, setSelectedProf] = useState(null) // { professional_id, name }
-  const [selectedSlot, setSelectedSlot] = useState(null) // { start_time, end_time }
+  const [selectedProf, setSelectedProf] = useState(null)
+  const [selectedSlot, setSelectedSlot] = useState(null)
 
-  // Step 4 — confirmar
+  // Step 4
   const [confirming, setConfirming] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
 
   const svc = services.find((s) => s.UUID === selectedServiceId)
 
-  // Carrega serviços ao montar
   useEffect(() => {
     api.get('/public/services')
       .then(({ data }) => {
@@ -95,7 +87,6 @@ export default function AgendarPage() {
       .finally(() => setLoadingServices(false))
   }, [])
 
-  // Carrega profissionais ao entrar no step 1
   useEffect(() => {
     if (step !== 1 || !selectedServiceId) return
     setLoadingProfs(true)
@@ -107,7 +98,6 @@ export default function AgendarPage() {
       .finally(() => setLoadingProfs(false))
   }, [step, selectedServiceId])
 
-  // Busca slots ao selecionar dia
   useEffect(() => {
     if (!selectedDay || !selectedProf || !selectedServiceId) return
     setSlots([])
@@ -124,7 +114,6 @@ export default function AgendarPage() {
       .finally(() => setLoadingSlots(false))
   }, [selectedDay, calYear, calMonth])
 
-  // Pula step 3 se já autenticado
   useEffect(() => {
     if (step === 3 && isAuthenticated) setStep(4)
   }, [step, isAuthenticated])
@@ -160,7 +149,9 @@ export default function AgendarPage() {
   ][step]
 
   function next() { if (step < 4) setStep((s) => s + 1) }
-  function back() { if (step > 0) setStep((s) => s - 1) }
+  function back() {
+    if (step > 0) setStep((s) => (s === 4 && isAuthenticated ? s - 2 : s - 1))
+  }
 
   const filteredServices = activeCategory === 'Todas'
     ? services
@@ -170,10 +161,9 @@ export default function AgendarPage() {
     e.preventDefault()
     setAuthLoading(true)
     try {
-      const { data } = await api.post('/auth/login', loginData)
-      login({ id: data.user.id, email: data.user.email, role: data.user.role }, data.access_token, data.refresh_token)
+      await api.post('/auth/login', loginData)
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, data.access_token, data.refresh_token)
+      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
       setStep(4)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao fazer login', 'error')
@@ -187,10 +177,9 @@ export default function AgendarPage() {
     setAuthLoading(true)
     try {
       await api.post('/auth/register', registerData)
-      const { data } = await api.post('/auth/login', { email: registerData.email, password: registerData.password })
-      login({ id: data.user.id, email: data.user.email, role: data.user.role }, data.access_token, data.refresh_token)
+      await api.post('/auth/login', { email: registerData.email, password: registerData.password })
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role }, data.access_token, data.refresh_token)
+      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
       setStep(4)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao criar conta', 'error')
@@ -205,7 +194,7 @@ export default function AgendarPage() {
     const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
     try {
       await api.post('/appointment', {
-        Client: user.id,
+        Client: user.publicId,
         Professional: selectedProf.professional_id,
         Service: selectedServiceId,
         Date: dateStr,
@@ -227,13 +216,13 @@ export default function AgendarPage() {
   return (
     <div className="min-h-screen bg-bg text-ink">
       {/* Top bar */}
-      <div className="flex justify-between items-center px-10 py-[22px] border-b border-line bg-surface sticky top-0 z-10">
+      <div className="flex justify-between items-center px-4 md:px-10 py-4 md:py-[22px] border-b border-line bg-surface sticky top-0 z-10">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-ink text-bg flex items-center justify-center font-display font-bold text-base">d</div>
-          <div className="font-display font-semibold text-[17px]">Dauth · Bela Arte</div>
+          <img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+          <div className="font-display font-semibold text-[15px] md:text-[17px]">Dauth Agendamentos</div>
         </div>
         {isAuthenticated ? (
-          <div className="font-mono text-[12px] text-ink-3">{user?.email}</div>
+          <div className="font-mono text-[11px] md:text-[12px] text-ink-3 truncate max-w-[140px] md:max-w-none">{user?.email}</div>
         ) : (
           <Link to="/login">
             <Button variant="ghost" size="sm">Entrar</Button>
@@ -241,25 +230,92 @@ export default function AgendarPage() {
         )}
       </div>
 
-      <div className="max-w-[1120px] mx-auto px-10 pt-10 pb-16">
+      {/* Barra sticky mobile — aparece quando há seleção */}
+      {!(step === 4 && confirmed) && (
+        <div
+          className={`fixed bottom-0 left-0 right-0 z-30 md:hidden transition-transform duration-300
+            ${canContinue ? 'translate-y-0' : 'translate-y-full'}`}
+        >
+          <div className="bg-surface border-t border-line px-4 py-3 flex items-center gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+            {step > 0 && (
+              <button
+                onClick={back}
+                className="p-2.5 rounded-lg border border-line text-ink-2 hover:bg-surface-2 transition-colors shrink-0"
+              >
+                <Icon name="arrowLeft" size={16} />
+              </button>
+            )}
+            <div className="flex-1 min-w-0">
+              {step === 0 && svc && (
+                <>
+                  <div className="text-[11px] text-ink-3 font-mono uppercase tracking-widest">Serviço selecionado</div>
+                  <div className="text-[14px] font-medium truncate">{svc.Name}</div>
+                </>
+              )}
+              {step === 1 && selectedProf && (
+                <>
+                  <div className="text-[11px] text-ink-3 font-mono uppercase tracking-widest">Profissional</div>
+                  <div className="text-[14px] font-medium truncate">{selectedProf.name}</div>
+                </>
+              )}
+              {step === 2 && selectedDay && selectedSlot && (
+                <>
+                  <div className="text-[11px] text-ink-3 font-mono uppercase tracking-widest">Data e horário</div>
+                  <div className="text-[14px] font-medium">{dateLabel} · {selectedSlot.start_time}</div>
+                </>
+              )}
+              {step === 3 && isAuthenticated && (
+                <>
+                  <div className="text-[11px] text-ink-3 font-mono uppercase tracking-widest">Conta</div>
+                  <div className="text-[14px] font-medium truncate">{user?.email}</div>
+                </>
+              )}
+              {step === 4 && !confirmed && (
+                <>
+                  <div className="text-[11px] text-ink-3 font-mono uppercase tracking-widest">Pronto para confirmar</div>
+                  <div className="text-[14px] font-medium">{svc?.Name} · {dateLabel}</div>
+                </>
+              )}
+            </div>
+            {step < 4 ? (
+              <button
+                onClick={next}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-white font-medium text-[14px] shrink-0 active:bg-[#72391f] transition-colors"
+              >
+                Continuar <Icon name="arrowRight" size={14} />
+              </button>
+            ) : (
+              <button
+                onClick={handleConfirm}
+                disabled={confirming}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-white font-medium text-[14px] shrink-0 active:bg-[#72391f] transition-colors disabled:opacity-60"
+              >
+                <Icon name="check" size={14} />{confirming ? 'Confirmando...' : 'Confirmar'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-[1120px] mx-auto px-4 md:px-10 pt-6 md:pt-10 pb-28 md:pb-16">
 
         {/* Stepper */}
-        <div className="flex gap-2 mb-9 p-3 bg-surface border border-line rounded-lg">
+        <div className="flex gap-1 md:gap-2 mb-7 md:mb-9 p-2 md:p-3 bg-surface border border-line rounded-lg overflow-x-auto">
           {STEPS.map((label, i) => (
             <div
               key={label}
-              className={`flex-1 flex items-center gap-2.5 px-3.5 py-2.5 rounded-[10px] text-[13px]
+              className={`flex items-center gap-2 md:gap-2.5 px-2.5 md:px-3.5 py-2 md:py-2.5 rounded-[10px] text-[12px] md:text-[13px] flex-shrink-0
                 ${i === step ? 'bg-ink text-bg' : i < step ? 'text-ink-2' : 'text-ink-3'}`}
             >
               <span
-                className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-mono text-[11.5px] font-semibold border flex-shrink-0
+                className={`w-5 h-5 md:w-6 md:h-6 rounded-full inline-flex items-center justify-center font-mono text-[10px] md:text-[11.5px] font-semibold border flex-shrink-0
                   ${i === step ? 'bg-gold text-ink border-transparent'
                     : i < step ? 'bg-success-soft text-success border-transparent'
-                    : 'bg-surface-2 text-ink-3 border-line'}`}
+                      : 'bg-surface-2 text-ink-3 border-line'}`}
               >
-                {i < step ? <Icon name="check" size={11} /> : i + 1}
+                {i < step ? <Icon name="check" size={10} /> : i + 1}
               </span>
-              {label}
+              <span className="hidden sm:inline">{label}</span>
             </div>
           ))}
         </div>
@@ -267,14 +323,14 @@ export default function AgendarPage() {
         {/* ── PASSO 0 — Serviço ───────────────────────────────────────── */}
         {step === 0 && (
           <>
-            <h2 className="font-display font-medium text-[32px] tracking-tight mb-2">Qual serviço hoje?</h2>
-            <p className="text-ink-2 text-[14.5px] mb-8 max-w-[560px]">
+            <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Qual serviço hoje?</h2>
+            <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Filtre pela categoria ou escolha entre os serviços disponíveis.
             </p>
             <div className="flex gap-2 mb-5 flex-wrap">
               {categories.map((cat) => (
                 <button key={cat} onClick={() => setActiveCategory(cat)}
-                  className={`px-3.5 py-2 rounded-full text-[13px] font-medium border cursor-pointer transition-colors
+                  className={`px-3 md:px-3.5 py-1.5 md:py-2 rounded-full text-[12px] md:text-[13px] font-medium border cursor-pointer transition-colors
                     ${cat === activeCategory ? 'bg-ink text-bg border-ink' : 'bg-surface-2 text-ink-2 border-line hover:border-ink-3'}`}>
                   {cat}
                 </button>
@@ -287,18 +343,18 @@ export default function AgendarPage() {
                 Nenhum serviço encontrado
               </div>
             ) : (
-              <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-3.5">
                 {filteredServices.map((s) => (
                   <button key={s.UUID} onClick={() => setSelectedServiceId(s.UUID)}
-                    className={`bg-surface border rounded-[14px] p-[22px] text-left cursor-pointer transition-all
+                    className={`bg-surface border rounded-[14px] p-5 md:p-[22px] text-left cursor-pointer transition-all
                       ${selectedServiceId === s.UUID ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3 hover:-translate-y-0.5'}`}>
-                    <div className="font-mono text-[10.5px] uppercase tracking-widest text-brand mb-2.5">{s.Category}</div>
-                    <div className="font-display font-medium text-[19px] tracking-tight mb-1">{s.Name}</div>
-                    <div className="flex justify-between items-center pt-3.5 border-t border-line-2 mt-4">
-                      <div className="font-mono text-[12px] text-ink-3 flex items-center gap-1">
+                    <div className="font-mono text-[10px] md:text-[10.5px] uppercase tracking-widest text-brand mb-2">{s.Category}</div>
+                    <div className="font-display font-medium text-[17px] md:text-[19px] tracking-tight mb-1">{s.Name}</div>
+                    <div className="flex justify-between items-center pt-3 md:pt-3.5 border-t border-line-2 mt-3 md:mt-4">
+                      <div className="font-mono text-[11px] md:text-[12px] text-ink-3 flex items-center gap-1">
                         <Icon name="clock" size={12} />{formatDuration(s.Duration)}
                       </div>
-                      <div className="font-display text-[18px] font-medium">{formatPrice(s.Price)}</div>
+                      <div className="font-display text-[16px] md:text-[18px] font-medium">{formatPrice(s.Price)}</div>
                     </div>
                   </button>
                 ))}
@@ -310,8 +366,8 @@ export default function AgendarPage() {
         {/* ── PASSO 1 — Profissional ──────────────────────────────────── */}
         {step === 1 && (
           <>
-            <h2 className="font-display font-medium text-[32px] tracking-tight mb-2">Escolha o profissional</h2>
-            <p className="text-ink-2 text-[14.5px] mb-8 max-w-[560px]">
+            <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Escolha o profissional</h2>
+            <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Todos os profissionais abaixo realizam <strong>{svc?.Name}</strong>.
             </p>
             {loadingProfs ? (
@@ -321,14 +377,14 @@ export default function AgendarPage() {
                 Nenhum profissional disponível para este serviço
               </div>
             ) : (
-              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {professionals.map((p, idx) => (
                   <button key={p.professional_id} onClick={() => setSelectedProf(p)}
-                    className={`bg-surface border rounded-[14px] p-5 flex gap-4 items-center cursor-pointer text-left transition-all
+                    className={`bg-surface border rounded-[14px] p-4 md:p-5 flex gap-4 items-center cursor-pointer text-left transition-all
                       ${selectedProf?.professional_id === p.professional_id ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}`}>
                     <Avatar name={p.name} index={idx} size="lg" />
                     <div className="flex-1">
-                      <div className="font-display font-medium text-[17px]">{p.name}</div>
+                      <div className="font-display font-medium text-[16px] md:text-[17px]">{p.name}</div>
                     </div>
                     {selectedProf?.professional_id === p.professional_id && (
                       <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center flex-shrink-0">
@@ -345,15 +401,15 @@ export default function AgendarPage() {
         {/* ── PASSO 2 — Data e hora ───────────────────────────────────── */}
         {step === 2 && (
           <>
-            <h2 className="font-display font-medium text-[32px] tracking-tight mb-2">Escolha a data e horário</h2>
-            <p className="text-ink-2 text-[14.5px] mb-8 max-w-[560px]">
+            <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Escolha a data e horário</h2>
+            <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Disponibilidade de <strong>{selectedProf?.name}</strong> para <strong>{svc?.Name}</strong>.
             </p>
-            <div className="grid gap-7" style={{ gridTemplateColumns: '1fr 1.1fr' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-7">
               {/* Calendário */}
-              <div className="bg-surface border border-line rounded-[14px] p-5">
+              <div className="bg-surface border border-line rounded-[14px] p-4 md:p-5">
                 <div className="flex justify-between items-center mb-3.5">
-                  <div className="font-display font-medium text-[16px]">{MONTH_NAMES[calMonth]} {calYear}</div>
+                  <div className="font-display font-medium text-[15px] md:text-[16px]">{MONTH_NAMES[calMonth]} {calYear}</div>
                   <div className="flex gap-1">
                     <button onClick={prevMonth} className="w-[30px] h-[30px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
                       <Icon name="arrowLeft" size={13} />
@@ -363,12 +419,12 @@ export default function AgendarPage() {
                     </button>
                   </div>
                 </div>
-                <div className="grid mb-1.5" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+                <div className="grid grid-cols-7 mb-1.5 gap-0.5">
                   {DOWS.map((d, i) => (
                     <div key={i} className="font-mono text-[10.5px] text-ink-3 text-center">{d}</div>
                   ))}
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                <div className="grid grid-cols-7 gap-1">
                   {calDays.map((d, i) => {
                     const past = d ? isDayPast(d) : false
                     return (
@@ -376,10 +432,10 @@ export default function AgendarPage() {
                         key={i}
                         disabled={!d || past}
                         onClick={() => d && !past && setSelectedDay(d)}
-                        className={`aspect-square flex items-center justify-center text-[13px] rounded-lg transition-colors
+                        className={`aspect-square flex items-center justify-center text-[12px] md:text-[13px] rounded-lg transition-colors
                           ${!d ? '' : selectedDay === d ? 'bg-ink text-bg font-semibold'
                             : past ? 'text-ink-4 cursor-not-allowed'
-                            : 'text-ink hover:bg-surface-2 cursor-pointer'}`}
+                              : 'text-ink hover:bg-surface-2 cursor-pointer'}`}
                       >
                         {d}
                       </button>
@@ -392,26 +448,26 @@ export default function AgendarPage() {
               <div>
                 <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-3">
                   {selectedDay
-                    ? `Horários disponíveis · ${String(selectedDay).padStart(2,'0')}/${String(calMonth+1).padStart(2,'0')}`
+                    ? `Horários disponíveis · ${String(selectedDay).padStart(2, '0')}/${String(calMonth + 1).padStart(2, '0')}`
                     : 'Selecione uma data'}
                 </div>
                 {!selectedDay ? (
-                  <div className="flex items-center justify-center h-48 bg-surface border border-line border-dashed rounded-[14px] text-ink-3 text-[13px]">
+                  <div className="flex items-center justify-center h-40 md:h-48 bg-surface border border-line border-dashed rounded-[14px] text-ink-3 text-[13px]">
                     Escolha um dia no calendário
                   </div>
                 ) : loadingSlots ? (
-                  <div className="flex items-center justify-center h-48 text-ink-3 text-[13px]">Buscando horários...</div>
+                  <div className="flex items-center justify-center h-40 md:h-48 text-ink-3 text-[13px]">Buscando horários...</div>
                 ) : slots.length === 0 ? (
-                  <div className="flex items-center justify-center h-48 bg-surface border border-line border-dashed rounded-[14px] text-ink-3 text-[13px] text-center px-6">
+                  <div className="flex items-center justify-center h-40 md:h-48 bg-surface border border-line border-dashed rounded-[14px] text-ink-3 text-[13px] text-center px-6">
                     {slotsMessage || 'Nenhum horário disponível nesta data'}
                   </div>
                 ) : (
-                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {slots.map((slot) => (
                       <button
                         key={slot.start_time}
                         onClick={() => setSelectedSlot(slot)}
-                        className={`py-3 text-center rounded-[10px] border font-mono text-[13px] transition-colors
+                        className={`py-2.5 md:py-3 text-center rounded-[10px] border font-mono text-[12px] md:text-[13px] transition-colors
                           ${selectedSlot?.start_time === slot.start_time
                             ? 'bg-ink text-bg border-ink'
                             : 'bg-surface border-line hover:border-ink-3 cursor-pointer'}`}
@@ -429,18 +485,34 @@ export default function AgendarPage() {
         {/* ── PASSO 3 — Auth ──────────────────────────────────────────── */}
         {step === 3 && !isAuthenticated && (
           <>
-            <h2 className="font-display font-medium text-[32px] tracking-tight mb-2">Seus dados</h2>
-            <p className="text-ink-2 text-[14.5px] mb-8 max-w-[560px]">
+            <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Seus dados</h2>
+            <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Entre na sua conta ou crie uma nova para finalizar o agendamento.
             </p>
-            <div className="grid gap-6" style={{ gridTemplateColumns: '1fr 1fr' }}>
+
+            {/* Mobile: tabs */}
+            <div className="flex gap-1 mb-5 border-b border-line md:hidden">
+              {['login', 'register'].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setAuthMode(mode)}
+                  className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors
+                    ${authMode === mode ? 'border-brand text-ink' : 'border-transparent text-ink-3'}`}
+                >
+                  {mode === 'login' ? 'Já tenho conta' : 'Criar conta'}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* Login */}
               <div
-                className={`bg-surface border rounded-[14px] p-8 cursor-pointer transition-colors
-                  ${authMode === 'login' ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}`}
+                className={`bg-surface border rounded-[14px] p-5 md:p-8 cursor-pointer transition-colors
+                  ${authMode === 'login' ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}
+                  ${authMode !== 'login' ? 'hidden md:block' : ''}`}
                 onClick={() => setAuthMode('login')}
               >
-                <h3 className="font-display font-medium text-[20px] tracking-tight mb-5">Já tenho conta</h3>
+                <h3 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-4 md:mb-5">Já tenho conta</h3>
                 <form onSubmit={handleLogin} onClick={(e) => e.stopPropagation()}>
                   <AuthField label="E-mail" type="email" placeholder="seu@email.com"
                     value={loginData.email} onChange={(v) => setLoginData((d) => ({ ...d, email: v }))} />
@@ -455,11 +527,12 @@ export default function AgendarPage() {
 
               {/* Register */}
               <div
-                className={`bg-surface border rounded-[14px] p-8 cursor-pointer transition-colors
-                  ${authMode === 'register' ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}`}
+                className={`bg-surface border rounded-[14px] p-5 md:p-8 cursor-pointer transition-colors
+                  ${authMode === 'register' ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}
+                  ${authMode !== 'register' ? 'hidden md:block' : ''}`}
                 onClick={() => setAuthMode('register')}
               >
-                <h3 className="font-display font-medium text-[20px] tracking-tight mb-5">Criar conta</h3>
+                <h3 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-4 md:mb-5">Criar conta</h3>
                 <form onSubmit={handleRegister} onClick={(e) => e.stopPropagation()}>
                   <AuthField label="Nome completo" type="text" placeholder="Seu nome"
                     value={registerData.name} onChange={(v) => setRegisterData((d) => ({ ...d, name: v }))} />
@@ -482,12 +555,12 @@ export default function AgendarPage() {
         {/* ── PASSO 4 — Confirmar ─────────────────────────────────────── */}
         {step === 4 && !confirmed && (
           <>
-            <h2 className="font-display font-medium text-[32px] tracking-tight mb-2">Confirmar agendamento</h2>
-            <p className="text-ink-2 text-[14.5px] mb-8 max-w-[560px]">
+            <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Confirmar agendamento</h2>
+            <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Revise os detalhes antes de confirmar.
             </p>
-            <div className="grid gap-5" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
-              <div className="bg-surface border-2 border-ink rounded-2xl p-7">
+            <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-4 md:gap-5">
+              <div className="bg-surface border-2 border-ink rounded-2xl p-5 md:p-7">
                 {[
                   { k: 'Serviço', v: svc?.Name ?? '—' },
                   { k: 'Duração', v: svc ? formatDuration(svc.Duration) : '—' },
@@ -498,19 +571,19 @@ export default function AgendarPage() {
                 ].map(({ k, v, total }) => (
                   <div
                     key={k}
-                    className={`flex justify-between items-center py-3.5 border-b border-dashed border-line-2 last:border-0 ${total ? 'pt-4' : ''}`}
+                    className={`flex justify-between items-center py-3 md:py-3.5 border-b border-dashed border-line-2 last:border-0 ${total ? 'pt-3 md:pt-4' : ''}`}
                   >
-                    <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">{k}</span>
-                    <span className={total ? 'font-display text-[22px] font-medium' : 'text-[14px] font-medium'}>{v}</span>
+                    <span className="font-mono text-[10px] md:text-[11px] uppercase tracking-widest text-ink-3">{k}</span>
+                    <span className={total ? 'font-display text-[20px] md:text-[22px] font-medium' : 'text-[13px] md:text-[14px] font-medium'}>{v}</span>
                   </div>
                 ))}
               </div>
-              <div className="flex flex-col gap-4">
-                <div className="bg-surface border border-line rounded-2xl p-6">
+              <div className="flex flex-col gap-3 md:gap-4">
+                <div className="bg-surface border border-line rounded-2xl p-5 md:p-6">
                   <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-3">Profissional</div>
                   <div className="flex items-center gap-3">
                     <Avatar name={selectedProf?.name ?? ''} index={0} size="lg" />
-                    <div className="font-display font-medium text-[16px]">{selectedProf?.name}</div>
+                    <div className="font-display font-medium text-[15px] md:text-[16px]">{selectedProf?.name}</div>
                   </div>
                 </div>
                 {user && (
@@ -519,7 +592,7 @@ export default function AgendarPage() {
                     {user.email}
                   </div>
                 )}
-                <div className="bg-surface-2 border border-line-2 rounded-xl p-4 text-[13px] text-ink-2">
+                <div className="bg-surface-2 border border-line-2 rounded-xl p-4 text-[12px] md:text-[13px] text-ink-2">
                   <Icon name="clock" size={14} className="inline mr-1.5 text-ink-3" />
                   Pagamento no local. Cancele com até 2h de antecedência.
                 </div>
@@ -531,31 +604,31 @@ export default function AgendarPage() {
         {/* ── SUCESSO ─────────────────────────────────────────────────── */}
         {step === 4 && confirmed && (
           <div
-            className="border border-line rounded-2xl px-8 py-12 text-center"
+            className="border border-line rounded-2xl px-5 md:px-8 py-10 md:py-12 text-center"
             style={{ background: 'linear-gradient(180deg, #e3ebd9 0%, #ffffff 100%)' }}
           >
-            <div className="w-16 h-16 rounded-full bg-success text-white inline-flex items-center justify-center mb-5">
-              <Icon name="check" size={28} />
+            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-success text-white inline-flex items-center justify-center mb-5">
+              <Icon name="check" size={26} />
             </div>
-            <h2 className="font-display font-medium text-[28px] tracking-tight mb-2.5">
+            <h2 className="font-display font-medium text-[24px] md:text-[28px] tracking-tight mb-2.5">
               Agendamento confirmado!
             </h2>
-            <div className="font-mono text-[14px] text-ink-2 mb-1">
+            <div className="font-mono text-[13px] md:text-[14px] text-ink-2 mb-1">
               {svc?.Name} · {dateLabel} · {selectedSlot?.start_time}
             </div>
-            <div className="font-mono text-[13px] text-ink-3 mb-8">
+            <div className="font-mono text-[12px] md:text-[13px] text-ink-3 mb-8">
               com {selectedProf?.name}
             </div>
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Button variant="primary" onClick={() => navigate('/cliente')}>Ver minha conta</Button>
               <Button variant="ghost" onClick={() => navigate('/')}>Voltar ao início</Button>
             </div>
           </div>
         )}
 
-        {/* ── Navegação ───────────────────────────────────────────────── */}
+        {/* Navegação — visível só no desktop, mobile usa a barra sticky */}
         {!(step === 4 && confirmed) && (
-          <div className="flex justify-between items-center mt-8">
+          <div className="hidden md:flex justify-between items-center mt-8">
             <Button variant="ghost" onClick={back} disabled={step === 0}>
               <Icon name="arrowLeft" size={14} />Voltar
             </Button>
@@ -579,9 +652,9 @@ export default function AgendarPage() {
 function maskPhone(v) {
   const d = v.replace(/\D/g, '').slice(0, 11)
   if (d.length <= 2) return d.length ? `(${d}` : ''
-  if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`
-  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
-  return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`
 }
 
 function AuthField({ label, type, placeholder, value, onChange }) {
