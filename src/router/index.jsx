@@ -7,6 +7,7 @@ import AgendarPage from '@/pages/public/AgendarPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import AcceptInvitePage from '@/pages/auth/AcceptInvitePage'
+import VerificarContaPage from '@/pages/auth/VerificarContaPage'
 
 // Páginas do cliente (Usuario)
 import ClienteDashboard from '@/pages/cliente/ClienteDashboard'
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/auth/accept-invite', element: <AcceptInvitePage /> },
+  { path: '/verify', element: <VerificarContaPage /> },
 
   // ── Conta (compartilhado todos os roles) ─────────────────
   {

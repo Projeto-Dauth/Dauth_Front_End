@@ -9,7 +9,10 @@ Briefing técnico completo para sessões com Claude Code.
 Frontend do **Dauth Agendamentos**, sistema de gerenciamento para o Salão Bela Arte.
 SPA React com 3 perfis de usuário: `Admin`, `Profissional`, `Usuario`.
 
-- **Backend:** Express.js + Supabase, rodando em `http://localhost:3000`
+- **Backend:** Express.js + Supabase
+  - Dev: `http://localhost:3000`
+  - Produção: `https://back.dauth.com.br`
+- **Frontend em produção:** `https://dauth.com.br`
 - **Documentação da API:** `API-Documentation.md` (shapes exatos de request/response)
 - **JavaScript puro — sem TypeScript**
 
@@ -90,11 +93,12 @@ src/
   pages/
     public/
       PortalPage.jsx            ← Landing page (/) — sem implementação
-      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação); barra sticky no rodapé mobile (translate-y-full→0 ao selecionar) com ← voltar + resumo + botão continuar; nav desktop hidden md:flex; auth step com tabs mobile login/cadastro; logo no top bar
+      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação); barra sticky no rodapé mobile; auth step com tabs mobile login/cadastro — login usa phone/senha, cadastro usa name/phone/birthday/senha (sem email); exibe user.name (não email) no header e nas telas de resumo
     auth/
-      LoginPage.jsx             ← POST /auth/login → GET /users/perfil/me → redireciona por role; logo-dauth-agendamentos.png na brand section
-      RegisterPage.jsx          ← POST /auth/register + auto-login → /cliente; logo-dauth-agendamentos.png na brand section
+      LoginPage.jsx             ← POST /auth/login (phone + senha) → GET /users/perfil/me → redireciona por role; campo telefone com máscara (11) 9 8765-4321; logo na brand section
+      RegisterPage.jsx          ← POST /auth/register (name, phone, birthday, senha — sem email) → auto-login com phone → /cliente; campo email removido; logo na brand section
       AcceptInvitePage.jsx      ← POST /auth/accept-invite → GET /users/perfil/me → /profissional; logo via componente Brand; card padding p-5 md:p-8
+      VerificarContaPage.jsx    ← POST /auth/verify (token da URL) → se resposta tiver user: GET /users/perfil/me → login() → redireciona por role; fallback: exibe "Conta verificada + Ir para login" se sessão não vier
     shared/
       MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row)
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
@@ -182,20 +186,27 @@ O backend usa **httpOnly cookies** para sessão. Os tokens nunca aparecem no cor
 
 ### Fluxo de login
 ```js
-// POST /auth/login retorna apenas: { expires_in, user: { id, email, role } }
-// Cookies são setados pelo servidor via Set-Cookie
+// POST /auth/login recebe { phone, password } — NÃO usa email
+// Formato obrigatório do phone: "(11) 9 8765-4321" (máscara aplicada no input)
+// Retorna: { expires_in, user: { id, phone, role } } — tokens chegam via Set-Cookie httpOnly
 // Após o login, sempre buscar GET /users/perfil/me para obter UUID correto:
-const { data: res } = await api.post('/auth/login', { email, password })
+const { data: res } = await api.post('/auth/login', { phone, password })
 const { data: perfil } = await api.get('/users/perfil/me')
-login({ id: perfil.UUID, publicId: res.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role })
+login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
 // Redireciona por role (usar perfil.Role, não res.user.role):
 Admin → /admin | Profissional → /profissional | Usuario → /cliente
 ```
 
 ### Fluxo de register
 ```js
-// POST /auth/register retorna apenas { message, user: { id, email, name } } — sem tokens, sem cookies
-// RegisterPage faz login automático logo em seguida (mesmo padrão do login acima)
+// POST /auth/register recebe { name, phone, birthday, password } — SEM email
+// Retorna { message } — conta criada com active=false, aguarda verificação via WhatsApp
+// Após o register, faz auto-login com phone/senha:
+await api.post('/auth/register', { name, phone, birthday, password })
+const { data: loginRes } = await api.post('/auth/login', { phone, password })
+const { data: perfil } = await api.get('/users/perfil/me')
+login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
+// Atenção: se a conta ainda não foi verificada pelo WhatsApp, o login retorna 403
 ```
 
 ### Fluxo de logout
@@ -265,8 +276,8 @@ A API retorna sempre `{ error: "mensagem" }` — usar `err.response?.data?.error
 // restoreSession(user) → seta estado restaurando publicId do localStorage
 ```
 - `id` → `perfil.UUID` (UUID da tabela `Users` — usado em URLs como `/appointment/client/:id`)
-- `publicId` → `res.user.id` da resposta de login (UUID do Supabase Auth — usado no body de `POST /appointment` como `Client`, pois o backend compara com `req.user.publicId` que vem do cookie JWT)
-- `id` e `publicId` são **valores distintos** — `GET /users/perfil/me` retorna apenas o `UUID` da tabela Users, não o UUID do Supabase Auth. Por isso o `publicId` é persistido separadamente em `localStorage('auth_public_id')` e restaurado no bootstrap
+- `publicId` → `perfil.UUID` atualmente (idealmente seria `res.user.id` do Supabase Auth, mas ambos apontam para o mesmo usuário)
+- `email` → `perfil.Email` que é o email sintético `{ddd+numero}@dauth.internal` — **não exibir para o usuário**; usar `user.name` ou `user.phone` nas UIs
 - Tokens nunca vão para o localStorage — só `auth_public_id`, que não é dado sensível
 
 ### CORS
@@ -279,9 +290,38 @@ O backend precisa ter `CORS_ORIGIN=http://localhost:5173` (ou a URL exata do fro
 
 ### POST /auth/login
 ```json
-{ "expires_in": 3600, "user": { "id": "supabase-auth-uuid", "email": "string", "role": "string" } }
+// Request:
+{ "phone": "(11) 9 8765-4321", "password": "string" }
+// Response:
+{ "expires_in": 3600, "user": { "id": "supabase-auth-uuid", "phone": "string", "role": "string" } }
 ```
+- Identificador de login é **telefone** (não email) — formato `(DDD) 9 DDDD-DDDD`
 - Tokens chegam via `Set-Cookie` httpOnly — não estão no body
+- 401 → telefone ou senha inválidos; 403 → conta não verificada ou desativada
+
+### POST /auth/register
+```json
+// Request:
+{ "name": "string", "phone": "(11) 9 8765-4321", "birthday": "YYYY-MM-DD", "password": "string" }
+// Response:
+{ "message": "Cadastro iniciado. Verifique seu WhatsApp para ativar a conta." }
+```
+- **Sem campo email** — o backend gera email sintético internamente (`{ddd+numero}@dauth.internal`)
+- Conta criada com `active=false` — só ativa após verificação via WhatsApp (`POST /auth/verify`)
+- 409 → telefone já cadastrado
+
+### POST /auth/verify
+```json
+// Request:
+{ "token": "hex-64-chars" }
+// Response (sucesso com auto-login):
+{ "message": "...", "expires_in": 3600, "user": { "id": "supabase-auth-uuid", "phone": "string", "role": "string" } }
+// Response (fallback — sessão não criada, conta ainda ativa):
+{ "message": "Conta verificada com sucesso. Faça login para continuar." }
+```
+- Se `user` vier na resposta → cookies setados automaticamente → frontend faz GET /users/perfil/me e redireciona
+- Se `user` não vier → exibe tela de sucesso com botão "Ir para o login"
+- 400 → token inválido ou expirado; 422 → formato inválido
 
 ### POST /auth/refresh
 - Sem body — servidor lê o cookie `refresh_token` automaticamente
@@ -439,9 +479,35 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 
 ---
 
+## Deploy
+
+O frontend é uma SPA estática servida pelo **Nginx via Docker** (sem container próprio).
+
+```
+/home/dalmas/apps/nginx/docker-compose.yml
+  volume: ../Dauth_Front_End/dist → /usr/share/nginx/dauth-front
+```
+
+O Nginx lê `dist/` diretamente como volume — não é necessário reiniciar nenhum container após o build.
+
+**Comando de deploy:**
+```bash
+cd /home/dalmas/apps/Dauth_Front_End
+bash deploy.sh   # git pull + npm install + npm run build
+```
+
+**Build manual:**
+```bash
+npm run build    # gera dist/ com VITE_API_URL do .env.production
+```
+
+---
+
 ## API
 
-- **Base URL:** `import.meta.env.VITE_API_URL` → `.env`: `VITE_API_URL=http://localhost:3000/api/v1`
+- **Base URL:** `import.meta.env.VITE_API_URL`
+  - Dev (`.env`): `VITE_API_URL=http://localhost:3000/api/v1`
+  - Produção (`.env.production`): `VITE_API_URL=https://back.dauth.com.br/api/v1`
 - **Auth:** cookies httpOnly enviados automaticamente pelo navegador (`withCredentials: true`)
 - **Refresh:** 401 em rota não-`/auth/*` → interceptor chama `POST /auth/refresh` (sem body) → repete requisição → se falhar, redireciona `/login`
 - **Interceptor ignora `/auth/*`** — evita redirect indevido em credencial errada no login
@@ -452,8 +518,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 ## Estado atual
 
 ### Integrado com API real
-- Login (`POST /auth/login`)
-- Register (`POST /auth/register` + auto-login)
+- Login (`POST /auth/login` com **phone** — campo email removido, máscara de telefone)
+- Register (`POST /auth/register` com name/phone/birthday/senha — **sem email** — + auto-login com phone)
 - Logout (`POST /auth/logout` via `authStore.logout()` async)
 - Session restore (`GET /users/perfil/me` no bootstrap — sem verificação de localStorage)
 - Auth guard ativo (`DEV_BYPASS = false`)
