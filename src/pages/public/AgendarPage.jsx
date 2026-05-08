@@ -62,8 +62,8 @@ export default function AgendarPage() {
   // Step 3
   const [authMode, setAuthMode] = useState('login')
   const [authLoading, setAuthLoading] = useState(false)
-  const [loginData, setLoginData] = useState({ email: '', password: '' })
-  const [registerData, setRegisterData] = useState({ name: '', email: '', phone: '', password: '' })
+  const [loginData, setLoginData] = useState({ phone: '', password: '' })
+  const [registerData, setRegisterData] = useState({ name: '', phone: '', birthday: '', password: '' })
 
   // Seleções
   const [selectedServiceId, setSelectedServiceId] = useState(null)
@@ -177,7 +177,7 @@ export default function AgendarPage() {
     setAuthLoading(true)
     try {
       await api.post('/auth/register', registerData)
-      await api.post('/auth/login', { email: registerData.email, password: registerData.password })
+      await api.post('/auth/login', { phone: registerData.phone, password: registerData.password })
       const { data: perfil } = await api.get('/users/perfil/me')
       login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
       setStep(4)
@@ -222,7 +222,7 @@ export default function AgendarPage() {
           <div className="font-display font-semibold text-[15px] md:text-[17px]">Dauth Agendamentos</div>
         </div>
         {isAuthenticated ? (
-          <div className="font-mono text-[11px] md:text-[12px] text-ink-3 truncate max-w-[140px] md:max-w-none">{user?.email}</div>
+          <div className="font-mono text-[11px] md:text-[12px] text-ink-3 truncate max-w-[140px] md:max-w-none">{user?.name}</div>
         ) : (
           <Link to="/login">
             <Button variant="ghost" size="sm">Entrar</Button>
@@ -267,7 +267,7 @@ export default function AgendarPage() {
               {step === 3 && isAuthenticated && (
                 <>
                   <div className="text-[11px] text-ink-3 font-mono uppercase tracking-widest">Conta</div>
-                  <div className="text-[14px] font-medium truncate">{user?.email}</div>
+                  <div className="text-[14px] font-medium truncate">{user?.name}</div>
                 </>
               )}
               {step === 4 && !confirmed && (
@@ -514,8 +514,8 @@ export default function AgendarPage() {
               >
                 <h3 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-4 md:mb-5">Já tenho conta</h3>
                 <form onSubmit={handleLogin} onClick={(e) => e.stopPropagation()}>
-                  <AuthField label="E-mail" type="email" placeholder="seu@email.com"
-                    value={loginData.email} onChange={(v) => setLoginData((d) => ({ ...d, email: v }))} />
+                  <AuthField label="Telefone" type="tel" placeholder="(11) 9 8765-4321"
+                    value={loginData.phone} onChange={(v) => setLoginData((d) => ({ ...d, phone: v }))} />
                   <AuthField label="Senha" type="password" placeholder="Sua senha"
                     value={loginData.password} onChange={(v) => setLoginData((d) => ({ ...d, password: v }))} />
                   <Button type="submit" variant="primary" className="w-full justify-center mt-2"
@@ -536,10 +536,10 @@ export default function AgendarPage() {
                 <form onSubmit={handleRegister} onClick={(e) => e.stopPropagation()}>
                   <AuthField label="Nome completo" type="text" placeholder="Seu nome"
                     value={registerData.name} onChange={(v) => setRegisterData((d) => ({ ...d, name: v }))} />
-                  <AuthField label="E-mail" type="email" placeholder="seu@email.com"
-                    value={registerData.email} onChange={(v) => setRegisterData((d) => ({ ...d, email: v }))} />
                   <AuthField label="Telefone" type="tel" placeholder="(11) 9 8765-4321"
                     value={registerData.phone} onChange={(v) => setRegisterData((d) => ({ ...d, phone: v }))} />
+                  <AuthField label="Data de nascimento" type="date"
+                    value={registerData.birthday} onChange={(v) => setRegisterData((d) => ({ ...d, birthday: v }))} />
                   <AuthField label="Senha" type="password" placeholder="Mínimo 8 caracteres"
                     value={registerData.password} onChange={(v) => setRegisterData((d) => ({ ...d, password: v }))} />
                   <Button type="submit" variant="primary" className="w-full justify-center mt-2"
@@ -589,7 +589,7 @@ export default function AgendarPage() {
                 {user && (
                   <div className="bg-surface border border-line rounded-xl p-4 text-[13px] text-ink-2">
                     <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-1">Conta</div>
-                    {user.email}
+                    {user.name}
                   </div>
                 )}
                 <div className="bg-surface-2 border border-line-2 rounded-xl p-4 text-[12px] md:text-[13px] text-ink-2">
