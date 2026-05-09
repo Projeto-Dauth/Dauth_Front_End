@@ -31,6 +31,8 @@ import AdminCaixa from '@/pages/admin/AdminCaixa'
 import AdminCombos from '@/pages/admin/AdminCombos'
 import AdminUsuarios from '@/pages/admin/AdminUsuarios'
 import AdminServicos from '@/pages/admin/AdminServicos'
+import AdminProdutos from '@/pages/admin/AdminProdutos'
+import AdminPedidosProdutos from '@/pages/admin/AdminPedidosProdutos'
 import ConvidarProfissional from '@/pages/admin/ConvidarProfissional'
 
 // Páginas compartilhadas
@@ -211,6 +213,22 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['Admin']}>
         <ConvidarProfissional />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/produtos',
+    element: (
+      <ProtectedRoute allowedRoles={['Admin']}>
+        <AdminProdutos />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/pedidos-produtos',
+    element: (
+      <ProtectedRoute allowedRoles={['Admin']}>
+        <AdminPedidosProdutos />
       </ProtectedRoute>
     ),
   },

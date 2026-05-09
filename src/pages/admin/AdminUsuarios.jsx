@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
@@ -23,6 +23,8 @@ const navItems = [
   { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
   { type: 'label', label: 'Financeiro' },
   { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
+  { to: '/admin/produtos', icon: 'tag', label: 'Produtos' },
+  { to: '/admin/pedidos-produtos', icon: 'cash', label: 'Pedidos de Produtos' },
   { type: 'label', label: 'Conta' },
   { to: '/perfil', icon: 'users', label: 'Meu perfil' },
   { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
