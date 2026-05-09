@@ -5,7 +5,7 @@ echo "==> [1/3] Atualizando código..."
 git pull origin main
 
 echo "==> [2/3] Instalando dependências..."
-npm install --frozen-lockfile
+npm ci
 
 echo "==> [3/3] Gerando build de produção..."
 npm run build
