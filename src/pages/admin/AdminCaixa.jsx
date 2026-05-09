@@ -12,6 +12,8 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 
 const navItems = [
+  { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
+  { type: 'label', label: 'Operação' },
   { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
   { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
   { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
@@ -31,6 +33,11 @@ const PAY_METHODS = [
   { id: 'dinheiro', icon: 'cash', label: 'Dinheiro' },
   { id: 'cartao_debito', icon: 'card', label: 'Débito' },
   { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
+]
+
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
 
 function statusVariant(s) {
@@ -56,11 +63,12 @@ function formatTime(t) {
 }
 
 function formatCurrency(v) {
-  return `R$ ${Number(v).toFixed(2).replace('.', ',')}`
+  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export default function AdminCaixa() {
-  const { user } = useAuthStore()
+// ─── Aba Comandas ─────────────────────────────────────────────────────────────
+
+function TabComandas({ user }) {
   const { addToast } = useToast()
 
   const [tabs, setTabs] = useState([])
@@ -84,7 +92,6 @@ export default function AdminCaixa() {
 
   useEffect(() => { load() }, [load])
 
-  // Seleciona primeira tab ao carregar
   useEffect(() => {
     if (tabs.length > 0 && !selectedId) setSelectedId(tabs[0].UUID)
   }, [tabs])
@@ -105,7 +112,6 @@ export default function AdminCaixa() {
     if (!selected) return
     setPaying(true)
     try {
-      // Tabs com valor 0 (uso de combo) não geram transação financeira
       if (selected.Value > 0) {
         await api.post('/transaction', {
           Tab: selected.UUID,
@@ -126,19 +132,12 @@ export default function AdminCaixa() {
     }
   }
 
-  const sidebar = (
-    <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
-  )
-
   return (
-    <AppLayout sidebar={sidebar}>
+    <>
       <div className="flex justify-between items-end mb-5 md:mb-6">
-        <div>
-          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Comandas</h3>
-          <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">
-            {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
-          </p>
-        </div>
+        <p className="text-[12px] md:text-[13px] text-ink-3">
+          {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
+        </p>
       </div>
 
       {/* Filtros */}
@@ -202,13 +201,11 @@ export default function AdminCaixa() {
               </div>
 
               <div className="px-6 py-5">
-                {/* Valor */}
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Valor</span>
                   <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Value)}</span>
                 </div>
 
-                {/* Status */}
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2 mb-4">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Status</span>
                   <Chip variant={statusVariant(selected.Status)}>{statusLabel(selected.Status)}</Chip>
@@ -250,6 +247,202 @@ export default function AdminCaixa() {
           )}
         </div>
       )}
+    </>
+  )
+}
+
+// ─── Aba Comissões ────────────────────────────────────────────────────────────
+
+function TabComissoes() {
+  const now = new Date()
+  const [selMonth, setSelMonth] = useState(now.getMonth())
+  const [selYear, setSelYear] = useState(now.getFullYear())
+  const [commissions, setCommissions] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
+
+  const monthKey = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
+
+  useEffect(() => {
+    setLoading(true)
+    api.get(`/dashboard/commissions?month=${monthKey}`)
+      .then(res => setCommissions(res.data.data ?? []))
+      .catch(() => setCommissions([]))
+      .finally(() => setLoading(false))
+  }, [monthKey])
+
+  const totalComissao = commissions.reduce((s, p) => s + p.commission_amount, 0)
+  const totalReceita = commissions.reduce((s, p) => s + p.gross_amount, 0)
+
+  return (
+    <>
+      {/* Cabeçalho com seletor */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <p className="text-[13px] text-ink-3">
+          {loading ? '...' : commissions.length === 0
+            ? 'Nenhum atendimento registrado neste período'
+            : `${commissions.length} profissional${commissions.length !== 1 ? 'is' : ''} · ${formatCurrency(totalComissao)} a pagar`}
+        </p>
+        <div className="flex items-center gap-2">
+          <select
+            value={selMonth}
+            onChange={e => setSelMonth(Number(e.target.value))}
+            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
+          >
+            {MONTHS.map((m, i) => (
+              <option key={i} value={i}>{m}</option>
+            ))}
+          </select>
+          <select
+            value={selYear}
+            onChange={e => setSelYear(Number(e.target.value))}
+            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
+          >
+            {years.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {loading ? <PageSpinner /> : commissions.length === 0 ? (
+        <EmptyState icon="cash" title="Sem comissões" description="Nenhuma transação paga registrada neste período." />
+      ) : (
+        <>
+          {/* Totalizadores */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-2">
+              <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Receita total do período</span>
+              <span className="text-[22px] font-display font-semibold tracking-tight text-ink">{formatCurrency(totalReceita)}</span>
+            </div>
+            <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-2">
+              <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Total de comissões a pagar</span>
+              <span className="text-[22px] font-display font-semibold tracking-tight text-white">{formatCurrency(totalComissao)}</span>
+            </div>
+          </div>
+
+          {/* Tabela — desktop */}
+          <div className="bg-surface border border-line rounded-[14px] overflow-hidden hidden md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-2">
+                  <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Profissional</th>
+                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Atendimentos</th>
+                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Receita gerada</th>
+                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Comissão a pagar</th>
+                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">% média</th>
+                </tr>
+              </thead>
+              <tbody>
+                {commissions.map((p, i) => {
+                  const pct = p.gross_amount > 0 ? ((p.commission_amount / p.gross_amount) * 100).toFixed(1) : '—'
+                  return (
+                    <tr key={p.professional_id} className="border-b border-line-2 last:border-0 hover:bg-surface-2 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={p.name} index={i} size="sm" />
+                          <span className="font-medium text-ink text-[13.5px]">{p.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right font-mono text-[12.5px] text-ink-2">{p.atendimentos}</td>
+                      <td className="px-5 py-4 text-right font-mono text-[12.5px] text-ink">{formatCurrency(p.gross_amount)}</td>
+                      <td className="px-5 py-4 text-right">
+                        <span className="font-mono text-[13px] font-semibold text-brand">{formatCurrency(p.commission_amount)}</span>
+                      </td>
+                      <td className="px-5 py-4 text-right font-mono text-[12px] text-ink-3">{pct}%</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-line bg-surface-2">
+                  <td className="px-5 py-3.5 font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</td>
+                  <td className="px-5 py-3.5 text-right font-mono text-[12.5px] text-ink-2">
+                    {commissions.reduce((s, p) => s + p.atendimentos, 0)}
+                  </td>
+                  <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink">{formatCurrency(totalReceita)}</td>
+                  <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(totalComissao)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Cards — mobile */}
+          <div className="md:hidden space-y-3">
+            {commissions.map((p, i) => {
+              const pct = p.gross_amount > 0 ? ((p.commission_amount / p.gross_amount) * 100).toFixed(1) : '—'
+              return (
+                <div key={p.professional_id} className="bg-surface border border-line rounded-[14px] px-4 py-4">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <Avatar name={p.name} index={i} size="sm" />
+                    <span className="font-medium text-[14px] text-ink">{p.name}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-y-2">
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Atendimentos</div>
+                      <div className="font-mono text-[13px] text-ink-2">{p.atendimentos}</div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">% média</div>
+                      <div className="font-mono text-[13px] text-ink-3">{pct}%</div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Receita gerada</div>
+                      <div className="font-mono text-[13px] text-ink">{formatCurrency(p.gross_amount)}</div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Comissão a pagar</div>
+                      <div className="font-mono text-[14px] font-semibold text-brand">{formatCurrency(p.commission_amount)}</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
+
+export default function AdminCaixa() {
+  const { user } = useAuthStore()
+  const [activeTab, setActiveTab] = useState('comandas')
+
+  const sidebar = (
+    <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
+  )
+
+  return (
+    <AppLayout sidebar={sidebar}>
+      {/* Header + tabs */}
+      <div className="mb-5 md:mb-6">
+        <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight mb-4">Caixa</h3>
+        <div className="flex gap-1 border-b border-line">
+          {[
+            { id: 'comandas', label: 'Comandas', icon: 'receipt' },
+            { id: 'comissoes', label: 'Comissões', icon: 'cash' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-[13.5px] font-medium border-b-2 -mb-px transition-colors cursor-pointer
+                ${activeTab === tab.id
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-ink-3 hover:text-ink-2'}`}
+            >
+              <Icon name={tab.icon} size={14} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'comandas' ? <TabComandas user={user} /> : <TabComissoes />}
     </AppLayout>
   )
 }

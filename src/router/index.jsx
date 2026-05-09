@@ -22,6 +22,7 @@ import ProfissionalHorarios from '@/pages/profissional/ProfissionalHorarios'
 import ProfissionalServicos from '@/pages/profissional/ProfissionalServicos'
 
 // Páginas do admin
+import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminAgenda from '@/pages/admin/AdminAgenda'
 import AdminAgendamentos from '@/pages/admin/AdminAgendamentos'
 import AdminCaixa from '@/pages/admin/AdminCaixa'
@@ -145,6 +146,14 @@ const router = createBrowserRouter([
   },
 
   // ── Painel admin ─────────────────────────────────────────
+  {
+    path: '/admin/dashboard',
+    element: (
+      <ProtectedRoute allowedRoles={['Admin']}>
+        <AdminDashboard />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/admin',
     element: (

@@ -13,6 +13,8 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 
 const navItems = [
+  { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
+  { type: 'label', label: 'Operação' },
   { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
   { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
   { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },

@@ -98,7 +98,7 @@ src/
       LoginPage.jsx             ← POST /auth/login (phone + senha) → GET /users/perfil/me → redireciona por role; campo telefone com máscara (11) 9 8765-4321; logo na brand section
       RegisterPage.jsx          ← POST /auth/register (name, phone, birthday, senha — sem email) → auto-login com phone → /cliente; campo email removido; logo na brand section
       AcceptInvitePage.jsx      ← POST /auth/accept-invite → GET /users/perfil/me → /profissional; logo via componente Brand; card padding p-5 md:p-8
-      VerificarContaPage.jsx    ← POST /auth/verify (token da URL) → se resposta tiver user: GET /users/perfil/me → login() → redireciona por role; fallback: exibe "Conta verificada + Ir para login" se sessão não vier
+      VerificarContaPage.jsx    ← POST /auth/verify (token da URL) → exibe "Conta verificada! → Ir para o login" (sem auto-login)
     shared/
       MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row)
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
@@ -115,7 +115,8 @@ src/
     admin/
       AdminAgenda.jsx           ← Grade por profissional + navegação de dia; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight)
       AdminAgendamentos.jsx     ← GET /appointment + filtros data/status; tabela hidden md:block / cards md:hidden
-      AdminCaixa.jsx            ← Lista de comandas + painel de pagamento; grid grid-cols-1 lg:grid-cols-[1fr_400px]; painel lg:sticky top-6
+      AdminDashboard.jsx        ← GET /dashboard; KPIs hoje/mês (grid 4 colunas no mês: receita, ticket, comandas, cancelamentos), gráfico de área 30d, top serviços (bar horizontal), ranking de profissionais (tabela desktop + cards mobile); bug de footerUser corrigido (sidebar footer com logout agora sempre visível)
+      AdminCaixa.jsx            ← Tab switcher "Comandas | Comissões"; Comandas: lista + painel de pagamento (comportamento anterior preservado); Comissões: GET /dashboard/commissions?month=YYYY-MM, seletor mês+ano, cards totalizadores (receita + comissão brand), tabela desktop com rodapé de totais + cards mobile; grid grid-cols-1 lg:grid-cols-[1fr_400px]; painel lg:sticky top-6
       AdminCombos.jsx           ← Grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 + CRUD + vender combo; drawers w-full md:w-[400-420px] com p-5 md:p-7
       AdminUsuarios.jsx         ← GET /users + PATCH /users/:id (ativar/desativar); tabela hidden md:block / cards md:hidden
       AdminServicos.jsx         ← CRUD serviços + categorias; tabelas hidden md:block / cards md:hidden; todos os drawers w-full md:w-[360-420px] com p-5 md:p-7
@@ -201,12 +202,10 @@ Admin → /admin | Profissional → /profissional | Usuario → /cliente
 ```js
 // POST /auth/register recebe { name, phone, birthday, password } — SEM email
 // Retorna { message } — conta criada com active=false, aguarda verificação via WhatsApp
-// Após o register, faz auto-login com phone/senha:
+// Sem auto-login: exibe tela "Verifique seu WhatsApp" e aguarda o usuário clicar no link
 await api.post('/auth/register', { name, phone, birthday, password })
-const { data: loginRes } = await api.post('/auth/login', { phone, password })
-const { data: perfil } = await api.get('/users/perfil/me')
-login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
-// Atenção: se a conta ainda não foi verificada pelo WhatsApp, o login retorna 403
+// → setRegistered(true) → tela de instrução com botão "Ir para o login"
+// O usuário só consegue logar após clicar no link do WhatsApp e verificar a conta
 ```
 
 ### Fluxo de logout
@@ -314,13 +313,10 @@ O backend precisa ter `CORS_ORIGIN=http://localhost:5173` (ou a URL exata do fro
 ```json
 // Request:
 { "token": "hex-64-chars" }
-// Response (sucesso com auto-login):
-{ "message": "...", "expires_in": 3600, "user": { "id": "supabase-auth-uuid", "phone": "string", "role": "string" } }
-// Response (fallback — sessão não criada, conta ainda ativa):
+// Response:
 { "message": "Conta verificada com sucesso. Faça login para continuar." }
 ```
-- Se `user` vier na resposta → cookies setados automaticamente → frontend faz GET /users/perfil/me e redireciona
-- Se `user` não vier → exibe tela de sucesso com botão "Ir para o login"
+- Sem auto-login — sempre exibe tela de sucesso com botão "Ir para o login"
 - 400 → token inválido ou expirado; 422 → formato inválido
 
 ### POST /auth/refresh
@@ -535,6 +531,8 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - Gerenciar Usuários (`GET /users` + `PATCH /users/:id` para ativar/desativar)
 - Gerenciar Serviços + Categorias — CRUD completo com drawer (`GET/POST/PATCH/DELETE /service` · `GET/POST/PATCH/DELETE /category`)
 - Comandas (`GET /tab` + `POST /transaction` + `PATCH /tab/:id`)
+- **AdminDashboard ampliado** — KPI de taxa de cancelamento (% agendamentos cancelados no mês); tabela de ranking de profissionais (top 5 por receita: avatar, nome, atendimentos, receita gerada, comissão); bug corrigido: `footerUser={user?.name}` agora passado ao Sidebar (ícone de logout e footer do sidebar estavam ausentes na página de dashboard)
+- **Comissões por profissional** (`GET /dashboard/commissions?month=YYYY-MM`) — aba "Comissões" dentro de AdminCaixa; seletor de mês+ano independente; cards totalizadores; tabela com % média de comissão e linha de totais no rodapé; cards mobile com todos os campos
 - Pacotes — grid + CRUD + vender combo (`GET/POST/PATCH/DELETE /package` · `GET/POST/DELETE /package/:id/items` · `POST /package/:id/sell`)
 - Agenda Admin — grade por profissional com navegação de dia (`GET /appointment?date=YYYY-MM-DD` + `GET /users?Role=Profissional` para colunas fixas)
 - Dashboard Profissional (`GET /appointment/my?date=` + `GET /working-hours/professional/:id` + `GET /service`)
@@ -555,7 +553,6 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 
 ### Ainda com dados mockados / não implementado
 - `PortalPage` — landing page pública, sem implementação
-- Botão de logout — padrão definido (`POST /auth/logout` + `store.logout()` + `navigate('/login')`), mas ainda não há botão de sair implementado nas páginas
 
 ---
 
