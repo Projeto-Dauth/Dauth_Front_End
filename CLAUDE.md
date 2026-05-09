@@ -108,7 +108,7 @@ src/
     cliente/
       ClienteDashboard.jsx      ← ClienteSidebar local com logo; grid hero empilhado mobile / 1.3fr·1fr desktop; histórico como cards mobile (md:hidden) / tabela desktop (hidden md:block)
       MeusAgendamentos.jsx      ← GET /appointment/client/:id + filtro status; tabela hidden md:block / cards md:hidden
-      MeusCombos.jsx            ← GET /package/client/:id — cards com barra de progresso, seções Ativos/Histórico; grid grid-cols-1 lg:grid-cols-2
+      MeusCombos.jsx            ← GET /package/client/:id — cards com barra de progresso, seções Ativos/Histórico; grid grid-cols-1 lg:grid-cols-2; aviso "Sessões são descontadas após a conclusão do atendimento" exibido apenas em pacotes com Status='ativo'
     profissional/
       ProfissionalPainel.jsx    ← Now-card dark + próximos + grade de horários — integrado
       MinhaAgenda.jsx           ← GET /appointment/my + filtros data/status
@@ -118,7 +118,7 @@ src/
       AdminAgenda.jsx           ← Grade por profissional + navegação de dia; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight)
       AdminAgendamentos.jsx     ← GET /appointment + filtros data/status; tabela hidden md:block / cards md:hidden
       AdminDashboard.jsx        ← GET /dashboard; KPIs hoje/mês (grid 4 colunas no mês: receita, ticket, comandas, cancelamentos), gráfico de área 30d, top serviços (bar horizontal), ranking de profissionais (tabela desktop + cards mobile); bug de footerUser corrigido (sidebar footer com logout agora sempre visível)
-      AdminCaixa.jsx            ← Tab switcher "Comandas | Comissões"; Comandas: lista + painel de pagamento (comportamento anterior preservado); Comissões: GET /dashboard/commissions?month=YYYY-MM, seletor mês+ano, cards totalizadores (receita + comissão brand), tabela desktop com rodapé de totais + cards mobile; grid grid-cols-1 lg:grid-cols-[1fr_400px]; painel lg:sticky top-6
+      AdminCaixa.jsx            ← Tab switcher "Comandas | Comissões | Relatório"; Comandas: lista + painel de pagamento; Comissões: GET /dashboard/commissions?month=YYYY-MM, seletor mês+ano, cards totalizadores, tabela desktop + cards mobile; Relatório: GET /dashboard/payments?start=YYYY-MM-DD&end=YYYY-MM-DD, filtro de período (De/Até), cards totais por método (pix/dinheiro/crédito/débito) + card total brand, tabela desktop com rodapé + cards mobile; não carrega automaticamente — requer clicar em Buscar
       AdminCombos.jsx           ← Grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 + CRUD + vender combo; drawers w-full md:w-[400-420px] com p-5 md:p-7
       AdminUsuarios.jsx         ← GET /users + PATCH /users/:id (ativar/desativar); tabela hidden md:block / cards md:hidden
       AdminServicos.jsx         ← CRUD serviços + categorias; tabelas hidden md:block / cards md:hidden; todos os drawers w-full md:w-[360-420px] com p-5 md:p-7

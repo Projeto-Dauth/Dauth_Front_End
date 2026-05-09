@@ -110,10 +110,16 @@ function ComboCard({ combo }) {
         })}
       </div>
 
-      <div className="border-t border-line pt-3 mt-4">
+      <div className="border-t border-line pt-3 mt-4 flex flex-col gap-1.5">
         <div className="font-mono text-[10.5px] text-ink-4">
           Adquirido em {combo.Acquired_at ? formatDate(combo.Acquired_at) : formatDate(combo.Created_at)}
         </div>
+        {combo.Status === 'ativo' && (
+          <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-ink-4">
+            <Icon name="alertCircle" size={11} className="shrink-0" />
+            Sessões são descontadas após a conclusão do atendimento
+          </div>
+        )}
       </div>
     </div>
   )

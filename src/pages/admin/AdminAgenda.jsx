@@ -22,6 +22,8 @@ const navItems = [
   { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
   { type: 'label', label: 'Conta' },
   { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
+  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
 ]
 
 // Slots de 30 em 30 min das 08:00 às 18:00
@@ -96,8 +98,13 @@ export default function AdminAgenda() {
 
   // Carrega profissionais uma vez ao montar
   useEffect(() => {
-    api.get('/users', { params: { Role: 'Profissional' } })
-      .then(({ data }) => setProfessionals(data.data ?? []))
+    Promise.all([
+      api.get('/users', { params: { Role: 'Profissional' } }),
+      api.get('/users', { params: { Role: 'Admin' } }),
+    ])
+      .then(([profRes, adminRes]) => {
+        setProfessionals([...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])])
+      })
       .catch(() => setProfessionals([]))
   }, [])
 

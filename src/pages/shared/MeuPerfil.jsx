@@ -13,6 +13,8 @@ import api from '@/lib/api'
 
 const navItemsByRole = {
   Admin: [
+    { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
+    { type: 'label', label: 'Operação' },
     { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
     { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
     { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
@@ -23,6 +25,8 @@ const navItemsByRole = {
     { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
     { type: 'label', label: 'Conta' },
     { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+    { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
+    { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
   ],
   Profissional: [
     { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
@@ -123,9 +127,9 @@ export default function MeuPerfil() {
     if (!validate()) return
     setSaving(true)
     try {
-      const payload = { name: name.trim() }
-      if (phone.trim()) payload.phone = phone.trim()
-      if (birthday) payload.birthday = birthday
+      const payload = { Name: name.trim() }
+      if (phone.trim()) payload.Phone = phone.trim()
+      if (birthday) payload.Birthday = birthday
       await api.patch('/users/perfil/me', payload)
       const updated = { ...profile, name: name.trim(), phone: phone.trim(), birthday }
       setProfile(updated)

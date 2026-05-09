@@ -23,6 +23,8 @@ const navItems = [
   { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
   { type: 'label', label: 'Conta' },
   { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
+  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
 ]
 
 function formatDuration(d) {
@@ -105,8 +107,13 @@ export default function AdminServicos() {
   useEffect(() => {
     loadServices()
     loadCategories()
-    api.get('/users', { params: { Role: 'Profissional' } })
-      .then(({ data }) => setAllProfessionals(data.data ?? []))
+    Promise.all([
+      api.get('/users', { params: { Role: 'Profissional' } }),
+      api.get('/users', { params: { Role: 'Admin' } }),
+    ])
+      .then(([profRes, adminRes]) => {
+        setAllProfessionals([...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])])
+      })
       .catch(() => {})
   }, [])
 

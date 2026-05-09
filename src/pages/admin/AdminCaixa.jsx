@@ -24,6 +24,8 @@ const navItems = [
   { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
   { type: 'label', label: 'Conta' },
   { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
+  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
 ]
 
 const STATUS_FILTERS = ['Todos', 'Em aberto', 'Paga', 'Expirada']
@@ -407,6 +409,173 @@ function TabComissoes() {
   )
 }
 
+// ─── Aba Relatório de Pagamentos ─────────────────────────────────────────────
+
+const METHOD_LABELS = {
+  pix: 'Pix',
+  dinheiro: 'Dinheiro',
+  cartao_credito: 'Crédito',
+  cartao_debito: 'Débito',
+}
+
+function TabRelatorio() {
+  const now = new Date()
+  const todayStr = now.toLocaleDateString('en-CA')
+  const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+
+  const [start, setStart] = useState(firstOfMonth)
+  const [end, setEnd] = useState(todayStr)
+  const [payments, setPayments] = useState([])
+  const [totais, setTotais] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [searched, setSearched] = useState(false)
+
+  async function handleBuscar() {
+    setLoading(true)
+    setSearched(true)
+    try {
+      const { data } = await api.get(`/dashboard/payments?start=${start}&end=${end}`)
+      setPayments(data.data ?? [])
+      setTotais(data.totais ?? null)
+    } catch {
+      setPayments([])
+      setTotais(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      {/* Filtro de período */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-6">
+        <div className="flex flex-col gap-1">
+          <label className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">De</label>
+          <input
+            type="date"
+            value={start}
+            max={end}
+            onChange={e => setStart(e.target.value)}
+            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Até</label>
+          <input
+            type="date"
+            value={end}
+            min={start}
+            onChange={e => setEnd(e.target.value)}
+            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
+          />
+        </div>
+        <Button variant="primary" onClick={handleBuscar} disabled={loading} className="sm:mb-0 self-end">
+          <Icon name="search" size={14} />
+          {loading ? 'Buscando...' : 'Buscar'}
+        </Button>
+      </div>
+
+      {loading ? <PageSpinner /> : !searched ? (
+        <EmptyState icon="receipt" title="Selecione um período" description="Escolha as datas e clique em Buscar para gerar o relatório." />
+      ) : payments.length === 0 ? (
+        <EmptyState icon="cash" title="Nenhum pagamento" description="Nenhum pagamento encontrado neste período." />
+      ) : (
+        <>
+          {/* Totalizadores */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            {['pix', 'dinheiro', 'cartao_credito', 'cartao_debito'].map(m => (
+              <div key={m} className="bg-surface border border-line rounded-xl p-4 flex flex-col gap-1.5">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-ink-4">{METHOD_LABELS[m]}</span>
+                <span className="text-[17px] font-display font-semibold tracking-tight text-ink">
+                  {formatCurrency(totais?.[m] ?? 0)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="bg-brand rounded-xl p-4 flex items-center justify-between mb-6">
+            <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Total do período</span>
+            <span className="text-[22px] font-display font-semibold tracking-tight text-white">
+              {formatCurrency(totais?.geral ?? 0)}
+            </span>
+          </div>
+
+          {/* Tabela — desktop */}
+          <div className="bg-surface border border-line rounded-[14px] overflow-hidden hidden md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-2">
+                  <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Data</th>
+                  <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Cliente</th>
+                  <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Profissional</th>
+                  <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Serviço</th>
+                  <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Método</th>
+                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map(p => (
+                  <tr key={p.uuid} className="border-b border-line-2 last:border-0 hover:bg-surface-2 transition-colors">
+                    <td className="px-5 py-3.5 font-mono text-[12px] text-ink-3">{formatDate(p.data)}</td>
+                    <td className="px-5 py-3.5 text-[13.5px] font-medium text-ink">{p.cliente}</td>
+                    <td className="px-5 py-3.5 text-[13px] text-ink-2">{p.profissional}</td>
+                    <td className="px-5 py-3.5 text-[13px] text-ink-2">{p.servico}</td>
+                    <td className="px-5 py-3.5">
+                      <span className="font-mono text-[11.5px] bg-surface-2 border border-line px-2 py-0.5 rounded-full">
+                        {METHOD_LABELS[p.metodo] ?? p.metodo}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-ink">{formatCurrency(p.valor)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-line bg-surface-2">
+                  <td colSpan={5} className="px-5 py-3.5 font-mono text-[11px] uppercase tracking-widest text-ink-3">
+                    {payments.length} pagamento{payments.length !== 1 ? 's' : ''}
+                  </td>
+                  <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-ink">
+                    {formatCurrency(totais?.geral ?? 0)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Cards — mobile */}
+          <div className="md:hidden space-y-3">
+            {payments.map(p => (
+              <div key={p.uuid} className="bg-surface border border-line rounded-[14px] px-4 py-4">
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="font-medium text-[14px] text-ink">{p.cliente}</span>
+                  <span className="font-mono text-[13.5px] font-semibold text-ink">{formatCurrency(p.valor)}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-y-2">
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Data</div>
+                    <div className="font-mono text-[12px] text-ink-3">{formatDate(p.data)}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Método</div>
+                    <div className="font-mono text-[12px] text-ink-2">{METHOD_LABELS[p.metodo] ?? p.metodo}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Profissional</div>
+                    <div className="text-[13px] text-ink-2">{p.profissional}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Serviço</div>
+                    <div className="text-[13px] text-ink-2">{p.servico}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function AdminCaixa() {
@@ -426,6 +595,7 @@ export default function AdminCaixa() {
           {[
             { id: 'comandas', label: 'Comandas', icon: 'receipt' },
             { id: 'comissoes', label: 'Comissões', icon: 'cash' },
+            { id: 'relatorio', label: 'Relatório', icon: 'chart' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -442,7 +612,7 @@ export default function AdminCaixa() {
         </div>
       </div>
 
-      {activeTab === 'comandas' ? <TabComandas user={user} /> : <TabComissoes />}
+      {activeTab === 'comandas' ? <TabComandas user={user} /> : activeTab === 'comissoes' ? <TabComissoes /> : <TabRelatorio />}
     </AppLayout>
   )
 }
