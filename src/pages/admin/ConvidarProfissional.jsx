@@ -22,6 +22,8 @@ const navItems = [
   { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
   { type: 'label', label: 'Conta' },
   { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
+  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
 ]
 
 export default function ConvidarProfissional() {
