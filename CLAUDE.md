@@ -99,6 +99,8 @@ src/
       RegisterPage.jsx          ← POST /auth/register (name, phone, birthday, senha — sem email) → auto-login com phone → /cliente; campo email removido; logo na brand section
       AcceptInvitePage.jsx      ← POST /auth/accept-invite → GET /users/perfil/me → /profissional; logo via componente Brand; card padding p-5 md:p-8
       VerificarContaPage.jsx    ← POST /auth/verify (token da URL) → exibe "Conta verificada! → Ir para o login" (sem auto-login)
+      EsqueciSenhaPage.jsx      ← POST /auth/forgot-password { phone } → tela de sucesso "Verifique seu WhatsApp"; resposta sempre neutra
+      RedefinirSenhaPage.jsx    ← lê ?token= da URL; POST /auth/reset-password { token, password } → toast sucesso → redirect /login; tela de erro se token ausente na URL
     shared/
       MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row)
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
@@ -319,6 +321,36 @@ O backend precisa ter `CORS_ORIGIN=http://localhost:5173` (ou a URL exata do fro
 - Sem auto-login — sempre exibe tela de sucesso com botão "Ir para o login"
 - 400 → token inválido ou expirado; 422 → formato inválido
 
+### POST /auth/resend-verification
+```json
+// Request:
+{ "phone": "(11) 9 8765-4321" }
+// Response:
+{ "message": "Se o número estiver cadastrado e aguardando verificação, um novo link foi enviado." }
+```
+- Resposta sempre 200 e neutra — não revela se o número existe
+- Chamado na tela pós-cadastro pelo botão "Não recebi o link — reenviar"
+
+### POST /auth/forgot-password
+```json
+// Request:
+{ "phone": "(11) 9 8765-4321" }
+// Response:
+{ "message": "Se o número estiver cadastrado, você receberá um link pelo WhatsApp." }
+```
+- Resposta sempre 200 e neutra
+- Link enviado para APP_URL/redefinir-senha?token=... (TTL 1h)
+
+### POST /auth/reset-password
+```json
+// Request:
+{ "token": "hex-64-chars", "password": "novasenha123" }
+// Response:
+{ "message": "Senha redefinida com sucesso. Faça login para continuar." }
+```
+- Sem auto-login — após sucesso redirecionar para /login com toast
+- 400 → token inválido ou expirado; 422 → formato inválido
+
 ### POST /auth/refresh
 - Sem body — servidor lê o cookie `refresh_token` automaticamente
 - Responde `{ "expires_in": 3600 }` + novos cookies via `Set-Cookie`
@@ -455,6 +487,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 | `/login` | LoginPage | pública |
 | `/register` | RegisterPage | pública |
 | `/auth/accept-invite` | AcceptInvitePage | pública |
+| `/esqueci-senha` | EsqueciSenhaPage | pública |
+| `/redefinir-senha` | RedefinirSenhaPage | pública |
 | `/perfil` | MeuPerfil | todos os roles |
 | `/trocar-senha` | TrocarSenha | todos os roles |
 | `/agendamento/:id` | DetalhesAgendamento | todos os roles |
@@ -540,6 +574,8 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - Horários do Profissional — CRUD semanal (`GET/POST/PATCH/DELETE /working-hours`)
 - Dashboard Cliente — próximo agendamento real + histórico recente + "cliente desde YYYY" + card dinâmico de combo
 - Meus Combos — cliente — cards com barra de progresso + breakdown por serviço + seções Ativos/Histórico
+- **Recuperação de senha** — `EsqueciSenhaPage` (`/esqueci-senha`) + `RedefinirSenhaPage` (`/redefinir-senha?token=`); link "Esqueci a senha" ativo no `LoginPage`
+- **Reenvio de verificação** — botão "Não recebi o link — reenviar" na tela pós-cadastro do `RegisterPage`; chama `POST /auth/resend-verification { phone }`
 - Migração para httpOnly cookies — removido todo acesso a localStorage para tokens
 - **Mobile-first completo** — todas as páginas (cliente, público, admin, profissional, shared) são responsivas (breakpoints `md:` e `lg:`)
 - **Logo e nome atualizados** — `logo-dauth-agendamentos.png` + "Dauth Agendamentos" em todas as páginas (auth, cliente sidebars, AgendarPage top bar, AppLayout/Sidebar compartilhados)

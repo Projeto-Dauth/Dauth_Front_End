@@ -149,9 +149,12 @@ export default function LoginPage() {
           >
             Criar conta
           </Link>
-          <button className="text-[13px] text-ink-3 hover:text-ink transition-colors">
+          <Link
+            to="/esqueci-senha"
+            className="text-[13px] text-ink-3 hover:text-ink transition-colors"
+          >
             Esqueci a senha
-          </button>
+          </Link>
         </div>
 
       </div>

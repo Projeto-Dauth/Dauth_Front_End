@@ -3,12 +3,16 @@ import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import api from '@/lib/api'
+import { useToast } from '@/context/ToastContext'
 import logo from '@/logo-dauth-agendamentos.png'
 
 export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false)
   const [apiError, setApiError] = useState('')
   const [registered, setRegistered] = useState(false)
+  const [registeredPhone, setRegisteredPhone] = useState('')
+  const [resending, setResending] = useState(false)
+  const { addToast } = useToast()
 
   const {
     register,
@@ -26,9 +30,22 @@ export default function RegisterPage() {
         birthday: data.birthday,
         password: data.password,
       })
+      setRegisteredPhone(data.phone)
       setRegistered(true)
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao criar conta. Tente novamente.')
+    }
+  }
+
+  async function handleResend() {
+    setResending(true)
+    try {
+      await api.post('/auth/resend-verification', { phone: registeredPhone })
+      addToast('Novo link enviado pelo WhatsApp.', 'success')
+    } catch {
+      addToast('Erro ao reenviar. Tente novamente.', 'error')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -59,6 +76,13 @@ export default function RegisterPage() {
             >
               Ir para o login
             </Link>
+            <button
+              onClick={handleResend}
+              disabled={resending}
+              className="mt-3 text-[13px] text-ink-3 hover:text-ink transition-colors disabled:opacity-50"
+            >
+              {resending ? 'Reenviando…' : 'Não recebi o link — reenviar'}
+            </button>
           </div>
         </div>
       </div>
