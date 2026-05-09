@@ -77,7 +77,7 @@ export default function AgendarPage() {
   const svc = services.find((s) => s.UUID === selectedServiceId)
 
   useEffect(() => {
-    api.get('/public/services')
+    api.get('/public/services?has_professionals=true')
       .then(({ data }) => {
         setServices(data.data)
         const cats = ['Todas', ...new Set(data.data.map((s) => s.Category).filter(Boolean))]
