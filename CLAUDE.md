@@ -397,6 +397,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 ```
 - `Duration` no formato `"HH:MM:SS"` — converter para exibição (`"01:00:00"` → `"1h"`)
 - `Price` pode ser `0` — exibir como `"Consultar"`
+- `?has_professionals=true` — filtra só serviços com ao menos um profissional vinculado; usado em `/agendar` para evitar dead-end no passo 1
 
 ### GET /public/services/:id/professionals
 ```json
