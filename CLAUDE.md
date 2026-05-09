@@ -9,7 +9,10 @@ Briefing técnico completo para sessões com Claude Code.
 Frontend do **Dauth Agendamentos**, sistema de gerenciamento para o Salão Bela Arte.
 SPA React com 3 perfis de usuário: `Admin`, `Profissional`, `Usuario`.
 
-- **Backend:** Express.js + Supabase, rodando em `http://localhost:3000`
+- **Backend:** Express.js + Supabase
+  - Dev: `http://localhost:3000`
+  - Produção: `https://back.dauth.com.br`
+- **Frontend em produção:** `https://dauth.com.br`
 - **Documentação da API:** `API-Documentation.md` (shapes exatos de request/response)
 - **JavaScript puro — sem TypeScript**
 
@@ -90,11 +93,14 @@ src/
   pages/
     public/
       PortalPage.jsx            ← Landing page (/) — sem implementação
-      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação); barra sticky no rodapé mobile (translate-y-full→0 ao selecionar) com ← voltar + resumo + botão continuar; nav desktop hidden md:flex; auth step com tabs mobile login/cadastro; logo no top bar
+      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação); barra sticky no rodapé mobile; auth step com tabs mobile login/cadastro — login usa phone/senha, cadastro usa name/phone/birthday/senha (sem email); exibe user.name (não email) no header e nas telas de resumo
     auth/
-      LoginPage.jsx             ← POST /auth/login → GET /users/perfil/me → redireciona por role; logo-dauth-agendamentos.png na brand section
-      RegisterPage.jsx          ← POST /auth/register + auto-login → /cliente; logo-dauth-agendamentos.png na brand section
+      LoginPage.jsx             ← POST /auth/login (phone + senha) → GET /users/perfil/me → redireciona por role; campo telefone com máscara (11) 9 8765-4321; logo na brand section
+      RegisterPage.jsx          ← POST /auth/register (name, phone, birthday, senha — sem email) → auto-login com phone → /cliente; campo email removido; logo na brand section
       AcceptInvitePage.jsx      ← POST /auth/accept-invite → GET /users/perfil/me → /profissional; logo via componente Brand; card padding p-5 md:p-8
+      VerificarContaPage.jsx    ← POST /auth/verify (token da URL) → exibe "Conta verificada! → Ir para o login" (sem auto-login)
+      EsqueciSenhaPage.jsx      ← POST /auth/forgot-password { phone } → tela de sucesso "Verifique seu WhatsApp"; resposta sempre neutra
+      RedefinirSenhaPage.jsx    ← lê ?token= da URL; POST /auth/reset-password { token, password } → toast sucesso → redirect /login; tela de erro se token ausente na URL
     shared/
       MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row)
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
@@ -111,7 +117,8 @@ src/
     admin/
       AdminAgenda.jsx           ← Grade por profissional + navegação de dia; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight)
       AdminAgendamentos.jsx     ← GET /appointment + filtros data/status; tabela hidden md:block / cards md:hidden
-      AdminCaixa.jsx            ← Lista de comandas + painel de pagamento; grid grid-cols-1 lg:grid-cols-[1fr_400px]; painel lg:sticky top-6
+      AdminDashboard.jsx        ← GET /dashboard; KPIs hoje/mês (grid 4 colunas no mês: receita, ticket, comandas, cancelamentos), gráfico de área 30d, top serviços (bar horizontal), ranking de profissionais (tabela desktop + cards mobile); bug de footerUser corrigido (sidebar footer com logout agora sempre visível)
+      AdminCaixa.jsx            ← Tab switcher "Comandas | Comissões"; Comandas: lista + painel de pagamento (comportamento anterior preservado); Comissões: GET /dashboard/commissions?month=YYYY-MM, seletor mês+ano, cards totalizadores (receita + comissão brand), tabela desktop com rodapé de totais + cards mobile; grid grid-cols-1 lg:grid-cols-[1fr_400px]; painel lg:sticky top-6
       AdminCombos.jsx           ← Grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 + CRUD + vender combo; drawers w-full md:w-[400-420px] com p-5 md:p-7
       AdminUsuarios.jsx         ← GET /users + PATCH /users/:id (ativar/desativar); tabela hidden md:block / cards md:hidden
       AdminServicos.jsx         ← CRUD serviços + categorias; tabelas hidden md:block / cards md:hidden; todos os drawers w-full md:w-[360-420px] com p-5 md:p-7
@@ -182,20 +189,25 @@ O backend usa **httpOnly cookies** para sessão. Os tokens nunca aparecem no cor
 
 ### Fluxo de login
 ```js
-// POST /auth/login retorna apenas: { expires_in, user: { id, email, role } }
-// Cookies são setados pelo servidor via Set-Cookie
+// POST /auth/login recebe { phone, password } — NÃO usa email
+// Formato obrigatório do phone: "(11) 9 8765-4321" (máscara aplicada no input)
+// Retorna: { expires_in, user: { id, phone, role } } — tokens chegam via Set-Cookie httpOnly
 // Após o login, sempre buscar GET /users/perfil/me para obter UUID correto:
-const { data: res } = await api.post('/auth/login', { email, password })
+const { data: res } = await api.post('/auth/login', { phone, password })
 const { data: perfil } = await api.get('/users/perfil/me')
-login({ id: perfil.UUID, publicId: res.user.id, email: perfil.Email, name: perfil.Name, role: perfil.Role })
+login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
 // Redireciona por role (usar perfil.Role, não res.user.role):
 Admin → /admin | Profissional → /profissional | Usuario → /cliente
 ```
 
 ### Fluxo de register
 ```js
-// POST /auth/register retorna apenas { message, user: { id, email, name } } — sem tokens, sem cookies
-// RegisterPage faz login automático logo em seguida (mesmo padrão do login acima)
+// POST /auth/register recebe { name, phone, birthday, password } — SEM email
+// Retorna { message } — conta criada com active=false, aguarda verificação via WhatsApp
+// Sem auto-login: exibe tela "Verifique seu WhatsApp" e aguarda o usuário clicar no link
+await api.post('/auth/register', { name, phone, birthday, password })
+// → setRegistered(true) → tela de instrução com botão "Ir para o login"
+// O usuário só consegue logar após clicar no link do WhatsApp e verificar a conta
 ```
 
 ### Fluxo de logout
@@ -265,8 +277,8 @@ A API retorna sempre `{ error: "mensagem" }` — usar `err.response?.data?.error
 // restoreSession(user) → seta estado restaurando publicId do localStorage
 ```
 - `id` → `perfil.UUID` (UUID da tabela `Users` — usado em URLs como `/appointment/client/:id`)
-- `publicId` → `res.user.id` da resposta de login (UUID do Supabase Auth — usado no body de `POST /appointment` como `Client`, pois o backend compara com `req.user.publicId` que vem do cookie JWT)
-- `id` e `publicId` são **valores distintos** — `GET /users/perfil/me` retorna apenas o `UUID` da tabela Users, não o UUID do Supabase Auth. Por isso o `publicId` é persistido separadamente em `localStorage('auth_public_id')` e restaurado no bootstrap
+- `publicId` → `perfil.UUID` atualmente (idealmente seria `res.user.id` do Supabase Auth, mas ambos apontam para o mesmo usuário)
+- `email` → `perfil.Email` que é o email sintético `{ddd+numero}@dauth.internal` — **não exibir para o usuário**; usar `user.name` ou `user.phone` nas UIs
 - Tokens nunca vão para o localStorage — só `auth_public_id`, que não é dado sensível
 
 ### CORS
@@ -279,9 +291,65 @@ O backend precisa ter `CORS_ORIGIN=http://localhost:5173` (ou a URL exata do fro
 
 ### POST /auth/login
 ```json
-{ "expires_in": 3600, "user": { "id": "supabase-auth-uuid", "email": "string", "role": "string" } }
+// Request:
+{ "phone": "(11) 9 8765-4321", "password": "string" }
+// Response:
+{ "expires_in": 3600, "user": { "id": "supabase-auth-uuid", "phone": "string", "role": "string" } }
 ```
+- Identificador de login é **telefone** (não email) — formato `(DDD) 9 DDDD-DDDD`
 - Tokens chegam via `Set-Cookie` httpOnly — não estão no body
+- 401 → telefone ou senha inválidos; 403 → conta não verificada ou desativada
+
+### POST /auth/register
+```json
+// Request:
+{ "name": "string", "phone": "(11) 9 8765-4321", "birthday": "YYYY-MM-DD", "password": "string" }
+// Response:
+{ "message": "Cadastro iniciado. Verifique seu WhatsApp para ativar a conta." }
+```
+- **Sem campo email** — o backend gera email sintético internamente (`{ddd+numero}@dauth.internal`)
+- Conta criada com `active=false` — só ativa após verificação via WhatsApp (`POST /auth/verify`)
+- 409 → telefone já cadastrado
+
+### POST /auth/verify
+```json
+// Request:
+{ "token": "hex-64-chars" }
+// Response:
+{ "message": "Conta verificada com sucesso. Faça login para continuar." }
+```
+- Sem auto-login — sempre exibe tela de sucesso com botão "Ir para o login"
+- 400 → token inválido ou expirado; 422 → formato inválido
+
+### POST /auth/resend-verification
+```json
+// Request:
+{ "phone": "(11) 9 8765-4321" }
+// Response:
+{ "message": "Se o número estiver cadastrado e aguardando verificação, um novo link foi enviado." }
+```
+- Resposta sempre 200 e neutra — não revela se o número existe
+- Chamado na tela pós-cadastro pelo botão "Não recebi o link — reenviar"
+
+### POST /auth/forgot-password
+```json
+// Request:
+{ "phone": "(11) 9 8765-4321" }
+// Response:
+{ "message": "Se o número estiver cadastrado, você receberá um link pelo WhatsApp." }
+```
+- Resposta sempre 200 e neutra
+- Link enviado para APP_URL/redefinir-senha?token=... (TTL 1h)
+
+### POST /auth/reset-password
+```json
+// Request:
+{ "token": "hex-64-chars", "password": "novasenha123" }
+// Response:
+{ "message": "Senha redefinida com sucesso. Faça login para continuar." }
+```
+- Sem auto-login — após sucesso redirecionar para /login com toast
+- 400 → token inválido ou expirado; 422 → formato inválido
 
 ### POST /auth/refresh
 - Sem body — servidor lê o cookie `refresh_token` automaticamente
@@ -419,6 +487,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 | `/login` | LoginPage | pública |
 | `/register` | RegisterPage | pública |
 | `/auth/accept-invite` | AcceptInvitePage | pública |
+| `/esqueci-senha` | EsqueciSenhaPage | pública |
+| `/redefinir-senha` | RedefinirSenhaPage | pública |
 | `/perfil` | MeuPerfil | todos os roles |
 | `/trocar-senha` | TrocarSenha | todos os roles |
 | `/agendamento/:id` | DetalhesAgendamento | todos os roles |
@@ -439,9 +509,35 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 
 ---
 
+## Deploy
+
+O frontend é uma SPA estática servida pelo **Nginx via Docker** (sem container próprio).
+
+```
+/home/dalmas/apps/nginx/docker-compose.yml
+  volume: ../Dauth_Front_End/dist → /usr/share/nginx/dauth-front
+```
+
+O Nginx lê `dist/` diretamente como volume — não é necessário reiniciar nenhum container após o build.
+
+**Comando de deploy:**
+```bash
+cd /home/dalmas/apps/Dauth_Front_End
+bash deploy.sh   # git pull + npm install + npm run build
+```
+
+**Build manual:**
+```bash
+npm run build    # gera dist/ com VITE_API_URL do .env.production
+```
+
+---
+
 ## API
 
-- **Base URL:** `import.meta.env.VITE_API_URL` → `.env`: `VITE_API_URL=http://localhost:3000/api/v1`
+- **Base URL:** `import.meta.env.VITE_API_URL`
+  - Dev (`.env`): `VITE_API_URL=http://localhost:3000/api/v1`
+  - Produção (`.env.production`): `VITE_API_URL=https://back.dauth.com.br/api/v1`
 - **Auth:** cookies httpOnly enviados automaticamente pelo navegador (`withCredentials: true`)
 - **Refresh:** 401 em rota não-`/auth/*` → interceptor chama `POST /auth/refresh` (sem body) → repete requisição → se falhar, redireciona `/login`
 - **Interceptor ignora `/auth/*`** — evita redirect indevido em credencial errada no login
@@ -452,8 +548,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 ## Estado atual
 
 ### Integrado com API real
-- Login (`POST /auth/login`)
-- Register (`POST /auth/register` + auto-login)
+- Login (`POST /auth/login` com **phone** — campo email removido, máscara de telefone)
+- Register (`POST /auth/register` com name/phone/birthday/senha — **sem email** — + auto-login com phone)
 - Logout (`POST /auth/logout` via `authStore.logout()` async)
 - Session restore (`GET /users/perfil/me` no bootstrap — sem verificação de localStorage)
 - Auth guard ativo (`DEV_BYPASS = false`)
@@ -469,6 +565,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - Gerenciar Usuários (`GET /users` + `PATCH /users/:id` para ativar/desativar)
 - Gerenciar Serviços + Categorias — CRUD completo com drawer (`GET/POST/PATCH/DELETE /service` · `GET/POST/PATCH/DELETE /category`)
 - Comandas (`GET /tab` + `POST /transaction` + `PATCH /tab/:id`)
+- **AdminDashboard ampliado** — KPI de taxa de cancelamento (% agendamentos cancelados no mês); tabela de ranking de profissionais (top 5 por receita: avatar, nome, atendimentos, receita gerada, comissão); bug corrigido: `footerUser={user?.name}` agora passado ao Sidebar (ícone de logout e footer do sidebar estavam ausentes na página de dashboard)
+- **Comissões por profissional** (`GET /dashboard/commissions?month=YYYY-MM`) — aba "Comissões" dentro de AdminCaixa; seletor de mês+ano independente; cards totalizadores; tabela com % média de comissão e linha de totais no rodapé; cards mobile com todos os campos
 - Pacotes — grid + CRUD + vender combo (`GET/POST/PATCH/DELETE /package` · `GET/POST/DELETE /package/:id/items` · `POST /package/:id/sell`)
 - Agenda Admin — grade por profissional com navegação de dia (`GET /appointment?date=YYYY-MM-DD` + `GET /users?Role=Profissional` para colunas fixas)
 - Dashboard Profissional (`GET /appointment/my?date=` + `GET /working-hours/professional/:id` + `GET /service`)
@@ -476,6 +574,8 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - Horários do Profissional — CRUD semanal (`GET/POST/PATCH/DELETE /working-hours`)
 - Dashboard Cliente — próximo agendamento real + histórico recente + "cliente desde YYYY" + card dinâmico de combo
 - Meus Combos — cliente — cards com barra de progresso + breakdown por serviço + seções Ativos/Histórico
+- **Recuperação de senha** — `EsqueciSenhaPage` (`/esqueci-senha`) + `RedefinirSenhaPage` (`/redefinir-senha?token=`); link "Esqueci a senha" ativo no `LoginPage`
+- **Reenvio de verificação** — botão "Não recebi o link — reenviar" na tela pós-cadastro do `RegisterPage`; chama `POST /auth/resend-verification { phone }`
 - Migração para httpOnly cookies — removido todo acesso a localStorage para tokens
 - **Mobile-first completo** — todas as páginas (cliente, público, admin, profissional, shared) são responsivas (breakpoints `md:` e `lg:`)
 - **Logo e nome atualizados** — `logo-dauth-agendamentos.png` + "Dauth Agendamentos" em todas as páginas (auth, cliente sidebars, AgendarPage top bar, AppLayout/Sidebar compartilhados)
@@ -489,7 +589,6 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 
 ### Ainda com dados mockados / não implementado
 - `PortalPage` — landing page pública, sem implementação
-- Botão de logout — padrão definido (`POST /auth/logout` + `store.logout()` + `navigate('/login')`), mas ainda não há botão de sair implementado nas páginas
 
 ---
 

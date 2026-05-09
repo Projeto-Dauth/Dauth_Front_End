@@ -31,6 +31,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm()
 
@@ -38,7 +39,7 @@ export default function LoginPage() {
     setApiError('')
     try {
       const { data: res } = await api.post('/auth/login', {
-        email: data.email,
+        phone: data.phone,
         password: data.password,
       })
       const { data: perfil } = await api.get('/users/perfil/me')
@@ -68,25 +69,23 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
 
-            {/* Email */}
+            {/* Telefone */}
             <div className="flex flex-col gap-1.5 mb-4">
               <label className="text-[11px] text-ink-3 font-medium uppercase tracking-wider">
-                E-mail
+                Telefone
               </label>
               <input
-                type="email"
+                type="tel"
                 autoComplete='new-password'
-                placeholder="seu@email.com"
+                placeholder="(11) 9 8765-4321"
                 className={`h-[42px] px-[14px] rounded-md border bg-surface text-ink-2 font-body text-md
                   placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors
-                  ${errors.email ? 'border-danger' : 'border-line'}`}
-                {...register('email', {
-                  required: 'E-mail obrigatório',
-                  pattern: { value: /\S+@\S+\.\S+/, message: 'E-mail inválido' },
-                })}
+                  ${errors.phone ? 'border-danger' : 'border-line'}`}
+                {...register('phone', { required: 'Telefone obrigatório' })}
+                onChange={e => setValue('phone', formatPhone(e.target.value), { shouldValidate: true })}
               />
-              {errors.email && (
-                <span className="text-[11px] text-danger">{errors.email.message}</span>
+              {errors.phone && (
+                <span className="text-[11px] text-danger">{errors.phone.message}</span>
               )}
             </div>
 
@@ -150,12 +149,23 @@ export default function LoginPage() {
           >
             Criar conta
           </Link>
-          <button className="text-[13px] text-ink-3 hover:text-ink transition-colors">
+          <Link
+            to="/esqueci-senha"
+            className="text-[13px] text-ink-3 hover:text-ink transition-colors"
+          >
             Esqueci a senha
-          </button>
+          </Link>
         </div>
 
       </div>
     </div>
   )
+}
+
+function formatPhone(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 2) return digits.length ? `(${digits}` : ''
+  if (digits.length <= 3) return `(${digits.slice(0,2)}) ${digits[2]}`
+  if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3)}`
+  return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3,7)}-${digits.slice(7)}`
 }

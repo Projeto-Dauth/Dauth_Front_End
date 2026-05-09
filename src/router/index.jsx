@@ -7,6 +7,9 @@ import AgendarPage from '@/pages/public/AgendarPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import AcceptInvitePage from '@/pages/auth/AcceptInvitePage'
+import VerificarContaPage from '@/pages/auth/VerificarContaPage'
+import EsqueciSenhaPage from '@/pages/auth/EsqueciSenhaPage'
+import RedefinirSenhaPage from '@/pages/auth/RedefinirSenhaPage'
 
 // Páginas do cliente (Usuario)
 import ClienteDashboard from '@/pages/cliente/ClienteDashboard'
@@ -21,6 +24,7 @@ import ProfissionalHorarios from '@/pages/profissional/ProfissionalHorarios'
 import ProfissionalServicos from '@/pages/profissional/ProfissionalServicos'
 
 // Páginas do admin
+import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminAgenda from '@/pages/admin/AdminAgenda'
 import AdminAgendamentos from '@/pages/admin/AdminAgendamentos'
 import AdminCaixa from '@/pages/admin/AdminCaixa'
@@ -47,6 +51,9 @@ const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/auth/accept-invite', element: <AcceptInvitePage /> },
+  { path: '/verify', element: <VerificarContaPage /> },
+  { path: '/esqueci-senha', element: <EsqueciSenhaPage /> },
+  { path: '/redefinir-senha', element: <RedefinirSenhaPage /> },
 
   // ── Conta (compartilhado todos os roles) ─────────────────
   {
@@ -143,6 +150,14 @@ const router = createBrowserRouter([
   },
 
   // ── Painel admin ─────────────────────────────────────────
+  {
+    path: '/admin/dashboard',
+    element: (
+      <ProtectedRoute allowedRoles={['Admin']}>
+        <AdminDashboard />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/admin',
     element: (

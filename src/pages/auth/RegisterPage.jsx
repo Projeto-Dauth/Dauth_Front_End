@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import api from '@/lib/api'
-import useAuthStore from '@/store/authStore'
+import { useToast } from '@/context/ToastContext'
 import logo from '@/logo-dauth-agendamentos.png'
 
 export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false)
   const [apiError, setApiError] = useState('')
-  const navigate = useNavigate()
-  const login = useAuthStore((s) => s.login)
+  const [registered, setRegistered] = useState(false)
+  const [registeredPhone, setRegisteredPhone] = useState('')
+  const [resending, setResending] = useState(false)
+  const { addToast } = useToast()
 
   const {
     register,
@@ -24,22 +26,67 @@ export default function RegisterPage() {
     try {
       await api.post('/auth/register', {
         name: data.name,
-        email: data.email,
         phone: data.phone,
         birthday: data.birthday,
         password: data.password,
       })
-      // Register não retorna tokens — faz login automático em seguida
-      const { data: loginRes } = await api.post('/auth/login', {
-        email: data.email,
-        password: data.password,
-      })
-      const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
-      navigate('/cliente', { replace: true })
+      setRegisteredPhone(data.phone)
+      setRegistered(true)
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao criar conta. Tente novamente.')
     }
+  }
+
+  async function handleResend() {
+    setResending(true)
+    try {
+      await api.post('/auth/resend-verification', { phone: registeredPhone })
+      addToast('Novo link enviado pelo WhatsApp.', 'success')
+    } catch {
+      addToast('Erro ao reenviar. Tente novamente.', 'error')
+    } finally {
+      setResending(false)
+    }
+  }
+
+  if (registered) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="flex flex-col items-center mb-8">
+            <img src={logo} alt="Dauth" className="w-12 h-12 rounded-xl object-cover mb-4" />
+            <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
+            <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
+          </div>
+          <div className="bg-surface border border-line rounded-[14px] p-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-5">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4a6b3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.58 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l1.62-1.62a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+            </div>
+            <h3 className="font-display font-medium text-[20px] tracking-tight mb-2">
+              Verifique seu WhatsApp
+            </h3>
+            <p className="text-[13px] text-ink-3 mb-6">
+              Enviamos uma mensagem com o link para ativar sua conta. Clique no link para continuar.
+            </p>
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center h-[42px] px-6 rounded-md bg-brand text-white font-medium text-[14px] hover:bg-brand/90 transition-colors w-full"
+            >
+              Ir para o login
+            </Link>
+            <button
+              onClick={handleResend}
+              disabled={resending}
+              className="mt-3 text-[13px] text-ink-3 hover:text-ink transition-colors disabled:opacity-50"
+            >
+              {resending ? 'Reenviando…' : 'Não recebi o link — reenviar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -72,20 +119,6 @@ export default function RegisterPage() {
                 placeholder="Seu nome"
                 className={inputClass(errors.name)}
                 {...register('name', { required: 'Nome obrigatório' })}
-              />
-            </Field>
-
-            {/* E-mail */}
-            <Field label="E-mail" error={errors.email?.message}>
-              <input
-                type="email"
-                autoComplete='new-password'
-                placeholder="seu@email.com"
-                className={inputClass(errors.email)}
-                {...register('email', {
-                  required: 'E-mail obrigatório',
-                  pattern: { value: /\S+@\S+\.\S+/, message: 'E-mail inválido' },
-                })}
               />
             </Field>
 
