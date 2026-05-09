@@ -10,13 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Deploy via SCP
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            git config --global --add safe.directory /home/dalmas/apps/Dauth_Front_End
-            cd /home/dalmas/apps/Dauth_Front_End
-            bash deploy.sh
+          source: "dist/"
+          target: "/home/dalmas/apps/Dauth_Front_End/dist"
+          strip_components: 1
