@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, NavLink } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Avatar from '@/components/ui/Avatar'
 import Button from '@/components/ui/Button'
+import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import useAuthStore from '@/store/authStore'
@@ -31,6 +32,104 @@ const statusLabel = {
   pendente: 'Pendente',
   concluido: 'Concluído',
   cancelado: 'Cancelado',
+}
+
+function formatDate(str) {
+  if (!str) return '—'
+  const [y, m, d] = str.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex items-start gap-4 py-3 border-b border-line-2 last:border-0">
+      <div className="w-28 text-[12px] text-ink-3 font-medium shrink-0">{label}</div>
+      <div className="text-[13px] text-ink-2">{value ?? '—'}</div>
+    </div>
+  )
+}
+
+function AppointmentPanel({ id, onClose }) {
+  const [item, setItem] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!id) return
+    setLoading(true)
+    api.get(`/appointment/${id}`)
+      .then(({ data }) => setItem(data.data ?? data))
+      .catch(() => setItem(null))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+
+      {/* Mobile: bottom sheet — Desktop: side drawer */}
+      <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[85vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
+        {/* Handle mobile */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-line-2" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
+            <Icon name="x" size={18} />
+          </button>
+          <div className="flex-1">
+            <h4 className="font-display font-medium text-[15px] tracking-tight">Detalhes do agendamento</h4>
+            {item && <p className="text-[11px] text-ink-3 font-mono">#{item.UUID?.slice(0, 8)}</p>}
+          </div>
+          {item && <Chip status={item.Status} dot>{statusLabel[item.Status] ?? item.Status}</Chip>}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center flex-1 py-16">
+            <PageSpinner />
+          </div>
+        ) : !item ? (
+          <div className="flex items-center justify-center flex-1 py-16 text-ink-3 text-[13px]">
+            Agendamento não encontrado.
+          </div>
+        ) : (
+          <div className="px-5 py-5 flex flex-col gap-4">
+            {/* Info */}
+            <div className="bg-surface border border-line rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-line-2">
+                <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Informações</span>
+              </div>
+              <div className="px-4">
+                <InfoRow label="Data" value={formatDate(item.Date)} />
+                <InfoRow label="Horário" value={item.Start_time ? `${item.Start_time.slice(0,5)} → ${item.End_time?.slice(0,5)}` : null} />
+                <InfoRow label="Serviço" value={item.Service} />
+              </div>
+            </div>
+
+            {/* Client */}
+            <div className="bg-surface border border-line rounded-xl p-4">
+              <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-3">Cliente</div>
+              <div className="flex items-center gap-3">
+                <Avatar name={item.Client ?? '?'} index={0} size="md" />
+                <div className="font-medium text-[13.5px]">{item.Client ?? '—'}</div>
+              </div>
+            </div>
+
+            {/* Professional */}
+            <div className="bg-surface border border-line rounded-xl p-4">
+              <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-3">Profissional</div>
+              <div className="flex items-center gap-3">
+                <Avatar name={item.Professional ?? '?'} index={1} size="md" />
+                <div className="font-medium text-[13.5px]">{item.Professional ?? '—'}</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function parseLocalDate(str) {
@@ -115,6 +214,7 @@ export default function ClienteDashboard() {
   const [appointments, setAppointments] = useState([])
   const [sinceYear, setSinceYear] = useState(null)
   const [combos, setCombos] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -166,6 +266,9 @@ export default function ClienteDashboard() {
 
   return (
     <AppLayout sidebar={<ClienteSidebar user={user} sinceYear={sinceYear} />}>
+      {selectedId && (
+        <AppointmentPanel id={selectedId} onClose={() => setSelectedId(null)} />
+      )}
       {loading ? (
         <PageSpinner />
       ) : (
@@ -202,7 +305,7 @@ export default function ClienteDashboard() {
                   <div className="font-display font-medium text-[18px] md:text-[22px] tracking-tight mb-0.5 truncate">{next.Service}</div>
                   <div className="font-mono text-[11px] md:text-[12px] text-ink-3">com {next.Professional}</div>
                   <div className="flex gap-2 mt-3 md:mt-4">
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/agendamento/${next.UUID}`)}>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedId(next.UUID)}>
                       Ver detalhes
                     </Button>
                   </div>
@@ -339,7 +442,7 @@ export default function ClienteDashboard() {
                           </span>
                         </td>
                         <td className="px-3.5 py-3 text-right border-b border-line-2">
-                          <Button variant="ghost" size="sm" onClick={() => navigate(`/agendamento/${row.UUID}`)}>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedId(row.UUID)}>
                             Detalhes
                           </Button>
                         </td>
@@ -354,8 +457,8 @@ export default function ClienteDashboard() {
                 {recent.map((row) => (
                   <div
                     key={row.UUID}
-                    className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3"
-                    onClick={() => navigate(`/agendamento/${row.UUID}`)}
+                    className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3 cursor-pointer"
+                    onClick={() => setSelectedId(row.UUID)}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-[14px] truncate">{row.Service ?? '—'}</div>

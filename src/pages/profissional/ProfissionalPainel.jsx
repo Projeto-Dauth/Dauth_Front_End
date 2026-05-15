@@ -14,6 +14,7 @@ import api from '@/lib/api'
 const navItems = [
   { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
   { to: '/profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
+  { to: '/profissional/comissoes', icon: 'cash', label: 'Minhas comissões' },
   { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
   { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
   { type: 'label', label: 'Conta' },
@@ -195,6 +196,30 @@ export default function ProfissionalPainel() {
           <Icon name="receipt" size={14} />Ver agenda completa
         </Button>
       </div>
+
+      {/* KPIs do dia */}
+      {(() => {
+        const total = appointments.length
+        const concluidos = appointments.filter(a => a.Status === 'concluido').length
+        const pendentes = appointments.filter(a => a.Status === 'pendente').length
+        const confirmados = appointments.filter(a => a.Status === 'confirmado').length
+        return (
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-surface border border-line rounded-xl px-4 py-3.5">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-1">Total hoje</div>
+              <div className="font-display font-semibold text-[22px] tracking-tight">{total}</div>
+            </div>
+            <div className="bg-surface border border-line rounded-xl px-4 py-3.5">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-1">Concluídos</div>
+              <div className="font-display font-semibold text-[22px] tracking-tight text-success">{concluidos}</div>
+            </div>
+            <div className="bg-surface border border-line rounded-xl px-4 py-3.5">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-1">A atender</div>
+              <div className="font-display font-semibold text-[22px] tracking-tight text-warning">{pendentes + confirmados}</div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Now + Next grid */}
       <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-3.5 mb-5">

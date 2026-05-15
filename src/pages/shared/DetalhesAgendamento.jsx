@@ -12,38 +12,7 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 
-const navItemsByRole = {
-  Admin: [
-    { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
-    { type: 'label', label: 'Operação' },
-    { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
-    { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-    { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
-    { to: '/admin/convidar-profissional', icon: 'plus', label: 'Convidar profissional' },
-    { to: '/admin/servicos', icon: 'scissors', label: 'Serviços' },
-    { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
-    { type: 'label', label: 'Financeiro' },
-    { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
-    { type: 'label', label: 'Conta' },
-    { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-    { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-    { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-  ],
-  Profissional: [
-    { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
-    { to: '/profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-    { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-    { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-    { type: 'label', label: 'Conta' },
-    { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-  ],
-  Usuario: [
-    { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
-    { to: '/cliente/agendamentos', icon: 'receipt', label: 'Meus agendamentos' },
-    { to: '/cliente/combos', icon: 'package', label: 'Meus combos' },
-    { to: '/perfil', icon: 'users', label: 'Perfil e senha' },
-  ],
-}
+import { navItemsByRole } from '@/config/navItems'
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 
@@ -75,6 +44,7 @@ export default function DetalhesAgendamento() {
   const navigate = useNavigate()
 
   const [item, setItem] = useState(null)
+  const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState({ open: false, status: '' })
   const [saving, setSaving] = useState(false)
@@ -82,8 +52,19 @@ export default function DetalhesAgendamento() {
   useEffect(() => {
     api.get(`/appointment/${id}`)
       .then(({ data }) => {
-        // API retorna PascalCase: UUID, Date, Start_time, End_time, Status, Client, Professional, Service (strings)
-        setItem(data.data ?? data)
+        const appt = data.data ?? data
+        setItem(appt)
+        if ((role === 'Profissional' || role === 'Admin') && appt.Client) {
+          api.get('/appointment/my', { params: { client_name: appt.Client, limit: 6 } })
+            .then(({ data: all }) => {
+              const past = (all.data ?? [])
+                .filter(a => a.UUID !== appt.UUID && a.Status !== 'cancelado')
+                .sort((a, b) => (b.Date > a.Date ? 1 : -1))
+                .slice(0, 5)
+              setHistory(past)
+            })
+            .catch(() => {})
+        }
       })
       .catch(() => addToast('Agendamento não encontrado', 'error'))
       .finally(() => setLoading(false))
@@ -187,6 +168,34 @@ export default function DetalhesAgendamento() {
               </div>
             </div>
           </div>
+
+          {/* Histórico do cliente */}
+          {(role === 'Profissional' || role === 'Admin') && history.length > 0 && (
+            <div className="bg-surface border border-line rounded-xl p-5">
+              <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-3">
+                Últimas visitas · {item.Client}
+              </div>
+              <div className="flex flex-col gap-0">
+                {history.map((h, i) => (
+                  <button
+                    key={h.UUID}
+                    onClick={() => navigate(`/agendamento/${h.UUID}`)}
+                    className={`flex items-center justify-between py-2.5 text-left hover:bg-surface-2 -mx-2 px-2 rounded transition-colors cursor-pointer
+                      ${i < history.length - 1 ? 'border-b border-line-2' : ''}`}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium truncate">{h.Service}</div>
+                      <div className="font-mono text-[11px] text-ink-3 mt-0.5">{formatDate(h.Date)}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <Chip status={h.Status} dot>{STATUS_LABELS[h.Status]}</Chip>
+                      <Icon name="chevronRight" size={12} className="text-ink-4" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
