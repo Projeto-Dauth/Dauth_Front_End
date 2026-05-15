@@ -8,38 +8,7 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 
-const navItemsByRole = {
-  Admin: [
-    { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
-    { type: 'label', label: 'Operação' },
-    { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
-    { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-    { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
-    { to: '/admin/convidar-profissional', icon: 'plus', label: 'Convidar profissional' },
-    { to: '/admin/servicos', icon: 'scissors', label: 'Serviços' },
-    { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
-    { type: 'label', label: 'Financeiro' },
-    { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
-    { type: 'label', label: 'Conta' },
-    { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-    { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-    { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-  ],
-  Profissional: [
-    { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
-    { to: '/profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-    { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-    { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-    { type: 'label', label: 'Conta' },
-    { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-  ],
-  Usuario: [
-    { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
-    { to: '/cliente/agendamentos', icon: 'receipt', label: 'Meus agendamentos' },
-    { to: '/cliente/combos', icon: 'package', label: 'Meus combos' },
-    { to: '/perfil', icon: 'users', label: 'Perfil e senha' },
-  ],
-}
+import { navItemsByRole } from '@/config/navItems'
 
 function PasswordInput({ label, value, onChange, error, placeholder }) {
   const [show, setShow] = useState(false)

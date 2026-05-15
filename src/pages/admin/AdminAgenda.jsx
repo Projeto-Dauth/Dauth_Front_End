@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
@@ -6,31 +6,16 @@ import Avatar from '@/components/ui/Avatar'
 import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { navItemsByRole } from '@/config/navItems'
 
-const navItems = [
-  { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
-  { type: 'label', label: 'Operação' },
-  { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
-  { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-  { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
-  { to: '/admin/convidar-profissional', icon: 'plus', label: 'Convidar profissional' },
-  { to: '/admin/servicos', icon: 'scissors', label: 'Serviços' },
-  { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
-  { type: 'label', label: 'Financeiro' },
-  { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
-  { to: '/admin/produtos', icon: 'tag', label: 'Produtos' },
-  { to: '/admin/pedidos-produtos', icon: 'cash', label: 'Pedidos de Produtos' },
-  { type: 'label', label: 'Conta' },
-  { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-]
+const navItems = navItemsByRole['Admin']
 
 // Slots de 30 em 30 min das 08:00 às 18:00
 const TIME_SLOTS = []
-for (let h = 8; h < 18; h++) {
+for (let h = 8; h < 22; h++) {
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`)
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`)
 }
@@ -72,6 +57,17 @@ function spanSlots(appt) {
   return Math.max(1, Math.ceil((end - start) / 30))
 }
 
+function isSlotPast(date, slot) {
+  const now = new Date()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (date < today) return true
+  if (date > today) return false
+  // mesmo dia — compara horário
+  const [h, m] = slot.split(':').map(Number)
+  return now.getHours() * 60 + now.getMinutes() > h * 60 + m
+}
+
 function toDateStr(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
@@ -82,6 +78,136 @@ function formatHeader(date) {
   const mon = MONTHS[date.getMonth()]
   const year = date.getFullYear()
   return `${dow.charAt(0).toUpperCase() + dow.slice(1)}, ${d} de ${mon} de ${year}`
+}
+
+function addMinutes(timeStr, mins) {
+  const [h, m] = timeStr.split(':').map(Number)
+  const total = h * 60 + m + mins
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
+  const { addToast } = useToast()
+  const [clientes, setClientes] = useState([])
+  const [servicos, setServicos] = useState([])
+  const [clienteId, setClienteId] = useState('')
+  const [servicoId, setServicoId] = useState('')
+  const [startTime, setStartTime] = useState(slot)
+  const [endTime, setEndTime] = useState(addMinutes(slot, 60))
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/users', { params: { Role: 'Usuario', limit: 200 } }),
+      api.get('/service', { params: { limit: 200 } }),
+    ]).then(([cRes, sRes]) => {
+      setClientes(cRes.data.data ?? [])
+      setServicos(sRes.data.data ?? [])
+    }).catch(() => { })
+  }, [])
+
+  // Quando serviço muda, ajusta end_time pela duração
+  function handleServico(id) {
+    setServicoId(id)
+    const svc = servicos.find(s => s.UUID === id)
+    if (svc?.Duration) {
+      const [h, m] = svc.Duration.split(':').map(Number)
+      setEndTime(addMinutes(startTime, h * 60 + m))
+    }
+  }
+
+  async function handleSalvar() {
+    if (!clienteId || !servicoId) return addToast('Preencha cliente e serviço', 'warning')
+    setSaving(true)
+    try {
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      await api.post('/appointment', {
+        Client: clienteId,
+        Professional: professional.UUID,
+        Service: servicoId,
+        Date: dateStr,
+        Start_time: startTime,
+        End_time: endTime,
+      })
+      addToast('Agendamento criado!')
+      onSaved()
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao criar agendamento', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputClass = 'w-full h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors'
+
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
+        {/* Handle mobile */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-line-2" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
+            <Icon name="x" size={18} />
+          </button>
+          <div className="flex-1">
+            <h4 className="font-display font-medium text-[15px] tracking-tight">Novo agendamento</h4>
+            <p className="text-[11px] text-ink-3 font-mono">{professional.Name} · {slot}</p>
+          </div>
+        </div>
+
+        <div className="px-5 py-5 flex flex-col gap-4">
+          {/* Cliente */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Cliente</label>
+            <select value={clienteId} onChange={e => setClienteId(e.target.value)} className={inputClass}>
+              <option value="">Selecionar cliente…</option>
+              {clientes.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
+            </select>
+          </div>
+
+          {/* Serviço */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Serviço</label>
+            <select value={servicoId} onChange={e => handleServico(e.target.value)} className={inputClass}>
+              <option value="">Selecionar serviço…</option>
+              {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
+            </select>
+          </div>
+
+          {/* Horários */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Início</label>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Fim</label>
+              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClass} />
+            </div>
+          </div>
+
+          {/* Profissional (read-only) */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Profissional</label>
+            <div className="flex items-center gap-2.5 h-[42px] px-[14px] rounded-md border border-line bg-surface-2 text-ink-3 text-md">
+              <Avatar name={professional.Name} index={0} size="sm" />
+              {professional.Name}
+            </div>
+          </div>
+
+          <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
+            Confirmar agendamento
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AdminAgenda() {
@@ -97,6 +223,8 @@ export default function AdminAgenda() {
   const [professionals, setProfessionals] = useState([])
   const [loading, setLoading] = useState(true)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
+  const [newSlot, setNewSlot] = useState(null) // { slot, professional }
+  const dateInputRef = useRef(null)
 
   // Carrega profissionais uma vez ao montar
   useEffect(() => {
@@ -131,8 +259,9 @@ export default function AdminAgenda() {
     setDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n })
   }
 
-  // Nomes dos profissionais ativos — coluna sempre visível mesmo sem agendamentos
+  // Profissionais ativos — coluna sempre visível mesmo sem agendamentos
   const profNames = professionals.map((p) => p.Name)
+  const profObjects = professionals
 
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
@@ -140,6 +269,15 @@ export default function AdminAgenda() {
 
   return (
     <AppLayout sidebar={sidebar}>
+      {newSlot && (
+        <NovoAgendamentoDrawer
+          slot={newSlot.slot}
+          professional={newSlot.professional}
+          date={date}
+          onClose={() => setNewSlot(null)}
+          onSaved={load}
+        />
+      )}
       <div className="flex justify-between items-end mb-5 md:mb-6">
         <div>
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agenda</h3>
@@ -163,9 +301,32 @@ export default function AdminAgenda() {
           className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowRight" size={14} />
         </button>
+        <div className="relative shrink-0 ml-1">
+          <button
+            onClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.click()}
+            className="w-[34px] h-[34px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-brand hover:text-brand transition-colors cursor-pointer"
+            title="Ir para uma data"
+          >
+            <Icon name="cal" size={14} />
+          </button>
+          <input
+            ref={dateInputRef}
+            type="date"
+            value={toDateStr(date)}
+            onChange={(e) => {
+              if (!e.target.value) return
+              const [y, m, d] = e.target.value.split('-').map(Number)
+              const nd = new Date(y, m - 1, d)
+              nd.setHours(0, 0, 0, 0)
+              setDate(nd)
+            }}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+            tabIndex={-1}
+          />
+        </div>
         <button
           onClick={() => { const d = new Date(); d.setHours(0, 0, 0, 0); setDate(d) }}
-          className="ml-1 px-3 py-1.5 shrink-0 rounded-lg border border-line bg-surface text-[12.5px] text-ink-2 hover:border-ink-3 transition-colors cursor-pointer"
+          className="px-3 py-1.5 shrink-0 rounded-lg border border-line bg-surface text-[12.5px] text-ink-2 hover:border-ink-3 transition-colors cursor-pointer"
         >
           Hoje
         </button>
@@ -228,15 +389,21 @@ export default function AdminAgenda() {
                   </div>,
                   ...profNames.map((prof, pi) => {
                     const appt = appointments.find((a) => a.Professional === prof && isStart(a, slot))
+                    const occupied = appointments.some((a) => a.Professional === prof && coversSlot(a, slot))
+                    const past = isSlotPast(date, slot)
                     const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
                     const spans = appt ? spanSlots(appt) : 0
+                    const clickable = !occupied && !past
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
+                        onClick={clickable ? () => setNewSlot({ slot, professional: profObjects[pi] }) : undefined}
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
-                          ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}`}>
+                          ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
+                          ${past ? 'bg-surface-2' : ''}
+                          ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                         {appt && (
                           <button
-                            onClick={() => navigate(`/agendamento/${appt.UUID}`)}
+                            onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
                             style={{ height: spans * 64 - 4 }}
                             className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
                               hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}
@@ -262,22 +429,30 @@ export default function AdminAgenda() {
             <div className="grid md:hidden" style={{ gridTemplateColumns: '56px 1fr' }}>
               {TIME_SLOTS.map((slot) => {
                 const prof = profNames[mobileProfIdx]
+                const profObj = profObjects[mobileProfIdx]
                 const isHour = slot.endsWith(':00')
                 const appt = prof ? appointments.find((a) => a.Professional === prof && isStart(a, slot)) : null
+                const occupied = prof ? appointments.some((a) => a.Professional === prof && coversSlot(a, slot)) : false
+                const past = isSlotPast(date, slot)
                 const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
                 const spans = appt ? spanSlots(appt) : 0
+                const clickable = !occupied && !past
                 return [
                   <div key={`mt-${slot}`}
-                    className={`px-2 py-1.5 text-right font-mono text-[10.5px] text-ink-3 border-r border-line
+                    className={`px-2 py-1.5 text-right font-mono text-[10.5px] border-r border-line
+                      ${past ? 'text-ink-4' : 'text-ink-3'}
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2 border-dashed'}`}>
                     {isHour ? slot : ''}
                   </div>,
                   <div key={`mc-${slot}`}
+                    onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                     className={`relative h-14 overflow-visible border-line-2
-                      ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}`}>
+                      ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
+                      ${past ? 'bg-surface-2' : ''}
+                      ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                     {appt && (
                       <button
-                        onClick={() => navigate(`/agendamento/${appt.UUID}`)}
+                        onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
                         style={{ height: spans * 56 - 4 }}
                         className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
                           hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}

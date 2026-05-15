@@ -39,6 +39,18 @@ SPA React com 3 perfis de usuário: `Admin`, `Profissional`, `Usuario`.
 
 ---
 
+## Navegação (navItems)
+
+**FONTE ÚNICA:** `src/config/navItems.js` exporta `navItemsByRole` com os 3 roles (`Admin`, `Profissional`, `Usuario`).
+
+```js
+import { navItemsByRole } from '@/config/navItems'
+```
+
+**Nunca** definir `navItemsByRole` hardcoded dentro de páginas — isso causa o bug de itens sumindo ao navegar para páginas compartilhadas (`MeuPerfil`, `TrocarSenha`, `DetalhesAgendamento`). Todas as páginas admin e profissional importam de `@/config/navItems` usando `const navItems = navItemsByRole['Admin']` ou `navItemsByRole['Profissional']`.
+
+---
+
 ## Design System (Tailwind)
 
 **Paleta:**
@@ -69,6 +81,8 @@ border-line  (normal) | border-danger (com erro)
 
 ```
 src/
+  config/
+    navItems.js                 ← FONTE ÚNICA de navItemsByRole (Admin/Profissional/Usuario) — importar em todas as páginas shared e role-aware
   lib/api.js                    ← Axios: withCredentials: true, interceptor de refresh no 401
   store/authStore.js            ← Zustand: { user, isAuthenticated, login, logout, restoreSession }
   context/
@@ -104,18 +118,20 @@ src/
     shared/
       MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row)
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
-      DetalhesAgendamento.jsx   ← GET /appointment/:id + PATCH Status — rota /agendamento/:id
+      DetalhesAgendamento.jsx   ← GET /appointment/:id + PATCH Status — rota /agendamento/:id; para Admin/Profissional: card "Últimas visitas" com GET /appointment/my?client_name=X&limit=6 (filtro no backend)
     cliente/
-      ClienteDashboard.jsx      ← ClienteSidebar local com logo; grid hero empilhado mobile / 1.3fr·1fr desktop; histórico como cards mobile (md:hidden) / tabela desktop (hidden md:block)
+      ClienteDashboard.jsx      ← ClienteSidebar local com logo; grid hero empilhado mobile / 1.3fr·1fr desktop; histórico como cards mobile (md:hidden) / tabela desktop (hidden md:block); clicar em "Ver detalhes" abre AppointmentPanel inline (não navega para /agendamento/:id) — bottom sheet no mobile (sobe de baixo, max-h 85vh, alça cinza, canto arredondado) e drawer lateral no desktop (420px, borda esquerda, altura total)
       MeusAgendamentos.jsx      ← GET /appointment/client/:id + filtro status; tabela hidden md:block / cards md:hidden
       MeusCombos.jsx            ← GET /package/client/:id — cards com barra de progresso, seções Ativos/Histórico; grid grid-cols-1 lg:grid-cols-2; aviso "Sessões são descontadas após a conclusão do atendimento" exibido apenas em pacotes com Status='ativo'
     profissional/
       ProfissionalPainel.jsx    ← Now-card dark + próximos + grade de horários — integrado
-      MinhaAgenda.jsx           ← GET /appointment/my + filtros data/status
+      MinhaAgenda.jsx           ← GET /appointment/my + filtros data/status; badge de status da comanda (Paga/Em aberto) via campo `tab_status` retornado diretamente no appointment — sem chamada extra ao /tab
       ProfissionalServicos.jsx  ← Vincular/desvincular serviços — GET /service + GET/POST /service/:id/professionals + DELETE /service/professionals/:linkId
       ProfissionalHorarios.jsx  ← CRUD horários semanais — GET/POST/PATCH/DELETE /working-hours
+      ProfissionalComissoes.jsx ← Visualização de comissões do profissional autenticado — GET /transaction/my-commissions?month=YYYY-MM; seletor mês/ano, 3 cards (atendimentos, receita gerada, comissão a receber em brand), tabela desktop + cards mobile
+      ProfissionalPainel.jsx    ← 3 KPI mini-cards (total hoje, concluídos, a atender) calculados dos appointments já carregados — sem nova chamada API; grid Agora + A seguir + Horários + Serviços
     admin/
-      AdminAgenda.jsx           ← Grade por profissional + navegação de dia; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight)
+      AdminAgenda.jsx           ← Grade por profissional + navegação de dia; barra de navegação: setas prev/next + ícone de calendário (abre datepicker nativo via input[type="date"] sobreposto opacity-0) + botão Hoje; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight); slots vazios clicáveis abrem NovoAgendamentoDrawer (bottom sheet mobile / drawer 420px desktop) com profissional e horário pré-preenchidos; slots passados (data anterior ou horário anterior ao atual no dia de hoje) ficam com bg-surface-2 e sem interação — função isSlotPast(date, slot); slots ocupados (coversSlot) também bloqueados; ao salvar chama load() para recarregar a grade
       AdminAgendamentos.jsx     ← GET /appointment + filtros data/status; tabela hidden md:block / cards md:hidden
       AdminDashboard.jsx        ← GET /dashboard; KPIs hoje/mês (grid 4 colunas no mês: receita, ticket, comandas, cancelamentos), gráfico de área 30d, top serviços (bar horizontal), ranking de profissionais (tabela desktop + cards mobile); bug de footerUser corrigido (sidebar footer com logout agora sempre visível)
       AdminCaixa.jsx            ← Tab switcher "Comandas | Comissões | Relatório"; Comandas: lista + painel de pagamento; Comissões: GET /dashboard/commissions?month=YYYY-MM, seletor mês+ano, cards totalizadores, tabela desktop + cards mobile; Relatório: GET /dashboard/payments?start=YYYY-MM-DD&end=YYYY-MM-DD, filtro de período (De/Até), cards totais por método (pix/dinheiro/crédito/débito) + card total brand, tabela desktop com rodapé + cards mobile; não carrega automaticamente — requer clicar em Buscar
@@ -500,6 +516,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 | `/profissional/agendamentos` | MinhaAgenda | Profissional, Admin |
 | `/profissional/servicos` | ProfissionalServicos | Profissional, Admin |
 | `/profissional/horarios` | ProfissionalHorarios | Profissional, Admin |
+| `/profissional/comissoes` | ProfissionalComissoes | Profissional, Admin |
 | `/admin` | AdminAgenda | Admin |
 | `/admin/agendamentos` | AdminAgendamentos | Admin |
 | `/admin/caixa` | AdminCaixa | Admin |
@@ -573,7 +590,13 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - Dashboard Profissional (`GET /appointment/my?date=` + `GET /working-hours/professional/:id` + `GET /service`)
 - Serviços do Profissional — vincular/desvincular (`GET /service` + `GET/POST /service/:id/professionals` + `DELETE /service/professionals/:linkId`)
 - Horários do Profissional — CRUD semanal (`GET/POST/PATCH/DELETE /working-hours`)
-- Dashboard Cliente — próximo agendamento real + histórico recente + "cliente desde YYYY" + card dinâmico de combo
+- **Comissões do Profissional** (`GET /transaction/my-commissions?month=YYYY-MM`) — nova página `ProfissionalComissoes` acessível em `/profissional/comissoes`; item "Minhas comissões" (ícone `cash`) adicionado ao `navItems` de todas as páginas do role Profissional
+- **ProfissionalPainel — KPIs do dia** — 3 mini-cards (total hoje, concluídos, a atender) renderizados a partir dos appointments já carregados, sem custo extra de API
+- **MinhaAgenda — status de comanda** — campo `tab_status` retornado pelo backend em `GET /appointment/my` (join `Tab(UUID, Status)` em `appointmentModels.findByProfessional`); badge Paga/Em aberto visível a partir de `sm`
+- **DetalhesAgendamento — histórico do cliente** — card "Últimas visitas" para Admin/Profissional usando `GET /appointment/my?client_name=X&limit=6`; filtro feito no banco via `ilike`
+- **navItems centralizado** — `src/config/navItems.js` é a fonte única de verdade; corrige bug de itens sumindo ao navegar para `/perfil`, `/trocar-senha` e `/agendamento/:id`
+- **Backend:** `appointmentModels.findByProfessional` com join Tab e filtro `client_name`; `formatAppointment` expõe `tab_status`; `getMy` aceita `?client_name=`
+- Dashboard Cliente — próximo agendamento real + histórico recente + "cliente desde YYYY" + card dinâmico de combo + **AppointmentPanel inline** (bottom sheet mobile / drawer desktop) ao clicar "Ver detalhes" — sem navegação para /agendamento/:id
 - Meus Combos — cliente — cards com barra de progresso + breakdown por serviço + seções Ativos/Histórico
 - **Recuperação de senha** — `EsqueciSenhaPage` (`/esqueci-senha`) + `RedefinirSenhaPage` (`/redefinir-senha?token=`); link "Esqueci a senha" ativo no `LoginPage`
 - **Reenvio de verificação** — botão "Não recebi o link — reenviar" na tela pós-cadastro do `RegisterPage`; chama `POST /auth/resend-verification { phone }`
@@ -582,6 +605,10 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - **Logo e nome atualizados** — `logo-dauth-agendamentos.png` + "Dauth Agendamentos" em todas as páginas (auth, cliente sidebars, AgendarPage top bar, AppLayout/Sidebar compartilhados)
 - **AdminAgenda mobile** — seletor de profissional prev/next para visualizar um profissional por vez em telas pequenas
 - **AdminAgenda blocos de agendamento** — bloco único por agendamento com altura calculada pela duração: `spanSlots(appt) × 64px - 4` desktop / `× 56px - 4` mobile; célula de início com `overflow: visible` e bloco com `z-10`; exibe horário início → fim dentro do bloco
+- **AdminAgenda datepicker** — ícone `cal` na barra de navegação abre datepicker nativo do browser via `inputRef.current.showPicker()` (fallback `.click()`); `input[type="date"]` sobreposto com `opacity-0 absolute inset-0` é o gatilho real; onChange parseia `YYYY-MM-DD` manualmente com `new Date(y, m-1, d)` para evitar problema de timezone com `new Date(string)`
+- **AdminAgenda — criar agendamento pelo calendário** — clicar em slot vazio abre `NovoAgendamentoDrawer`; profissional e horário pré-preenchidos; selects de cliente (`GET /users?Role=Usuario&limit=200`) e serviço (`GET /service?limit=200`); ao selecionar serviço, end_time calculado automaticamente pela `Duration`; horários editáveis manualmente; `POST /appointment` com campos PascalCase; ao salvar chama `load()` para recarregar sem navegar
+- **AdminAgenda — slots passados** — `isSlotPast(date, slot)`: data anterior a hoje → todos passados; hoje → slots onde `horaAtual > slotInicio`; passados recebem `bg-surface-2` e texto `ink-4`, sem hover e sem onClick; agendamentos já existentes nesses slots continuam visíveis normalmente
+- **navItems admin centralizado** — todos os 10 arquivos admin (`AdminAgenda`, `AdminDashboard`, `AdminAgendamentos`, `AdminCaixa`, `AdminUsuarios`, `AdminCombos`, `AdminServicos`, `ConvidarProfissional`, `AdminProdutos`, `AdminPedidosProdutos`) importam `navItemsByRole` de `@/config/navItems` e usam `const navItems = navItemsByRole['Admin']`
 - **Drawers mobile** — todos os drawers (admin e profissional) usam `w-full md:w-[Xpx]` + `p-5 md:p-7` para ocupar tela cheia em mobile
 - **ProfissionalPainel mobile** — grids "Agora + A seguir" e "Horários + Serviços" empilham em mobile (`grid-cols-1 md:grid-cols-[...]`); grade de horários exibe lista compacta em mobile (`md:hidden`) e grade de 7 colunas no desktop (`hidden md:grid`)
 - **MinhaAgenda mobile** — data/horário exibidos abaixo do nome em mobile (`md:hidden`), coluna separada visível apenas no desktop (`hidden md:block`)
@@ -608,8 +635,10 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - **Logo** — importar sempre com `import logo from '@/logo-dauth-agendamentos.png'`; usar `<img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover" />`. Nome do sistema: **"Dauth Agendamentos"** (não "Dauth" sozinho)
 - **Ícone nativo de senha suprimido** — `index.css` já contém regra global que oculta `::-ms-reveal`, `::-ms-clear` e `::-webkit-credentials-auto-fill-button` em todos os `input[type='password']`. Não adicionar CSS extra — o ícone custom dos inputs de senha já é o único visível
 - **Grade de agenda (AdminAgenda)** — células de slot usam `overflow: visible` para permitir que o bloco de agendamento vaze verticalmente sobre os slots seguintes. Células com `h-16` desktop / `h-14` mobile. Função `spanSlots(appt)` calcula quantos slots de 30min o agendamento ocupa. Nunca renderizar divs de "continuação" — apenas o bloco no slot de início com `style={{ height: spans * cellPx - 4 }}`. Bloco usa `flex flex-col justify-center items-center text-center` para centralizar o conteúdo horizontal e verticalmente
+- **Painel de detalhes inline (bottom sheet / drawer)** — em páginas de listagem do role `Usuario`, "Ver detalhes" abre um painel inline via `fixed inset-0 z-40` sem navegar para outra rota. Mobile: bottom sheet (`flex-col justify-end`, `rounded-t-2xl`, `max-h-[85vh]`, alça `w-10 h-1 bg-line-2`). Desktop: drawer lateral (`md:flex-row md:justify-end`, `md:w-[420px]`, `md:border-l`, `md:h-full`). Overlay `bg-black/30` cobre o fundo e fecha ao clicar. A rota `/agendamento/:id` continua existindo para Admin/Profissional.
 - Dados de mock ficam em constantes no topo do arquivo enquanto a integração não está pronta
-- `navItems` de cada página é definido localmente no arquivo (sem contexto global de nav)
+- **`navItemsByRole` é a fonte única de navItems** — **todas** as páginas admin e profissional usam `import { navItemsByRole } from '@/config/navItems'` e `const navItems = navItemsByRole['Admin']` (ou `'Profissional'`). Nunca hardcodar `const navItems = [...]` em páginas admin — qualquer mudança de ordem ou item deve ser feita exclusivamente em `src/config/navItems.js`.
+- **`navItemsByRole` em páginas shared** (ex: `MeuPerfil`, `TrocarSenha`, `DetalhesAgendamento`) → detectar role via `useAuthStore` e usar `navItemsByRole[user.role]`. Isso evita o bug de itens sumindo ao navegar entre roles.
 - Páginas compartilhadas entre roles ficam em `src/pages/shared/` e detectam o role via `useAuthStore`
 - **API usa PascalCase** tanto na leitura quanto na escrita — sempre verificar o shape real antes de integrar
 - Exceção confirmada: `PATCH /users/:id` aceita `{ active: bool }` lowercase. **Todos os demais endpoints** exigem PascalCase no body — sempre verificar o schema Joi antes de integrar.

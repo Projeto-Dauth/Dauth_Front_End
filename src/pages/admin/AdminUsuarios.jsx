@@ -11,25 +11,9 @@ import EmptyState from '@/components/ui/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { navItemsByRole } from '@/config/navItems'
 
-const navItems = [
-  { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
-  { type: 'label', label: 'Operação' },
-  { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
-  { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-  { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
-  { to: '/admin/convidar-profissional', icon: 'plus', label: 'Convidar profissional' },
-  { to: '/admin/servicos', icon: 'scissors', label: 'Serviços' },
-  { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
-  { type: 'label', label: 'Financeiro' },
-  { to: '/admin/caixa', icon: 'receipt', label: 'Comandas' },
-  { to: '/admin/produtos', icon: 'tag', label: 'Produtos' },
-  { to: '/admin/pedidos-produtos', icon: 'cash', label: 'Pedidos de Produtos' },
-  { type: 'label', label: 'Conta' },
-  { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-]
+const navItems = navItemsByRole['Admin']
 
 const ROLE_FILTERS = ['Todos', 'Admin', 'Profissional', 'Usuario', 'Cliente']
 
