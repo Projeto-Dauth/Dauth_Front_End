@@ -131,7 +131,7 @@ src/
       ProfissionalComissoes.jsx ← Visualização de comissões do profissional autenticado — GET /transaction/my-commissions?month=YYYY-MM; seletor mês/ano, 3 cards (atendimentos, receita gerada, comissão a receber em brand), tabela desktop + cards mobile
       ProfissionalPainel.jsx    ← 3 KPI mini-cards (total hoje, concluídos, a atender) calculados dos appointments já carregados — sem nova chamada API; grid Agora + A seguir + Horários + Serviços
     admin/
-      AdminAgenda.jsx           ← Grade por profissional + navegação de dia; barra de navegação: setas prev/next + ícone de calendário (abre datepicker nativo via input[type="date"] sobreposto opacity-0) + botão Hoje; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight); slots vazios clicáveis abrem NovoAgendamentoDrawer (bottom sheet mobile / drawer 420px desktop) com profissional e horário pré-preenchidos; slots passados (data anterior ou horário anterior ao atual no dia de hoje) ficam com bg-surface-2 e sem interação — função isSlotPast(date, slot); slots ocupados (coversSlot) também bloqueados; ao salvar chama load() para recarregar a grade
+      AdminAgenda.jsx           ← Grade por profissional + navegação de dia; barra de navegação: setas prev/next + ícone de calendário (abre datepicker nativo via input[type="date"] sobreposto opacity-0) + botão Hoje; mobile: seletor de profissional (prev/next + contador N/total), desktop: grid completo; ambos com hidden md:grid / grid md:hidden; agendamentos renderizados como bloco único com altura calculada por duração (spanSlots × cellHeight); slots vazios clicáveis abrem NovoAgendamentoDrawer (bottom sheet mobile / drawer 420px desktop) com profissional e horário pré-preenchidos; slots passados (data anterior ou horário anterior ao atual no dia de hoje) ficam com bg-surface-2 e sem interação — função isSlotPast(date, slot); slots ocupados (coversSlot) também bloqueados; ao salvar chama load() para recarregar a grade; **agendamentos cancelados são filtrados no load() e não aparecem na grade** — ficam visíveis apenas em AdminAgendamentos
       AdminAgendamentos.jsx     ← GET /appointment + filtros data/status; tabela hidden md:block / cards md:hidden
       AdminDashboard.jsx        ← GET /dashboard; KPIs hoje/mês (grid 4 colunas no mês: receita, ticket, comandas, cancelamentos), gráfico de área 30d, top serviços (bar horizontal), ranking de profissionais (tabela desktop + cards mobile); bug de footerUser corrigido (sidebar footer com logout agora sempre visível)
       AdminCaixa.jsx            ← Tab switcher "Comandas | Comissões | Relatório"; Comandas: lista + painel de pagamento; Comissões: GET /dashboard/commissions?month=YYYY-MM, seletor mês+ano, cards totalizadores, tabela desktop + cards mobile; Relatório: GET /dashboard/payments?start=YYYY-MM-DD&end=YYYY-MM-DD, filtro de período (De/Até), cards totais por método (pix/dinheiro/crédito/débito) + card total brand, tabela desktop com rodapé + cards mobile; não carrega automaticamente — requer clicar em Buscar
@@ -414,6 +414,10 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - `Duration` no formato `"HH:MM:SS"` — converter para exibição (`"01:00:00"` → `"1h"`)
 - `Price` pode ser `0` — exibir como `"Consultar"`
 - `?has_professionals=true` — filtra só serviços com ao menos um profissional vinculado; usado em `/agendar` para evitar dead-end no passo 1
+
+### GET /service (autenticado)
+- `?professional=<UUID>` — filtra apenas serviços vinculados ao profissional; inner join com `ServiceProfessional`
+- `?has_professionals=true` — filtra serviços com ao menos um profissional vinculado (comportamento anterior mantido)
 
 ### GET /public/services/:id/professionals
 ```json

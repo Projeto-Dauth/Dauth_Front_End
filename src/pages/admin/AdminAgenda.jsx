@@ -95,16 +95,19 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const [startTime, setStartTime] = useState(slot)
   const [endTime, setEndTime] = useState(addMinutes(slot, 60))
   const [saving, setSaving] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
+    setLoadingData(true)
     Promise.all([
       api.get('/users', { params: { Role: 'Usuario', limit: 200 } }),
-      api.get('/service', { params: { limit: 200 } }),
+      api.get('/service', { params: { professional: professional.UUID, limit: 200 } }),
     ]).then(([cRes, sRes]) => {
       setClientes(cRes.data.data ?? [])
       setServicos(sRes.data.data ?? [])
-    }).catch(() => { })
-  }, [])
+    }).catch(() => {})
+    .finally(() => setLoadingData(false))
+  }, [professional.UUID])
 
   // Quando serviço muda, ajusta end_time pela duração
   function handleServico(id) {
@@ -174,9 +177,21 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
           {/* Serviço */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-medium text-ink-2">Serviço</label>
-            <select value={servicoId} onChange={e => handleServico(e.target.value)} className={inputClass}>
-              <option value="">Selecionar serviço…</option>
-              {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
+            <select
+              value={servicoId}
+              onChange={e => handleServico(e.target.value)}
+              disabled={loadingData || servicos.length === 0}
+              className={inputClass}
+            >
+              {loadingData
+                ? <option value="">Carregando…</option>
+                : servicos.length === 0
+                  ? <option value="">Nenhum serviço vinculado a este profissional</option>
+                  : <>
+                      <option value="">Selecionar serviço…</option>
+                      {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
+                    </>
+              }
             </select>
           </div>
 
@@ -242,7 +257,7 @@ export default function AdminAgenda() {
     setLoading(true)
     try {
       const { data } = await api.get('/appointment', { params: { date: toDateStr(date) } })
-      setAppointments(data.data ?? [])
+      setAppointments((data.data ?? []).filter((a) => a.Status !== 'cancelado'))
     } catch {
       setAppointments([])
     } finally {
