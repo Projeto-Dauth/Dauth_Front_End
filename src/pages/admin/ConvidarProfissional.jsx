@@ -96,7 +96,7 @@ export default function ConvidarProfissional() {
                 <Icon name="plus" size={13} />Convidar outro
               </Button>
               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/usuarios')}>
-                Ver usuários
+                Ver clientes
               </Button>
             </div>
           </div>

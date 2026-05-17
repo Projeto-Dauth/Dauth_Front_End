@@ -86,6 +86,21 @@ function addMinutes(timeStr, mins) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
+function isBreakStart(wh, slot) {
+  return wh?.Break_start && wh.Break_start.slice(0, 5) === slot
+}
+
+function coversBreak(wh, slot) {
+  if (!wh?.Break_start || !wh?.Break_end) return false
+  const s = toMinutes(slot)
+  return s >= toMinutes(wh.Break_start.slice(0, 5)) && s < toMinutes(wh.Break_end.slice(0, 5))
+}
+
+function spanBreak(wh) {
+  if (!wh?.Break_start || !wh?.Break_end) return 0
+  return Math.max(1, Math.ceil((toMinutes(wh.Break_end.slice(0, 5)) - toMinutes(wh.Break_start.slice(0, 5))) / 30))
+}
+
 function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const { addToast } = useToast()
   const [clientes, setClientes] = useState([])
@@ -236,6 +251,7 @@ export default function AdminAgenda() {
   })
   const [appointments, setAppointments] = useState([])
   const [professionals, setProfessionals] = useState([])
+  const [breakByProf, setBreakByProf] = useState({}) // { [UUID]: { Break_start, Break_end } | null }
   const [loading, setLoading] = useState(true)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
   const [newSlot, setNewSlot] = useState(null) // { slot, professional }
@@ -252,6 +268,24 @@ export default function AdminAgenda() {
       })
       .catch(() => setProfessionals([]))
   }, [])
+
+  // Carrega working hours dos profissionais quando a data muda
+  useEffect(() => {
+    if (professionals.length === 0) return
+    const weekday = date.getDay()
+    Promise.all(
+      professionals.map((p) =>
+        api.get(`/working-hours/professional/${p.UUID}`)
+          .then(({ data }) => {
+            const wh = (data.data ?? []).find((w) => w.Weekday === weekday)
+            return { uuid: p.UUID, wh: wh ?? null }
+          })
+          .catch(() => ({ uuid: p.UUID, wh: null }))
+      )
+    ).then((results) => {
+      setBreakByProf(Object.fromEntries(results.map(({ uuid, wh }) => [uuid, wh])))
+    })
+  }, [professionals, date])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -403,18 +437,23 @@ export default function AdminAgenda() {
                     {isHour ? slot : ''}
                   </div>,
                   ...profNames.map((prof, pi) => {
+                    const profObj = profObjects[pi]
+                    const wh = breakByProf[profObj?.UUID] ?? null
                     const appt = appointments.find((a) => a.Professional === prof && isStart(a, slot))
                     const occupied = appointments.some((a) => a.Professional === prof && coversSlot(a, slot))
+                    const onBreak = coversBreak(wh, slot)
+                    const breakStart = isBreakStart(wh, slot)
+                    const breakSpans = breakStart ? spanBreak(wh) : 0
                     const past = isSlotPast(date, slot)
                     const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
                     const spans = appt ? spanSlots(appt) : 0
-                    const clickable = !occupied && !past
+                    const clickable = !occupied && !past && !onBreak
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
-                        onClick={clickable ? () => setNewSlot({ slot, professional: profObjects[pi] }) : undefined}
+                        onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                          ${past ? 'bg-surface-2' : ''}
+                          ${past || onBreak ? 'bg-surface-2' : ''}
                           ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                         {appt && (
                           <button
@@ -433,6 +472,18 @@ export default function AdminAgenda() {
                             </div>
                           </button>
                         )}
+                        {breakStart && (
+                          <div
+                            style={{ height: breakSpans * 64 - 4 }}
+                            className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-line-2 bg-surface-3 flex flex-col items-center justify-center gap-0.5 pointer-events-none overflow-hidden"
+                          >
+                            <Icon name="clock" size={11} className="text-ink-4" />
+                            <span className="font-mono text-[9.5px] text-ink-4">Intervalo</span>
+                            <span className="font-mono text-[9px] text-ink-4 opacity-70">
+                              {wh.Break_start.slice(0, 5)} – {wh.Break_end.slice(0, 5)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )
                   }),
@@ -445,13 +496,17 @@ export default function AdminAgenda() {
               {TIME_SLOTS.map((slot) => {
                 const prof = profNames[mobileProfIdx]
                 const profObj = profObjects[mobileProfIdx]
+                const wh = breakByProf[profObj?.UUID] ?? null
                 const isHour = slot.endsWith(':00')
                 const appt = prof ? appointments.find((a) => a.Professional === prof && isStart(a, slot)) : null
                 const occupied = prof ? appointments.some((a) => a.Professional === prof && coversSlot(a, slot)) : false
+                const onBreak = coversBreak(wh, slot)
+                const breakStart = isBreakStart(wh, slot)
+                const breakSpans = breakStart ? spanBreak(wh) : 0
                 const past = isSlotPast(date, slot)
                 const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
                 const spans = appt ? spanSlots(appt) : 0
-                const clickable = !occupied && !past
+                const clickable = !occupied && !past && !onBreak
                 return [
                   <div key={`mt-${slot}`}
                     className={`px-2 py-1.5 text-right font-mono text-[10.5px] border-r border-line
@@ -463,7 +518,7 @@ export default function AdminAgenda() {
                     onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                     className={`relative h-14 overflow-visible border-line-2
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                      ${past ? 'bg-surface-2' : ''}
+                      ${past || onBreak ? 'bg-surface-2' : ''}
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                     {appt && (
                       <button
@@ -481,6 +536,15 @@ export default function AdminAgenda() {
                           {parseTime(appt.Start_time)} → {parseTime(appt.End_time)}
                         </div>
                       </button>
+                    )}
+                    {breakStart && (
+                      <div
+                        style={{ height: breakSpans * 56 - 4 }}
+                        className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-line-2 bg-surface-3 flex flex-col items-center justify-center gap-0.5 pointer-events-none overflow-hidden"
+                      >
+                        <Icon name="clock" size={11} className="text-ink-4" />
+                        <span className="font-mono text-[9.5px] text-ink-4">Intervalo</span>
+                      </div>
                     )}
                   </div>,
                 ]

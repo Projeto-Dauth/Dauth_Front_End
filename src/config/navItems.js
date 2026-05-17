@@ -4,7 +4,7 @@ export const navItemsByRole = {
     { type: 'label', label: 'Operação' },
     { to: '/admin', end: true, icon: 'cal', label: 'Agenda' },
     { to: '/admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-    { to: '/admin/usuarios', icon: 'users', label: 'Usuários' },
+    { to: '/admin/usuarios', icon: 'users', label: 'Clientes' },
     { to: '/admin/servicos', icon: 'scissors', label: 'Serviços' },
     { to: '/admin/combos', icon: 'package', label: 'Pacotes' },
     { to: '/admin/convidar-profissional', icon: 'plus', label: 'Convidar profissional' },
