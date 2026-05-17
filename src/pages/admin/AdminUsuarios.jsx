@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
@@ -6,6 +6,7 @@ import Chip from '@/components/ui/Chip'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
+import Input from '@/components/ui/Input'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import { useToast } from '@/context/ToastContext'
@@ -30,6 +31,16 @@ function formatBirthday(iso) {
   return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`
 }
 
+function applyPhoneMask(value) {
+  const d = value.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`
+  if (d.length <= 11) return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
+  return value
+}
+
+const EMPTY_FORM = { name: '', phone: '', birthday: '' }
+
 export default function AdminUsuarios() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
@@ -39,6 +50,11 @@ export default function AdminUsuarios() {
   const [roleFilter, setRoleFilter] = useState('Todos')
   const [toggleTarget, setToggleTarget] = useState(null)
   const [toggling, setToggling] = useState(false)
+
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [formErrors, setFormErrors] = useState({})
+  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -74,6 +90,42 @@ export default function AdminUsuarios() {
     }
   }
 
+  function validate() {
+    const errs = {}
+    if (!form.name.trim()) errs.name = 'Nome é obrigatório'
+    if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(form.phone)) errs.phone = 'Telefone inválido. Ex: (11) 9 9999-9999'
+    return errs
+  }
+
+  async function handleSave() {
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setFormErrors(errs); return }
+    setSaving(true)
+    try {
+      const body = { name: form.name.trim(), phone: form.phone }
+      if (form.birthday) body.birthday = form.birthday
+      await api.post('/auth/register-admin', body)
+      addToast(`${form.name} cadastrado com sucesso`, 'success')
+      setDrawerOpen(false)
+      setForm(EMPTY_FORM)
+      setFormErrors({})
+      load()
+    } catch (err) {
+      const msg = err.response?.data?.error
+      if (msg?.includes('Telefone')) {
+        setFormErrors({ phone: 'Telefone já cadastrado' })
+      } else {
+        addToast(msg || 'Erro ao cadastrar usuário', 'error')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handlePhoneChange(e) {
+    setForm((f) => ({ ...f, phone: applyPhoneMask(e.target.value) }))
+  }
+
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
   )
@@ -85,6 +137,10 @@ export default function AdminUsuarios() {
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Usuários</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie clientes, profissionais e administradores</p>
         </div>
+        <Button variant="primary" size="sm" onClick={() => { setForm(EMPTY_FORM); setFormErrors({}); setDrawerOpen(true) }}>
+          <Icon name="plus" size={14} />
+          Novo usuário
+        </Button>
       </div>
 
       {/* Filtro de role */}
@@ -127,7 +183,7 @@ export default function AdminUsuarios() {
                         <Avatar name={u.Name} index={idx} size="sm" />
                         <div>
                           <div className="text-[13px] font-medium">{u.Name}</div>
-                          <div className="font-mono text-[11px] text-ink-3">{u.Email}</div>
+                          <div className="font-mono text-[11px] text-ink-3">{u.Phone ?? '—'}</div>
                         </div>
                       </div>
                     </td>
@@ -159,7 +215,7 @@ export default function AdminUsuarios() {
                   <Avatar name={u.Name} index={idx} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[14px] truncate">{u.Name}</div>
-                    <div className="font-mono text-[11px] text-ink-3 truncate">{u.Email}</div>
+                    <div className="font-mono text-[11px] text-ink-3 truncate">{u.Phone ?? '—'}</div>
                   </div>
                   <Chip variant={u.active ? 'success' : 'danger'}>{u.active ? 'Ativo' : 'Inativo'}</Chip>
                 </div>
@@ -179,6 +235,7 @@ export default function AdminUsuarios() {
         </>
       )}
 
+      {/* Modal ativar/desativar */}
       <Modal
         isOpen={!!toggleTarget}
         onClose={() => setToggleTarget(null)}
@@ -192,6 +249,66 @@ export default function AdminUsuarios() {
         confirmLabel={toggleTarget?.active ? 'Desativar' : 'Ativar'}
         loading={toggling}
       />
+
+      {/* Drawer — cadastro manual */}
+      {drawerOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-ink/20" onClick={() => setDrawerOpen(false)} />
+          <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-surface shadow-xl
+                          md:inset-y-0 md:right-0 md:left-auto md:w-[400px] md:rounded-none md:border-l md:border-line">
+
+            {/* alça mobile */}
+            <div className="flex justify-center pt-3 pb-1 md:hidden">
+              <div className="w-10 h-1 rounded-full bg-line-2" />
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+              <span className="font-display font-medium text-[15px]">Novo usuário</span>
+              <button onClick={() => setDrawerOpen(false)} className="p-1.5 rounded-md text-ink-3 hover:bg-surface-2 transition-colors">
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 md:p-7 flex flex-col gap-4">
+              <Input
+                label="Nome completo"
+                placeholder="Maria da Silva"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                error={formErrors.name}
+              />
+              <Input
+                label="Telefone"
+                placeholder="(11) 9 9999-9999"
+                value={form.phone}
+                onChange={handlePhoneChange}
+                error={formErrors.phone}
+              />
+              <Input
+                label="Data de nascimento (opcional)"
+                type="date"
+                value={form.birthday}
+                onChange={(e) => setForm((f) => ({ ...f, birthday: e.target.value }))}
+              />
+
+              <div className="bg-surface-2 border border-line rounded-lg px-4 py-3">
+                <p className="text-[12px] text-ink-3 font-body">
+                  A senha inicial será <span className="font-mono font-medium text-ink-2">12345678</span>. O usuário poderá alterá-la após o primeiro acesso.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" size="md" onClick={() => setDrawerOpen(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button variant="primary" size="md" onClick={handleSave} loading={saving} className="flex-1">
+                  Cadastrar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </AppLayout>
   )
 }
