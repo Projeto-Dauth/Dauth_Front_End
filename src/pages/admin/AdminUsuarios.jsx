@@ -16,13 +16,19 @@ import { navItemsByRole } from '@/config/navItems'
 
 const navItems = navItemsByRole['Admin']
 
-const ROLE_FILTERS = ['Todos', 'Admin', 'Profissional', 'Usuario', 'Cliente']
+const ROLE_FILTERS = ['Todos', 'Admin', 'Profissional', 'Cliente']
+const ROLE_FILTER_API = { Cliente: 'Usuario' }
 
 const ROLE_CHIP = {
   Admin: 'brand',
   Profissional: 'warning',
   Usuario: 'default',
-  Cliente: 'default',
+}
+
+const ROLE_LABEL = {
+  Admin: 'Admin',
+  Profissional: 'Profissional',
+  Usuario: 'Cliente',
 }
 
 function formatBirthday(iso) {
@@ -60,7 +66,7 @@ export default function AdminUsuarios() {
     setLoading(true)
     try {
       const params = {}
-      if (roleFilter !== 'Todos') params.Role = roleFilter
+      if (roleFilter !== 'Todos') params.Role = ROLE_FILTER_API[roleFilter] ?? roleFilter
       const { data } = await api.get('/users', { params })
       setItems(data.data ?? [])
     } catch {
@@ -84,7 +90,7 @@ export default function AdminUsuarios() {
       setToggleTarget(null)
       load()
     } catch (err) {
-      addToast(err.response?.data?.error || 'Erro ao atualizar usuário', 'error')
+      addToast(err.response?.data?.error || 'Erro ao atualizar cliente', 'error')
     } finally {
       setToggling(false)
     }
@@ -115,7 +121,7 @@ export default function AdminUsuarios() {
       if (msg?.includes('Telefone')) {
         setFormErrors({ phone: 'Telefone já cadastrado' })
       } else {
-        addToast(msg || 'Erro ao cadastrar usuário', 'error')
+        addToast(msg || 'Erro ao cadastrar cliente', 'error')
       }
     } finally {
       setSaving(false)
@@ -134,12 +140,12 @@ export default function AdminUsuarios() {
     <AppLayout sidebar={sidebar}>
       <div className="flex justify-between items-end mb-5 md:mb-6">
         <div>
-          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Usuários</h3>
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Clientes</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie clientes, profissionais e administradores</p>
         </div>
         <Button variant="primary" size="sm" onClick={() => { setForm(EMPTY_FORM); setFormErrors({}); setDrawerOpen(true) }}>
           <Icon name="plus" size={14} />
-          Novo usuário
+          Novo cliente
         </Button>
       </div>
 
@@ -160,7 +166,7 @@ export default function AdminUsuarios() {
       {loading ? (
         <PageSpinner />
       ) : items.length === 0 ? (
-        <EmptyState icon="users" title="Nenhum usuário" description="Nenhum usuário encontrado." />
+        <EmptyState icon="users" title="Nenhum resultado" description="Nenhum usuário encontrado com os filtros selecionados." />
       ) : (
         <>
           {/* Desktop table */}
@@ -168,7 +174,7 @@ export default function AdminUsuarios() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  {['Usuário', 'Role', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
+                  {['Cliente', 'Role', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
                     <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
                       {h}
                     </th>
@@ -188,7 +194,7 @@ export default function AdminUsuarios() {
                       </div>
                     </td>
                     <td className="px-3.5 py-3 border-b border-line-2">
-                      <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{u.Role}</Chip>
+                      <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{ROLE_LABEL[u.Role] ?? u.Role}</Chip>
                     </td>
                     <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{u.Phone ?? '—'}</td>
                     <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatBirthday(u.Birthday)}</td>
@@ -240,7 +246,7 @@ export default function AdminUsuarios() {
         isOpen={!!toggleTarget}
         onClose={() => setToggleTarget(null)}
         onConfirm={handleToggleActive}
-        title={toggleTarget?.active ? 'Desativar usuário' : 'Ativar usuário'}
+        title={toggleTarget?.active ? 'Desativar cliente' : 'Ativar cliente'}
         message={
           toggleTarget?.active
             ? `${toggleTarget?.Name} não conseguirá mais fazer login após ser desativado.`
@@ -263,7 +269,7 @@ export default function AdminUsuarios() {
             </div>
 
             <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <span className="font-display font-medium text-[15px]">Novo usuário</span>
+              <span className="font-display font-medium text-[15px]">Novo cliente</span>
               <button onClick={() => setDrawerOpen(false)} className="p-1.5 rounded-md text-ink-3 hover:bg-surface-2 transition-colors">
                 <Icon name="x" size={16} />
               </button>

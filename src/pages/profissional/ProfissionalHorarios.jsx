@@ -13,7 +13,7 @@ import { navItemsByRole } from '@/config/navItems'
 const DOW_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 const DOW_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-const EMPTY_FORM = { start_time: '09:00', end_time: '18:00' }
+const EMPTY_FORM = { start_time: '09:00', end_time: '18:00', break_start: '', break_end: '' }
 
 function inputCls(err) {
   return `w-full h-[42px] px-[14px] rounded-md border bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors ${err ? 'border-danger' : 'border-line'}`
@@ -26,13 +26,11 @@ export default function ProfissionalHorarios() {
   const [workingHours, setWorkingHours] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Drawer
   const [drawer, setDrawer] = useState(null) // { mode: 'add'|'edit', weekday, wh? }
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
-  // Modal de exclusão
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -49,7 +47,6 @@ export default function ProfissionalHorarios() {
       .finally(() => setLoading(false))
   }
 
-  // Indexado por weekday para acesso O(1)
   const whByDay = Object.fromEntries(workingHours.map((w) => [w.Weekday, w]))
 
   function openAdd(weekday) {
@@ -62,6 +59,8 @@ export default function ProfissionalHorarios() {
     setForm({
       start_time: wh.Start_time.slice(0, 5),
       end_time: wh.End_time.slice(0, 5),
+      break_start: wh.Break_start ? wh.Break_start.slice(0, 5) : '',
+      break_end: wh.Break_end ? wh.Break_end.slice(0, 5) : '',
     })
     setErrors({})
     setDrawer({ mode: 'edit', weekday: wh.Weekday, wh })
@@ -73,29 +72,47 @@ export default function ProfissionalHorarios() {
     if (!form.end_time) e.end_time = 'Obrigatório'
     if (form.start_time && form.end_time && form.end_time <= form.start_time)
       e.end_time = 'Horário de fim deve ser após o início'
+
+    const hasBreak = form.break_start || form.break_end
+    if (hasBreak) {
+      if (!form.break_start) e.break_start = 'Obrigatório quando há intervalo'
+      if (!form.break_end) e.break_end = 'Obrigatório quando há intervalo'
+      if (form.break_start && form.break_end) {
+        if (form.break_end <= form.break_start)
+          e.break_end = 'Fim do intervalo deve ser após o início'
+        if (form.break_start < form.start_time)
+          e.break_start = 'Intervalo deve estar dentro do horário de trabalho'
+        if (form.break_end > form.end_time)
+          e.break_end = 'Intervalo deve estar dentro do horário de trabalho'
+      }
+    }
+
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
-  async function handleSave() {
+  async function handleSaveAdd() {
     if (!validate()) return
     setSaving(true)
     try {
-      if (drawer.mode === 'add') {
-        await api.post('/working-hours', {
-          professional_id: user.id,
-          weekday: drawer.weekday,
-          start_time: form.start_time,
-          end_time: form.end_time,
+      const breakStart = form.break_start || null
+      const breakEnd = form.break_end || null
+
+      const { data: created } = await api.post('/working-hours', {
+        professional_id: user.id,
+        weekday: drawer.weekday,
+        start_time: form.start_time,
+        end_time: form.end_time,
+      })
+
+      if (breakStart && breakEnd && created?.UUID) {
+        await api.patch(`/working-hours/${created.UUID}`, {
+          break_start: breakStart,
+          break_end: breakEnd,
         })
-        addToast('Horário adicionado')
-      } else {
-        await api.patch(`/working-hours/${drawer.wh.UUID}`, {
-          start_time: form.start_time,
-          end_time: form.end_time,
-        })
-        addToast('Horário atualizado')
       }
+
+      addToast('Horário adicionado')
       setDrawer(null)
       load()
     } catch (err) {
@@ -103,6 +120,31 @@ export default function ProfissionalHorarios() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleSaveEdit() {
+    if (!validate()) return
+    setSaving(true)
+    try {
+      await api.patch(`/working-hours/${drawer.wh.UUID}`, {
+        start_time: form.start_time,
+        end_time: form.end_time,
+        break_start: form.break_start || null,
+        break_end: form.break_end || null,
+      })
+      addToast('Horário atualizado')
+      setDrawer(null)
+      load()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao salvar horário', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleSaveDispatch() {
+    if (drawer?.mode === 'add') return handleSaveAdd()
+    return handleSaveEdit()
   }
 
   async function handleDelete() {
@@ -179,11 +221,21 @@ export default function ProfissionalHorarios() {
               {/* Status */}
               {wh ? (
                 <>
-                  <div className="flex-1 flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-success shrink-0" />
-                    <span className="font-mono text-[13.5px] text-ink-2 font-medium">
-                      {wh.Start_time.slice(0, 5)} – {wh.End_time.slice(0, 5)}
-                    </span>
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-3">
+                      <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+                      <span className="font-mono text-[13.5px] text-ink-2 font-medium">
+                        {wh.Start_time.slice(0, 5)} – {wh.End_time.slice(0, 5)}
+                      </span>
+                    </div>
+                    {wh.Break_start && wh.Break_end && (
+                      <div className="flex items-center gap-2 ml-5">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-2 border border-line text-[11px] font-mono text-ink-3">
+                          <Icon name="clock" size={10} />
+                          Intervalo {wh.Break_start.slice(0, 5)} – {wh.Break_end.slice(0, 5)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
@@ -234,11 +286,9 @@ export default function ProfissionalHorarios() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 md:px-6 py-5 md:py-6 flex flex-col gap-4">
-              <div>
-                <p className="text-[13px] font-medium text-ink-2 mb-3">
-                  {DOW_LABELS[drawer.weekday]}
-                </p>
-              </div>
+              <p className="text-[13px] font-medium text-ink-2">
+                {DOW_LABELS[drawer.weekday]}
+              </p>
 
               <div>
                 <label className="block text-[12px] font-medium text-ink-3 mb-1.5">Início</label>
@@ -261,10 +311,46 @@ export default function ProfissionalHorarios() {
                 />
                 {errors.end_time && <p className="text-[11px] text-danger mt-1">{errors.end_time}</p>}
               </div>
+
+              {/* Seção de intervalo */}
+              <div className="border-t border-line pt-4">
+                <p className="text-[12px] font-medium text-ink-3 mb-3">Intervalo (opcional)</p>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="block text-[12px] font-medium text-ink-3 mb-1.5">Início do intervalo</label>
+                    <input
+                      type="time"
+                      className={inputCls(errors.break_start)}
+                      value={form.break_start}
+                      onChange={(e) => setForm((f) => ({ ...f, break_start: e.target.value }))}
+                    />
+                    {errors.break_start && <p className="text-[11px] text-danger mt-1">{errors.break_start}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-ink-3 mb-1.5">Fim do intervalo</label>
+                    <input
+                      type="time"
+                      className={inputCls(errors.break_end)}
+                      value={form.break_end}
+                      onChange={(e) => setForm((f) => ({ ...f, break_end: e.target.value }))}
+                    />
+                    {errors.break_end && <p className="text-[11px] text-danger mt-1">{errors.break_end}</p>}
+                  </div>
+                  {(form.break_start || form.break_end) && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, break_start: '', break_end: '' }))}
+                      className="text-[11.5px] text-danger hover:underline text-left"
+                    >
+                      Remover intervalo
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="px-5 md:px-6 py-5 border-t border-line flex gap-2.5">
-              <Button onClick={handleSave} disabled={saving} className="flex-1">
+              <Button onClick={handleSaveDispatch} disabled={saving} className="flex-1">
                 {saving ? 'Salvando...' : 'Salvar'}
               </Button>
               <Button variant="ghost" onClick={() => setDrawer(null)} disabled={saving}>
