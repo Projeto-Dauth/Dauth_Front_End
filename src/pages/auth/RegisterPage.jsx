@@ -54,7 +54,7 @@ export default function RegisterPage() {
       <div className="min-h-screen bg-bg flex items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center mb-8">
-            <img src={logo} alt="Dauth" className="w-12 h-12 rounded-xl object-cover mb-4" />
+            <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
             <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
             <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
           </div>
@@ -95,7 +95,7 @@ export default function RegisterPage() {
 
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
-          <img src={logo} alt="Dauth" className="w-12 h-12 rounded-xl object-cover mb-4" />
+          <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
           <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
           <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
         </div>

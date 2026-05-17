@@ -65,7 +65,7 @@ export default function AdminAgendamentos() {
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agendamentos</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie todos os agendamentos do salão</p>
         </div>
-        <Button size="sm" onClick={() => navigate('/agendamento/novo')}>
+        <Button size="sm" onClick={() => navigate('/agendar')}>
           <Icon name="plus" size={14} />Novo agendamento
         </Button>
       </div>

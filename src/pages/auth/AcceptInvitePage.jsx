@@ -215,6 +215,6 @@ function formatPhone(value) {
 
 function Brand() {
   return (
-    <img src={logo} alt="Dauth" className="w-12 h-12 rounded-xl object-cover mx-auto" />
+    <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mx-auto" />
   )
 }

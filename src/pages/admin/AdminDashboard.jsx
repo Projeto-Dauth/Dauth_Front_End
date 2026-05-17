@@ -43,7 +43,7 @@ function KpiCard({ icon, label, value, sub, highlight }) {
           <Icon name={icon} size={16} className={highlight ? 'text-white' : 'text-brand'} />
         </span>
       </div>
-      <p className={`text-2xl font-display font-semibold tracking-tight ${highlight ? 'text-white' : 'text-ink'}`}>{value}</p>
+      <p className={`text-[32px] font-serif font-light leading-none tracking-wide ${highlight ? 'text-white' : 'text-ink'}`}>{value}</p>
       {sub && <p className={`text-xs ${highlight ? 'text-white/60' : 'text-ink-4'}`}>{sub}</p>}
     </div>
   )

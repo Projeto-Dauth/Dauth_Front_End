@@ -179,7 +179,7 @@ function ClienteSidebar({ user, onClose }) {
   return (
     <aside className="flex flex-col gap-0.5 bg-surface-2 border-r border-line px-4 py-6 w-60 min-w-[240px] h-full overflow-y-auto">
       <div className="flex items-center gap-2.5 px-2 pb-4 mb-1 border-b border-line">
-        <img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+        <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover shrink-0" />
         <div className="flex-1 font-display font-semibold text-[13.5px] truncate">Dauth Agendamentos</div>
         {onClose && (
           <button onClick={onClose} className="p-1.5 rounded-lg text-ink-4 hover:bg-surface-3 transition-colors">

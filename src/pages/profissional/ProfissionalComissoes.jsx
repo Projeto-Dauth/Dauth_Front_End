@@ -97,15 +97,15 @@ export default function ProfissionalComissoes() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Atendimentos</span>
-                <span className="text-[26px] font-display font-semibold tracking-tight text-ink">{totais.atendimentos}</span>
+                <span className="text-[26px] font-serif font-light leading-none tracking-wide text-ink">{totais.atendimentos}</span>
               </div>
               <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Receita gerada</span>
-                <span className="text-[22px] font-display font-semibold tracking-tight text-ink">{formatCurrency(totais.gross_amount)}</span>
+                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-ink">{formatCurrency(totais.gross_amount)}</span>
               </div>
               <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Comissão a receber</span>
-                <span className="text-[22px] font-display font-semibold tracking-tight text-white">{formatCurrency(totais.commission_amount)}</span>
+                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totais.commission_amount)}</span>
               </div>
             </div>
           )}

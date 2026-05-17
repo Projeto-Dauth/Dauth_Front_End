@@ -7,7 +7,7 @@ export default function Input({ label, error, className = '', ...props }) {
       <input
         className={`h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2
           font-body text-md placeholder:text-ink-4
-          focus:outline-none focus:border-brand transition-colors
+          focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/12 transition-colors
           ${error ? 'border-danger' : ''}
           ${className}`}
         {...props}

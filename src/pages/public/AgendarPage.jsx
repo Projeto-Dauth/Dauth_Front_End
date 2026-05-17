@@ -218,7 +218,7 @@ export default function AgendarPage() {
       {/* Top bar */}
       <div className="flex justify-between items-center px-4 md:px-10 py-4 md:py-[22px] border-b border-line bg-surface sticky top-0 z-10">
         <div className="flex items-center gap-2.5">
-          <img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+          <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover shrink-0" />
           <div className="font-display font-semibold text-[15px] md:text-[17px]">Dauth Agendamentos</div>
         </div>
         {isAuthenticated ? (

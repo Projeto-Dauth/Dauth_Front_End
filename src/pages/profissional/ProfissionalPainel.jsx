@@ -207,15 +207,15 @@ export default function ProfissionalPainel() {
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="bg-surface border border-line rounded-xl px-4 py-3.5">
               <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-1">Total hoje</div>
-              <div className="font-display font-semibold text-[22px] tracking-tight">{total}</div>
+              <div className="font-serif font-light text-[26px] leading-none tracking-wide">{total}</div>
             </div>
             <div className="bg-surface border border-line rounded-xl px-4 py-3.5">
               <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-1">Concluídos</div>
-              <div className="font-display font-semibold text-[22px] tracking-tight text-success">{concluidos}</div>
+              <div className="font-serif font-light text-[26px] leading-none tracking-wide text-success">{concluidos}</div>
             </div>
             <div className="bg-surface border border-line rounded-xl px-4 py-3.5">
               <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-1">A atender</div>
-              <div className="font-display font-semibold text-[22px] tracking-tight text-warning">{pendentes + confirmados}</div>
+              <div className="font-serif font-light text-[26px] leading-none tracking-wide text-warning">{pendentes + confirmados}</div>
             </div>
           </div>
         )

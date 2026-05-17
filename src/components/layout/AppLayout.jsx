@@ -48,7 +48,7 @@ export default function AppLayout({ sidebar, children }) {
           >
             <Icon name="menu" size={18} />
           </button>
-          <img src={logo} alt="Dauth" className="w-7 h-7 rounded-lg object-cover" />
+          <img src={logo} alt="Dauth" className="w-9 h-9 rounded-lg object-cover" />
           <div className="font-display font-semibold text-[13.5px] flex-1">Dauth Agendamentos</div>
           <button
             onClick={handleLogout}
