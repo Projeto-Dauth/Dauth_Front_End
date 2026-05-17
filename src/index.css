@@ -8,6 +8,9 @@
     @apply bg-bg text-ink font-body;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-image:
+      radial-gradient(ellipse at 15% 40%, rgba(139,74,43,0.04) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 15%, rgba(201,165,123,0.05) 0%, transparent 50%);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -26,6 +29,15 @@
   .eyebrow {
     @apply font-mono text-xs uppercase tracking-widest text-ink-3;
   }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.22s ease-out both;
 }
 
 /* ── Portal landing page ── */
@@ -63,3 +75,7 @@
 
 details summary::-webkit-details-marker { display: none; }
 details summary { list-style: none; }
+
+/* Sidebar — scrollbar invisível mas funcional */
+aside::-webkit-scrollbar { display: none; }
+aside { scrollbar-width: none; }

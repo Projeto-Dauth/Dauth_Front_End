@@ -22,7 +22,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
     >
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-2 pb-4 mb-1 border-b border-line">
-        <img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+        <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="font-display font-semibold text-[13.5px] leading-none truncate">Dauth Agendamentos</div>
           {children && <div className="font-mono text-[10px] text-ink-3 mt-0.5">{children}</div>}
@@ -69,7 +69,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
             onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors
-              ${isActive ? 'bg-surface text-ink border border-line shadow-xs' : ''}`
+              ${isActive ? 'bg-brand-soft text-brand border border-brand/20 font-medium' : ''}`
             }
           >
             {item.icon && <Icon name={item.icon} size={16} />}

@@ -29,7 +29,7 @@ SPA React com 3 perfis de usuário: `Admin`, `Profissional`, `Usuario`.
 | HTTP | Axios com `withCredentials: true` e interceptor de refresh automático |
 | Estado global | Zustand (`useAuthStore`) |
 | Formulários | React Hook Form |
-| Fontes | Space Grotesk (display) · Inter (body) · JetBrains Mono (mono) |
+| Fontes | Space Grotesk (display) · Inter (body) · JetBrains Mono (mono) · Cormorant Garamond (serif — KPIs e headings editoriais) |
 
 ---
 
@@ -64,16 +64,25 @@ import { navItemsByRole } from '@/config/navItems'
 - `success` / `warning` / `danger` com variante `-soft`
 
 **Tipografia:**
-- Títulos: `font-display font-medium tracking-tight`
+- Títulos de UI: `font-display font-medium tracking-tight` (Space Grotesk)
+- **Valores de KPI / números em destaque:** `font-serif font-light leading-none tracking-wide` (Cormorant Garamond) — usado em KpiCard, AdminCaixa, ProfissionalComissoes, ProfissionalPainel
 - Corpo: `font-body` (padrão)
 - Códigos/labels: `font-mono text-[10.5px] uppercase tracking-widest`
 
 **Padrão de input:**
 ```
 h-[42px] px-[14px] rounded-md border bg-surface text-ink-2 font-body text-md
-placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors
+placeholder:text-ink-4 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/12 transition-colors
 border-line  (normal) | border-danger (com erro)
 ```
+
+**Sidebar — active state:**
+```
+bg-brand-soft text-brand border border-brand/20 font-medium
+```
+(não usar `bg-surface border-line shadow-xs` — contraste insuficiente)
+
+**Scrollbar da sidebar:** suprimida visualmente via `aside::-webkit-scrollbar { display: none }` + `aside { scrollbar-width: none }` em `index.css`. Scroll ainda funciona normalmente.
 
 ---
 
@@ -618,6 +627,8 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - **MinhaAgenda mobile** — data/horário exibidos abaixo do nome em mobile (`md:hidden`), coluna separada visível apenas no desktop (`hidden md:block`)
 - **DetalhesAgendamento mobile** — grid `1fr 340px` empilha em mobile, aplica duas colunas a partir de `lg`
 - **AdminCombos modal mobile** — modal "Vender pacote" usa `w-full max-w-[400px] mx-4` para não estourar em telas pequenas
+- **Melhorias de UI/UX aplicadas** — Button com `active:scale-[0.97]` e `focus-visible:ring-2`; Input com `focus:ring-2 focus:ring-brand/12`; Chip com dot automático quando `status` está presente (sem precisar passar `dot` explicitamente); Avatar com gradiente determinístico por hash do nome; Modal com `backdrop-blur-sm` no overlay; EmptyState com animação `fade-in` de 220ms; LoginPage com split layout desktop (painel brand terracota + headline serif à esquerda, formulário à direita — mobile inalterado); background com gradiente radial sutil brand/gold
+- **Fix: botão "Novo agendamento" em AdminAgendamentos** — corrigido de `/agendamento/novo` (rota inexistente) para `/agendar`
 
 ### Ainda com dados mockados / não implementado
 - `PortalPage` — landing page pública, sem implementação

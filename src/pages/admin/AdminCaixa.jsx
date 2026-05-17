@@ -302,11 +302,11 @@ function TabComissoes() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Receita total do período</span>
-              <span className="text-[22px] font-display font-semibold tracking-tight text-ink">{formatCurrency(totalReceita)}</span>
+              <span className="text-[28px] font-serif font-light leading-none tracking-wide text-ink">{formatCurrency(totalReceita)}</span>
             </div>
             <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Total de comissões a pagar</span>
-              <span className="text-[22px] font-display font-semibold tracking-tight text-white">{formatCurrency(totalComissao)}</span>
+              <span className="text-[28px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totalComissao)}</span>
             </div>
           </div>
 
@@ -472,7 +472,7 @@ function TabRelatorio() {
             {['pix', 'dinheiro', 'cartao_credito', 'cartao_debito'].map(m => (
               <div key={m} className="bg-surface border border-line rounded-xl p-4 flex flex-col gap-1.5">
                 <span className="font-mono text-[10px] uppercase tracking-widest text-ink-4">{METHOD_LABELS[m]}</span>
-                <span className="text-[17px] font-display font-semibold tracking-tight text-ink">
+                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-ink">
                   {formatCurrency(totais?.[m] ?? 0)}
                 </span>
               </div>
@@ -480,7 +480,7 @@ function TabRelatorio() {
           </div>
           <div className="bg-brand rounded-xl p-4 flex items-center justify-between mb-6">
             <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Total do período</span>
-            <span className="text-[22px] font-display font-semibold tracking-tight text-white">
+            <span className="text-[28px] font-serif font-light leading-none tracking-wide text-white">
               {formatCurrency(totais?.geral ?? 0)}
             </span>
           </div>

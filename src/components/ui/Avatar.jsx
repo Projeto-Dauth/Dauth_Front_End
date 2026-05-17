@@ -23,7 +23,8 @@ export default function Avatar({ name = '', index = 0, size = 'md', src, classNa
     .join('')
     .toUpperCase()
 
-  const gradient = placeholders[index % placeholders.length]
+  const nameHash = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  const gradient = placeholders[nameHash % placeholders.length]
 
   return (
     <div

@@ -18,8 +18,9 @@ const statusMap = {
   Expirada: 'default',
 }
 
-export default function Chip({ children, variant, status, dot = false, className = '' }) {
+export default function Chip({ children, variant, status, dot, className = '' }) {
   const resolvedVariant = variant ?? (status ? statusMap[status] : 'default') ?? 'default'
+  const showDot = dot ?? (status != null)
 
   return (
     <span
@@ -27,7 +28,7 @@ export default function Chip({ children, variant, status, dot = false, className
         text-xs font-medium border
         ${variants[resolvedVariant]} ${className}`}
     >
-      {dot && (
+      {showDot && (
         <span className="w-1.5 h-1.5 rounded-full bg-current" />
       )}
       {children ?? status}
