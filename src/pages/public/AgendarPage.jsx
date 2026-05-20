@@ -620,7 +620,10 @@ export default function AgendarPage() {
               com {selectedProf?.name}
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <Button variant="primary" onClick={() => navigate('/cliente')}>Ver minha conta</Button>
+              <Button variant="primary" onClick={() => {
+                const dest = user?.role === 'Admin' ? '/admin' : user?.role === 'Profissional' ? '/profissional' : '/cliente'
+                navigate(dest)
+              }}>Ver minha conta</Button>
               <Button variant="ghost" onClick={() => navigate('/')}>Voltar ao início</Button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Avatar from '@/components/ui/Avatar'
+import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
@@ -124,6 +125,7 @@ export default function ProfissionalComissoes() {
                       <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Serviço</th>
                       <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Valor do serviço</th>
                       <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Sua comissão</th>
+                      <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Repasse</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -141,6 +143,11 @@ export default function ProfissionalComissoes() {
                         <td className="px-5 py-4 text-right">
                           <span className="font-mono text-[13px] font-semibold text-brand">{formatCurrency(row.commission_amount)}</span>
                         </td>
+                        <td className="px-5 py-4 text-right">
+                          <Chip variant={row.commission_paid ? 'success' : 'warning'}>
+                            {row.commission_paid ? 'Repassado' : 'A repassar'}
+                          </Chip>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -151,6 +158,7 @@ export default function ProfissionalComissoes() {
                       </td>
                       <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink">{formatCurrency(totais?.gross_amount)}</td>
                       <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(totais?.commission_amount)}</td>
+                      <td />
                     </tr>
                   </tfoot>
                 </table>
@@ -165,7 +173,12 @@ export default function ProfissionalComissoes() {
                         <Avatar name={row.cliente} index={0} size="sm" />
                         <span className="font-medium text-[14px] text-ink">{row.cliente}</span>
                       </div>
-                      <span className="font-mono text-[11px] text-ink-4">{formatDate(row.data)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[11px] text-ink-4">{formatDate(row.data)}</span>
+                        <Chip variant={row.commission_paid ? 'success' : 'warning'}>
+                          {row.commission_paid ? 'Repassado' : 'A repassar'}
+                        </Chip>
+                      </div>
                     </div>
                     <div className="text-[13px] text-ink-2 mb-3">{row.servico}</div>
                     <div className="flex items-center justify-between pt-3 border-t border-line-2">
