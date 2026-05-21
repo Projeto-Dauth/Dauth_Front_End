@@ -79,3 +79,5 @@ details summary { list-style: none; }
 /* Sidebar — scrollbar invisível mas funcional */
 aside::-webkit-scrollbar { display: none; }
 aside { scrollbar-width: none; }
+.nav-scroll::-webkit-scrollbar { display: none; }
+.nav-scroll { scrollbar-width: none; }
