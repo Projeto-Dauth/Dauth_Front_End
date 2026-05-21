@@ -1,20 +1,30 @@
-import { useState, cloneElement } from 'react'
+import { useState, cloneElement, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '@/components/ui/Icons'
+import NotificationDrawer from '@/components/ui/NotificationDrawer'
 import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
+import useNotificationStore from '@/store/notificationStore'
 import api from '@/lib/api'
 
 export default function AppLayout({ sidebar, children }) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
+  const { unreadCount, fetchUnreadCount, openDrawer } = useNotificationStore()
 
   async function handleLogout() {
     try { await api.post('/auth/logout') } catch {}
     logout()
     navigate('/login', { replace: true })
   }
+
+  // polling de contagem a cada 30s
+  useEffect(() => {
+    fetchUnreadCount()
+    const id = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -50,6 +60,18 @@ export default function AppLayout({ sidebar, children }) {
           </button>
           <img src={logo} alt="Dauth" className="w-9 h-9 rounded-lg object-cover" />
           <div className="font-display font-semibold text-[13.5px] flex-1">Dauth Agendamentos</div>
+
+          {/* sino mobile */}
+          <button
+            onClick={openDrawer}
+            className="relative p-2 rounded-lg text-ink-3 hover:bg-surface-2 transition-colors"
+          >
+            <Icon name="bell" size={17} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand" />
+            )}
+          </button>
+
           <button
             onClick={handleLogout}
             title="Sair"
@@ -61,6 +83,8 @@ export default function AppLayout({ sidebar, children }) {
 
         {children}
       </main>
+
+      <NotificationDrawer />
     </div>
   )
 }

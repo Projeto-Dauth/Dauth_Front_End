@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 const useAuthStore = create((set) => ({
-  user: null,           // { id, email, name, role, publicId }
+  user: null,           // { id, email, name, role, publicId, must_change_password }
   isAuthenticated: false,
 
   login: (user) => {
@@ -14,6 +14,10 @@ const useAuthStore = create((set) => ({
 
   restoreSession: (user) => {
     set({ user, isAuthenticated: true })
+  },
+
+  clearMustChangePassword: () => {
+    set(state => ({ user: state.user ? { ...state.user, must_change_password: false } : null }))
   },
 }))
 

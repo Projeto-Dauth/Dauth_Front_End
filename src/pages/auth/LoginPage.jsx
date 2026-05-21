@@ -43,8 +43,12 @@ export default function LoginPage() {
         password: data.password,
       })
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
-      navigate(ROLE_REDIRECT[perfil.Role] ?? '/', { replace: true })
+      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role, must_change_password: perfil.Must_change_password ?? false })
+      if (perfil.Must_change_password) {
+        navigate('/trocar-senha', { replace: true })
+      } else {
+        navigate(ROLE_REDIRECT[perfil.Role] ?? '/', { replace: true })
+      }
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao entrar. Tente novamente.')
     }

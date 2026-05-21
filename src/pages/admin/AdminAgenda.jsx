@@ -11,6 +11,85 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 
+function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenComanda, onNavigate }) {
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    function handleKey(e) { if (e.key === 'Escape') onClose() }
+    function handleClick(e) { if (menuRef.current && !menuRef.current.contains(e.target)) onClose() }
+    document.addEventListener('keydown', handleKey)
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('touchstart', handleClick)
+    return () => {
+      document.removeEventListener('keydown', handleKey)
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('touchstart', handleClick)
+    }
+  }, [onClose])
+
+  // Ajusta posição para não sair da tela
+  const menuW = 200
+  const menuH = 180
+  const adjustedX = x + menuW > window.innerWidth ? x - menuW : x
+  const adjustedY = y + menuH > window.innerHeight ? y - menuH : y
+
+  const actions = []
+  if (appt.Status === 'pendente') {
+    actions.push({ label: 'Marcar como Confirmado', icon: 'check', status: 'confirmado', color: 'text-success' })
+  }
+  if (appt.Status === 'confirmado') {
+    actions.push({ label: 'Marcar como Concluído', icon: 'check', status: 'concluido', color: 'text-ink-2' })
+  }
+  if (appt.Status === 'pendente' || appt.Status === 'confirmado') {
+    actions.push({ label: 'Marcar como Cancelado', icon: 'x', status: 'cancelado', color: 'text-danger' })
+  }
+
+  return (
+    <div
+      ref={menuRef}
+      className="fixed z-50 bg-surface border border-line rounded-xl shadow-lg py-1.5 min-w-[200px]"
+      style={{ left: adjustedX, top: adjustedY }}
+    >
+      {/* Header do agendamento */}
+      <div className="px-3.5 py-2 border-b border-line mb-1">
+        <div className="font-medium text-[12.5px] truncate">{appt.Client}</div>
+        <div className="font-mono text-[10.5px] text-ink-3 truncate">{appt.Service} · {parseTime(appt.Start_time)}</div>
+      </div>
+
+      {actions.map(({ label, icon, status, color }) => (
+        <button
+          key={status}
+          onClick={() => { onStatusChange(appt, status); onClose() }}
+          className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] hover:bg-surface-2 transition-colors cursor-pointer ${color}`}
+        >
+          <Icon name={icon} size={13} />
+          {label}
+        </button>
+      ))}
+
+      {actions.length > 0 && <div className="border-t border-line my-1" />}
+
+      {appt.Status !== 'cancelado' && (
+        <button
+          onClick={() => { onOpenComanda(appt); onClose() }}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer"
+        >
+          <Icon name="receipt" size={13} />
+          Abrir comanda
+        </button>
+      )}
+
+      <button
+        onClick={() => { onNavigate(appt); onClose() }}
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-3 hover:bg-surface-2 transition-colors cursor-pointer"
+      >
+        <Icon name="arrowRight" size={13} />
+        Ver detalhes
+      </button>
+    </div>
+  )
+}
+
 const navItems = navItemsByRole['Admin']
 
 // Slots de 30 em 30 min das 08:00 às 18:00
@@ -243,6 +322,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
 export default function AdminAgenda() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const { addToast } = useToast()
 
   const [date, setDate] = useState(() => {
     const d = new Date()
@@ -251,11 +331,40 @@ export default function AdminAgenda() {
   })
   const [appointments, setAppointments] = useState([])
   const [professionals, setProfessionals] = useState([])
-  const [breakByProf, setBreakByProf] = useState({}) // { [UUID]: { Break_start, Break_end } | null }
+  const [breakByProf, setBreakByProf] = useState({})
   const [loading, setLoading] = useState(true)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
-  const [newSlot, setNewSlot] = useState(null) // { slot, professional }
+  const [newSlot, setNewSlot] = useState(null)
+  const [contextMenu, setContextMenu] = useState(null) // { appt, x, y }
+  const longPressTimer = useRef(null)
   const dateInputRef = useRef(null)
+
+  function openContextMenu(e, appt) {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ appt, x: e.clientX, y: e.clientY })
+  }
+
+  function handleLongPressStart(e, appt) {
+    const touch = e.touches[0]
+    longPressTimer.current = setTimeout(() => {
+      setContextMenu({ appt, x: touch.clientX, y: touch.clientY })
+    }, 500)
+  }
+
+  function handleLongPressEnd() {
+    clearTimeout(longPressTimer.current)
+  }
+
+  async function handleStatusChange(appt, status) {
+    try {
+      await api.patch(`/appointment/${appt.UUID}`, { Status: status })
+      addToast(`Agendamento marcado como ${status}`)
+      load(true)
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao atualizar status', 'error')
+    }
+  }
 
   // Carrega profissionais uma vez ao montar
   useEffect(() => {
@@ -287,15 +396,15 @@ export default function AdminAgenda() {
     })
   }, [professionals, date])
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const { data } = await api.get('/appointment', { params: { date: toDateStr(date) } })
       setAppointments((data.data ?? []).filter((a) => a.Status !== 'cancelado'))
     } catch {
       setAppointments([])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [date])
 
@@ -318,6 +427,17 @@ export default function AdminAgenda() {
 
   return (
     <AppLayout sidebar={sidebar}>
+      {contextMenu && (
+        <AppointmentContextMenu
+          appt={contextMenu.appt}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onStatusChange={handleStatusChange}
+          onOpenComanda={(appt) => navigate(`/admin/caixa?appointment=${appt.UUID}`)}
+          onNavigate={(appt) => navigate(`/agendamento/${appt.UUID}`)}
+        />
+      )}
       {newSlot && (
         <NovoAgendamentoDrawer
           slot={newSlot.slot}
@@ -458,6 +578,10 @@ export default function AdminAgenda() {
                         {appt && (
                           <button
                             onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
+                            onContextMenu={e => openContextMenu(e, appt)}
+                            onTouchStart={e => handleLongPressStart(e, appt)}
+                            onTouchEnd={handleLongPressEnd}
+                            onTouchMove={handleLongPressEnd}
                             style={{ height: spans * 64 - 4 }}
                             className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
                               hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}
@@ -523,6 +647,10 @@ export default function AdminAgenda() {
                     {appt && (
                       <button
                         onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
+                        onContextMenu={e => openContextMenu(e, appt)}
+                        onTouchStart={e => handleLongPressStart(e, appt)}
+                        onTouchEnd={handleLongPressEnd}
+                        onTouchMove={handleLongPressEnd}
                         style={{ height: spans * 56 - 4 }}
                         className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
                           hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}

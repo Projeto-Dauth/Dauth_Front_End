@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Avatar from '@/components/ui/Avatar'
@@ -56,7 +57,7 @@ function formatCurrency(v) {
 
 // ─── Aba Comandas ─────────────────────────────────────────────────────────────
 
-function TabComandas({ user }) {
+function TabComandas({ user, initialAppointmentId }) {
   const { addToast } = useToast()
 
   const [tabs, setTabs] = useState([])
@@ -66,22 +67,32 @@ function TabComandas({ user }) {
   const [payMethod, setPayMethod] = useState('pix')
   const [paying, setPaying] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // Fechar conta (batch pay)
+  const [batchClient, setBatchClient] = useState(null) // { name, tabs: [] }
+  const [batchMethod, setBatchMethod] = useState('pix')
+  const [batchPaying, setBatchPaying] = useState(false)
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const { data } = await api.get('/tab')
       setTabs(data.data ?? [])
     } catch {
       setTabs([])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    if (tabs.length > 0 && !selectedId) setSelectedId(tabs[0].UUID)
+    if (tabs.length === 0) return
+    if (initialAppointmentId) {
+      const match = tabs.find(t => t.Appointment?.UUID === initialAppointmentId)
+      if (match) { setSelectedId(match.UUID); return }
+    }
+    if (!selectedId) setSelectedId(tabs[0].UUID)
   }, [tabs])
 
   const filtered = statusFilter === 'Todos'
@@ -95,6 +106,17 @@ function TabComandas({ user }) {
 
   const emAberto = tabs.filter((t) => t.Status === 'Em aberto').length
   const totalAberto = tabs.filter((t) => t.Status === 'Em aberto').reduce((s, t) => s + t.Value, 0)
+
+  // Agrupamento por cliente para detectar múltiplas comandas em aberto
+  const clientsWithMultipleTabs = (() => {
+    const map = {}
+    tabs.filter(t => t.Status === 'Em aberto' && t.Appointment?.Client).forEach(t => {
+      const name = t.Appointment.Client
+      if (!map[name]) map[name] = []
+      map[name].push(t)
+    })
+    return Object.entries(map).filter(([, ts]) => ts.length > 1).map(([name, ts]) => ({ name, tabs: ts }))
+  })()
 
   async function handlePagar() {
     if (!selected) return
@@ -112,7 +134,7 @@ function TabComandas({ user }) {
       }
       await api.patch(`/tab/${selected.UUID}`, { Status: 'Paga' })
       addToast('Pagamento registrado', 'success')
-      load()
+      load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao registrar pagamento', 'error')
     } finally {
@@ -120,12 +142,42 @@ function TabComandas({ user }) {
     }
   }
 
+  async function handleFecharConta() {
+    if (!batchClient) return
+    setBatchPaying(true)
+    try {
+      await api.post('/tab/batch-pay', {
+        tab_ids: batchClient.tabs.map(t => t.UUID),
+        Method: batchMethod,
+        Payment_date: new Date().toISOString(),
+      })
+      addToast(`Conta de ${batchClient.name} fechada com sucesso`, 'success')
+      setBatchClient(null)
+      load(true)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
+    } finally {
+      setBatchPaying(false)
+    }
+  }
+
   return (
     <>
-      <div className="flex justify-between items-end mb-5 md:mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 md:mb-6">
         <p className="text-[12px] md:text-[13px] text-ink-3">
           {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
         </p>
+        {clientsWithMultipleTabs.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {clientsWithMultipleTabs.map(c => (
+              <button key={c.name} onClick={() => { setBatchClient(c); setBatchMethod('pix') }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium bg-brand text-white cursor-pointer hover:bg-brand/90 transition-colors">
+                <Icon name="cash" size={12} />
+                Fechar conta · {c.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Filtros */}
@@ -138,6 +190,54 @@ function TabComandas({ user }) {
           </button>
         ))}
       </div>
+
+      {/* Modal fechar conta */}
+      {batchClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-surface border border-line rounded-[16px] w-full max-w-[400px] shadow-xl">
+            <div className="px-6 py-5 border-b border-line flex justify-between items-center">
+              <div>
+                <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Fechar conta</span>
+                <h4 className="font-display font-medium text-[18px] tracking-tight mt-1">{batchClient.name}</h4>
+              </div>
+              <button onClick={() => setBatchClient(null)} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <div className="space-y-2 mb-5">
+                {batchClient.tabs.map(t => (
+                  <div key={t.UUID} className="flex items-center justify-between text-[13px]">
+                    <span className="text-ink-2">{t.Appointment?.Service} · {formatTime(t.Appointment?.Start_time)}</span>
+                    <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
+                  <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
+                  <span className="font-display text-[20px] font-medium text-ink">
+                    {formatCurrency(batchClient.tabs.reduce((s, t) => s + t.Value, 0))}
+                  </span>
+                </div>
+              </div>
+              <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">Método de pagamento</div>
+              <div className="grid grid-cols-2 gap-2 mb-5">
+                {PAY_METHODS.map((m) => (
+                  <button key={m.id} onClick={() => setBatchMethod(m.id)}
+                    className={`px-3 py-3 rounded-[10px] border flex flex-col items-center gap-1.5 text-[13px] cursor-pointer transition-colors
+                      ${batchMethod === m.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink-3'}`}>
+                    <Icon name={m.icon} size={18} />
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <Button variant="primary" className="w-full justify-center" onClick={handleFecharConta} disabled={batchPaying}>
+                <Icon name="check" size={14} />
+                {batchPaying ? 'Fechando...' : `Fechar conta · ${formatCurrency(batchClient.tabs.reduce((s, t) => s + t.Value, 0))}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? <PageSpinner /> : tabs.length === 0 ? (
         <EmptyState icon="receipt" title="Nenhuma comanda" description="Nenhuma comanda encontrada." />
@@ -241,156 +341,196 @@ function TabComandas({ user }) {
 
 // ─── Aba Comissões ────────────────────────────────────────────────────────────
 
+function groupByProfessional(transactions) {
+  const map = {}
+  transactions.forEach(tx => {
+    const id = tx.professional_id
+    if (!map[id]) map[id] = { professional_id: id, name: tx.professional_name, rows: [] }
+    map[id].rows.push(tx)
+  })
+  return Object.values(map)
+}
+
 function TabComissoes() {
+  const { addToast } = useToast()
   const now = new Date()
   const [selMonth, setSelMonth] = useState(now.getMonth())
   const [selYear, setSelYear] = useState(now.getFullYear())
-  const [commissions, setCommissions] = useState([])
+  const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [markingPaid, setMarkingPaid] = useState(null)
 
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
-
   const monthKey = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
 
-  useEffect(() => {
-    setLoading(true)
-    api.get(`/dashboard/commissions?month=${monthKey}`)
-      .then(res => setCommissions(res.data.data ?? []))
-      .catch(() => setCommissions([]))
-      .finally(() => setLoading(false))
-  }, [monthKey])
+  function load(silent = false) {
+    if (!silent) setLoading(true)
+    api.get(`/transaction/all-commissions?month=${monthKey}`)
+      .then(res => setTransactions(res.data.data ?? []))
+      .catch(() => setTransactions([]))
+      .finally(() => { if (!silent) setLoading(false) })
+  }
 
-  const totalComissao = commissions.reduce((s, p) => s + p.commission_amount, 0)
-  const totalReceita = commissions.reduce((s, p) => s + p.gross_amount, 0)
+  useEffect(() => { load() }, [monthKey])
+
+  async function handleMarcarRepassado(txUuid) {
+    setMarkingPaid(txUuid)
+    try {
+      await api.patch(`/transaction/${txUuid}`, { Commission_paid: true })
+      addToast('Comissão marcada como repassada', 'success')
+      load(true)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao marcar comissão', 'error')
+    } finally {
+      setMarkingPaid(null)
+    }
+  }
+
+  const pendentes = transactions.filter(tx => !tx.commission_paid)
+  const repassadas = transactions.filter(tx => tx.commission_paid)
+  const totalPendente = pendentes.reduce((s, tx) => s + tx.commission_amount, 0)
+  const totalReceita = transactions.reduce((s, tx) => s + tx.gross_amount, 0)
+
+  const groupsPendentes = groupByProfessional(pendentes)
+  const groupsRepassadas = groupByProfessional(repassadas)
 
   return (
     <>
       {/* Cabeçalho com seletor */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <p className="text-[13px] text-ink-3">
-          {loading ? '...' : commissions.length === 0
+          {loading ? '...' : transactions.length === 0
             ? 'Nenhum atendimento registrado neste período'
-            : `${commissions.length} profissional${commissions.length !== 1 ? 'is' : ''} · ${formatCurrency(totalComissao)} a pagar`}
+            : `${pendentes.length} a repassar · ${formatCurrency(totalPendente)}`}
         </p>
         <div className="flex items-center gap-2">
-          <select
-            value={selMonth}
-            onChange={e => setSelMonth(Number(e.target.value))}
-            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
-          >
-            {MONTHS.map((m, i) => (
-              <option key={i} value={i}>{m}</option>
-            ))}
+          <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer">
+            {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
           </select>
-          <select
-            value={selYear}
-            onChange={e => setSelYear(Number(e.target.value))}
-            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
-          >
-            {years.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
+          <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+            className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer">
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       </div>
 
-      {loading ? <PageSpinner /> : commissions.length === 0 ? (
+      {loading ? <PageSpinner /> : transactions.length === 0 ? (
         <EmptyState icon="cash" title="Sem comissões" description="Nenhuma transação paga registrada neste período." />
       ) : (
         <>
           {/* Totalizadores */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Receita total do período</span>
               <span className="text-[28px] font-serif font-light leading-none tracking-wide text-ink">{formatCurrency(totalReceita)}</span>
             </div>
             <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-2">
-              <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Total de comissões a pagar</span>
-              <span className="text-[28px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totalComissao)}</span>
+              <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Comissões a repassar</span>
+              <span className="text-[28px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totalPendente)}</span>
             </div>
           </div>
 
-          {/* Tabela — desktop */}
-          <div className="bg-surface border border-line rounded-[14px] overflow-hidden hidden md:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line bg-surface-2">
-                  <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Profissional</th>
-                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Atendimentos</th>
-                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Receita gerada</th>
-                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Comissão a pagar</th>
-                  <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">% média</th>
-                </tr>
-              </thead>
-              <tbody>
-                {commissions.map((p, i) => {
-                  const pct = p.gross_amount > 0 ? ((p.commission_amount / p.gross_amount) * 100).toFixed(1) : '—'
-                  return (
-                    <tr key={p.professional_id} className="border-b border-line-2 last:border-0 hover:bg-surface-2 transition-colors">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar name={p.name} index={i} size="sm" />
-                          <span className="font-medium text-ink text-[13.5px]">{p.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 text-right font-mono text-[12.5px] text-ink-2">{p.atendimentos}</td>
-                      <td className="px-5 py-4 text-right font-mono text-[12.5px] text-ink">{formatCurrency(p.gross_amount)}</td>
-                      <td className="px-5 py-4 text-right">
-                        <span className="font-mono text-[13px] font-semibold text-brand">{formatCurrency(p.commission_amount)}</span>
-                      </td>
-                      <td className="px-5 py-4 text-right font-mono text-[12px] text-ink-3">{pct}%</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-line bg-surface-2">
-                  <td className="px-5 py-3.5 font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-[12.5px] text-ink-2">
-                    {commissions.reduce((s, p) => s + p.atendimentos, 0)}
-                  </td>
-                  <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink">{formatCurrency(totalReceita)}</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(totalComissao)}</td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          {/* A repassar */}
+          {groupsPendentes.length > 0 && (
+            <CommissionSection
+              title="A repassar"
+              groups={groupsPendentes}
+              markingPaid={markingPaid}
+              onMarcarRepassado={handleMarcarRepassado}
+            />
+          )}
 
-          {/* Cards — mobile */}
-          <div className="md:hidden space-y-3">
-            {commissions.map((p, i) => {
-              const pct = p.gross_amount > 0 ? ((p.commission_amount / p.gross_amount) * 100).toFixed(1) : '—'
-              return (
-                <div key={p.professional_id} className="bg-surface border border-line rounded-[14px] px-4 py-4">
-                  <div className="flex items-center gap-2.5 mb-3">
-                    <Avatar name={p.name} index={i} size="sm" />
-                    <span className="font-medium text-[14px] text-ink">{p.name}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-y-2">
-                    <div>
-                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Atendimentos</div>
-                      <div className="font-mono text-[13px] text-ink-2">{p.atendimentos}</div>
-                    </div>
-                    <div>
-                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">% média</div>
-                      <div className="font-mono text-[13px] text-ink-3">{pct}%</div>
-                    </div>
-                    <div>
-                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Receita gerada</div>
-                      <div className="font-mono text-[13px] text-ink">{formatCurrency(p.gross_amount)}</div>
-                    </div>
-                    <div>
-                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Comissão a pagar</div>
-                      <div className="font-mono text-[14px] font-semibold text-brand">{formatCurrency(p.commission_amount)}</div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          {/* Repassadas */}
+          {groupsRepassadas.length > 0 && (
+            <div className={groupsPendentes.length > 0 ? 'mt-8' : ''}>
+              <CommissionSection title="Repassadas" groups={groupsRepassadas} paid />
+            </div>
+          )}
         </>
       )}
+    </>
+  )
+}
+
+function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, paid = false }) {
+  const totalRows = groups.reduce((s, g) => s + g.rows.length, 0)
+  return (
+    <>
+      <div className="flex items-center gap-3 mb-4">
+        <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">{title}</span>
+        <span className="font-mono text-[11px] text-ink-4">({totalRows})</span>
+        <div className="flex-1 border-t border-line-2" />
+      </div>
+      <div className="space-y-5">
+        {groups.map((g, gi) => (
+          <div key={g.professional_id} className="bg-surface border border-line rounded-[14px] overflow-hidden">
+            {/* Cabeçalho do profissional */}
+            <div className="flex items-center gap-2.5 px-5 py-3 bg-surface-2 border-b border-line">
+              <Avatar name={g.name} index={gi} size="sm" />
+              <span className="font-medium text-[13.5px] text-ink">{g.name}</span>
+              <span className="ml-auto font-mono text-[11px] text-ink-4">{g.rows.length} atendimento{g.rows.length !== 1 ? 's' : ''}</span>
+              <span className={`font-mono text-[13px] font-semibold ${paid ? 'text-ink-3' : 'text-brand'}`}>
+                {formatCurrency(g.rows.reduce((s, r) => s + r.commission_amount, 0))}
+              </span>
+            </div>
+
+            {/* Tabela — desktop */}
+            <table className="w-full text-sm hidden md:table">
+              <tbody>
+                {g.rows.map(tx => (
+                  <tr key={tx.uuid} className="border-b border-line-2 last:border-0 hover:bg-surface-2 transition-colors">
+                    <td className="px-5 py-3 text-[13px] text-ink-2">{tx.cliente}</td>
+                    <td className="px-5 py-3 text-[12px] text-ink-3">{tx.servico}</td>
+                    <td className="px-5 py-3 text-right font-mono text-[12px] text-ink-3">
+                      {tx.data ? new Date(tx.data).toLocaleDateString('pt-BR') : '—'}
+                    </td>
+                    <td className="px-5 py-3 text-right font-mono text-[12px] text-ink">{formatCurrency(tx.gross_amount)}</td>
+                    <td className="px-5 py-3 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(tx.commission_amount)}</td>
+                    <td className="px-5 py-3 text-right">
+                      {paid ? (
+                        <Chip variant="success">Repassado</Chip>
+                      ) : (
+                        <button
+                          onClick={() => onMarcarRepassado(tx.uuid)}
+                          disabled={markingPaid === tx.uuid}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-warning-soft text-warning border border-warning/30 hover:bg-warning/20 cursor-pointer transition-colors disabled:opacity-60">
+                          {markingPaid === tx.uuid ? '...' : 'Marcar repassado'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Cards — mobile */}
+            <div className="md:hidden divide-y divide-line-2">
+              {g.rows.map(tx => (
+                <div key={tx.uuid} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-ink truncate">{tx.cliente}</div>
+                    <div className="text-[11px] text-ink-3 truncate">{tx.servico}</div>
+                    <div className="font-mono text-[11px] text-ink-4 mt-0.5">
+                      {formatCurrency(tx.gross_amount)} · comissão {formatCurrency(tx.commission_amount)}
+                    </div>
+                  </div>
+                  {paid ? (
+                    <Chip variant="success">Repassado</Chip>
+                  ) : (
+                    <button
+                      onClick={() => onMarcarRepassado(tx.uuid)}
+                      disabled={markingPaid === tx.uuid}
+                      className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-warning-soft text-warning border border-warning/30 cursor-pointer transition-colors disabled:opacity-60">
+                      {markingPaid === tx.uuid ? '...' : 'Repassar'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </>
   )
 }
@@ -566,6 +706,8 @@ function TabRelatorio() {
 
 export default function AdminCaixa() {
   const { user } = useAuthStore()
+  const [searchParams] = useSearchParams()
+  const initialAppointmentId = searchParams.get('appointment')
   const [activeTab, setActiveTab] = useState('comandas')
 
   const sidebar = (
@@ -598,7 +740,7 @@ export default function AdminCaixa() {
         </div>
       </div>
 
-      {activeTab === 'comandas' ? <TabComandas user={user} /> : activeTab === 'comissoes' ? <TabComissoes /> : <TabRelatorio />}
+      {activeTab === 'comandas' ? <TabComandas user={user} initialAppointmentId={initialAppointmentId} /> : activeTab === 'comissoes' ? <TabComissoes /> : <TabRelatorio />}
     </AppLayout>
   )
 }
