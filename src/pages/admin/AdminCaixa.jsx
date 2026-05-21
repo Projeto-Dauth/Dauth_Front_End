@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Avatar from '@/components/ui/Avatar'
@@ -56,7 +57,7 @@ function formatCurrency(v) {
 
 // ─── Aba Comandas ─────────────────────────────────────────────────────────────
 
-function TabComandas({ user }) {
+function TabComandas({ user, initialAppointmentId }) {
   const { addToast } = useToast()
 
   const [tabs, setTabs] = useState([])
@@ -71,22 +72,27 @@ function TabComandas({ user }) {
   const [batchMethod, setBatchMethod] = useState('pix')
   const [batchPaying, setBatchPaying] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const { data } = await api.get('/tab')
       setTabs(data.data ?? [])
     } catch {
       setTabs([])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    if (tabs.length > 0 && !selectedId) setSelectedId(tabs[0].UUID)
+    if (tabs.length === 0) return
+    if (initialAppointmentId) {
+      const match = tabs.find(t => t.Appointment?.UUID === initialAppointmentId)
+      if (match) { setSelectedId(match.UUID); return }
+    }
+    if (!selectedId) setSelectedId(tabs[0].UUID)
   }, [tabs])
 
   const filtered = statusFilter === 'Todos'
@@ -128,7 +134,7 @@ function TabComandas({ user }) {
       }
       await api.patch(`/tab/${selected.UUID}`, { Status: 'Paga' })
       addToast('Pagamento registrado', 'success')
-      load()
+      load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao registrar pagamento', 'error')
     } finally {
@@ -147,7 +153,7 @@ function TabComandas({ user }) {
       })
       addToast(`Conta de ${batchClient.name} fechada com sucesso`, 'success')
       setBatchClient(null)
-      load()
+      load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
     } finally {
@@ -357,12 +363,12 @@ function TabComissoes() {
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
   const monthKey = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
 
-  function load() {
-    setLoading(true)
+  function load(silent = false) {
+    if (!silent) setLoading(true)
     api.get(`/transaction/all-commissions?month=${monthKey}`)
       .then(res => setTransactions(res.data.data ?? []))
       .catch(() => setTransactions([]))
-      .finally(() => setLoading(false))
+      .finally(() => { if (!silent) setLoading(false) })
   }
 
   useEffect(() => { load() }, [monthKey])
@@ -372,7 +378,7 @@ function TabComissoes() {
     try {
       await api.patch(`/transaction/${txUuid}`, { Commission_paid: true })
       addToast('Comissão marcada como repassada', 'success')
-      load()
+      load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao marcar comissão', 'error')
     } finally {
@@ -700,6 +706,8 @@ function TabRelatorio() {
 
 export default function AdminCaixa() {
   const { user } = useAuthStore()
+  const [searchParams] = useSearchParams()
+  const initialAppointmentId = searchParams.get('appointment')
   const [activeTab, setActiveTab] = useState('comandas')
 
   const sidebar = (
@@ -732,7 +740,7 @@ export default function AdminCaixa() {
         </div>
       </div>
 
-      {activeTab === 'comandas' ? <TabComandas user={user} /> : activeTab === 'comissoes' ? <TabComissoes /> : <TabRelatorio />}
+      {activeTab === 'comandas' ? <TabComandas user={user} initialAppointmentId={initialAppointmentId} /> : activeTab === 'comissoes' ? <TabComissoes /> : <TabRelatorio />}
     </AppLayout>
   )
 }

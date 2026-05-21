@@ -4,10 +4,12 @@ import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
+import useNotificationStore from '@/store/notificationStore'
 
 export default function Sidebar({ navItems, footerUser, footerRole, width = '240px', children, onClose }) {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
+  const { unreadCount, openDrawer } = useNotificationStore()
 
   async function handleLogout() {
     try { await api.post('/auth/logout') } catch {}
@@ -17,7 +19,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
 
   return (
     <aside
-      className="flex flex-col gap-0.5 bg-surface-2 border-r border-line px-4 py-6 h-full overflow-y-auto"
+      className="flex flex-col gap-0.5 bg-surface-2 border-r border-line px-4 py-6 h-full overflow-hidden"
       style={{ width, minWidth: width }}
     >
       {/* Brand */}
@@ -38,6 +40,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
       </div>
 
       {/* Nav items */}
+      <div className="nav-scroll flex-1 overflow-y-auto flex flex-col gap-0.5 min-h-0">
       {navItems.map((item, i) => {
         if (item.type === 'label') {
           return (
@@ -77,8 +80,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
           </NavLink>
         )
       })}
-
-      <div className="flex-1" />
+      </div>
 
       {/* Footer */}
       {footerUser && (
@@ -89,6 +91,16 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
               <div className="text-[12.5px] font-medium truncate">{footerUser}</div>
               <div className="text-[11px] text-ink-3">{footerRole}</div>
             </div>
+            <button
+              onClick={openDrawer}
+              title="Notificações"
+              className="relative p-1.5 rounded-lg text-ink-4 hover:bg-surface-3 transition-colors shrink-0 cursor-pointer"
+            >
+              <Icon name="bell" size={15} />
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-brand" />
+              )}
+            </button>
             <button
               onClick={handleLogout}
               title="Sair"
