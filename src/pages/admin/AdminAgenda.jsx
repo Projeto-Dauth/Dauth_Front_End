@@ -180,6 +180,297 @@ function spanBreak(wh) {
   return Math.max(1, Math.ceil((toMinutes(wh.Break_end.slice(0, 5)) - toMinutes(wh.Break_start.slice(0, 5))) / 30))
 }
 
+function applyPhoneMask(value) {
+  const d = value.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`
+  if (d.length <= 11) return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
+  return value
+}
+
+const MODAL_CLS = 'fixed inset-0 z-50 flex items-center justify-center p-4'
+const MODAL_INNER_CLS = 'w-full max-w-[380px] bg-bg border border-line rounded-2xl shadow-xl flex flex-col'
+const INPUT_CLS = 'w-full h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors'
+
+function ModalNovaCategoria({ onClose, onCreated }) {
+  const { addToast } = useToast()
+  const [nome, setNome] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave(e) {
+    e.preventDefault()
+    if (!nome.trim()) return
+    setSaving(true)
+    try {
+      const { data } = await api.post('/category', { Name: nome.trim() })
+      addToast('Categoria criada', 'success')
+      onCreated(data.data ?? data)
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao criar categoria', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={MODAL_CLS}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className={`relative ${MODAL_INNER_CLS}`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h4 className="font-display font-medium text-[15px] tracking-tight">Nova categoria</h4>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={16} /></button>
+        </div>
+        <form onSubmit={handleSave} className="px-5 py-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Nome da categoria</label>
+            <input
+              required
+              autoFocus
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              placeholder="Ex: Cabelo"
+              className={INPUT_CLS}
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" className="flex-1 justify-center" loading={saving}>Criar</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ModalNovoServico({ onClose, onCreated }) {
+  const { addToast } = useToast()
+  const [form, setForm] = useState({ Name: '', Duration: '01:00', Commission: '', Price: '', Category: '' })
+  const [categories, setCategories] = useState([])
+  const [loadingCats, setLoadingCats] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [modalCat, setModalCat] = useState(false)
+
+  useEffect(() => {
+    api.get('/category')
+      .then(({ data }) => setCategories(data.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingCats(false))
+  }, [])
+
+  function handleCategoryCriada(cat) {
+    setCategories(prev => [...prev, cat])
+    setForm(f => ({ ...f, Category: cat.UUID }))
+  }
+
+  async function handleSave(e) {
+    e.preventDefault()
+    if (!form.Category) { addToast('Selecione uma categoria', 'warning'); return }
+    setSaving(true)
+    const duration = form.Duration.length === 5 ? `${form.Duration}:00` : form.Duration
+    try {
+      const { data } = await api.post('/service', {
+        Name: form.Name,
+        Duration: duration,
+        Commission: Number(form.Commission),
+        Price: Number(form.Price),
+        Category: form.Category,
+      })
+      addToast('Serviço criado', 'success')
+      onCreated(data.data ?? data)
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao criar serviço', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      {modalCat && <ModalNovaCategoria onClose={() => setModalCat(false)} onCreated={handleCategoryCriada} />}
+      <div className={MODAL_CLS}>
+        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+        <div className={`relative ${MODAL_INNER_CLS}`}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+            <h4 className="font-display font-medium text-[15px] tracking-tight">Novo serviço</h4>
+            <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={16} /></button>
+          </div>
+          <form onSubmit={handleSave} className="px-5 py-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Nome do serviço</label>
+              <input
+                required
+                autoFocus
+                value={form.Name}
+                onChange={e => setForm(f => ({ ...f, Name: e.target.value }))}
+                placeholder="Ex: Corte feminino"
+                className={INPUT_CLS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[12px] font-medium text-ink-2">Categoria</label>
+                <button
+                  type="button"
+                  onClick={() => setModalCat(true)}
+                  className="flex items-center gap-1 text-[11px] text-brand hover:text-brand/70 transition-colors cursor-pointer"
+                >
+                  <Icon name="plus" size={11} />
+                  Nova
+                </button>
+              </div>
+              <select
+                required
+                value={form.Category}
+                onChange={e => setForm(f => ({ ...f, Category: e.target.value }))}
+                className={INPUT_CLS}
+                disabled={loadingCats}
+              >
+                <option value="">{loadingCats ? 'Carregando…' : 'Selecione…'}</option>
+                {categories.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Duração (HH:MM)</label>
+              <input
+                required
+                type="time"
+                value={form.Duration}
+                onChange={e => setForm(f => ({ ...f, Duration: e.target.value }))}
+                className={INPUT_CLS}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Preço (R$)</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.Price}
+                  onChange={e => setForm(f => ({ ...f, Price: e.target.value }))}
+                  placeholder="0,00"
+                  className={INPUT_CLS}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Comissão (%)</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={form.Commission}
+                  onChange={e => setForm(f => ({ ...f, Commission: e.target.value }))}
+                  placeholder="0"
+                  className={INPUT_CLS}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
+              <Button type="submit" className="flex-1 justify-center" loading={saving}>Criar</Button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function ModalNovoCliente({ onClose, onCreated }) {
+  const { addToast } = useToast()
+  const [form, setForm] = useState({ name: '', phone: '', birthday: '' })
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  function validate() {
+    const errs = {}
+    if (!form.name.trim()) errs.name = 'Nome é obrigatório'
+    if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(form.phone)) errs.phone = 'Ex: (11) 9 9999-9999'
+    return errs
+  }
+
+  async function handleSave(e) {
+    e.preventDefault()
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    setSaving(true)
+    try {
+      const body = { name: form.name.trim(), phone: form.phone }
+      if (form.birthday) body.birthday = form.birthday
+      await api.post('/auth/register-admin', body)
+      addToast(`${form.name} cadastrado com sucesso`, 'success')
+      // Busca o usuário criado para obter o UUID
+      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', limit: 200 } })
+      const criado = (usersRes.data ?? []).find(u => u.Phone === form.phone)
+      onCreated(criado ?? { Name: form.name.trim(), Phone: form.phone })
+      onClose()
+    } catch (err) {
+      const msg = err.response?.data?.error
+      if (msg?.includes('Telefone') || msg?.includes('telefone')) {
+        setErrors({ phone: 'Telefone já cadastrado' })
+      } else {
+        addToast(msg ?? 'Erro ao cadastrar cliente', 'error')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={MODAL_CLS}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className={`relative ${MODAL_INNER_CLS}`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h4 className="font-display font-medium text-[15px] tracking-tight">Novo cliente</h4>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={16} /></button>
+        </div>
+        <form onSubmit={handleSave} className="px-5 py-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Nome</label>
+            <input
+              required
+              autoFocus
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Nome completo"
+              className={`${INPUT_CLS} ${errors.name ? 'border-danger' : ''}`}
+            />
+            {errors.name && <span className="text-[11px] text-danger">{errors.name}</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Telefone</label>
+            <input
+              required
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: applyPhoneMask(e.target.value) }))}
+              placeholder="(11) 9 9999-9999"
+              className={`${INPUT_CLS} ${errors.phone ? 'border-danger' : ''}`}
+            />
+            {errors.phone && <span className="text-[11px] text-danger">{errors.phone}</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Nascimento <span className="text-ink-4 font-normal">(opcional)</span></label>
+            <input
+              type="date"
+              value={form.birthday}
+              onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
+              className={INPUT_CLS}
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" className="flex-1 justify-center" loading={saving}>Criar</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const { addToast } = useToast()
   const [clientes, setClientes] = useState([])
@@ -190,6 +481,8 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const [endTime, setEndTime] = useState(addMinutes(slot, 60))
   const [saving, setSaving] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
+  const [modalCliente, setModalCliente] = useState(false)
+  const [modalServico, setModalServico] = useState(false)
 
   useEffect(() => {
     setLoadingData(true)
@@ -203,10 +496,22 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
     .finally(() => setLoadingData(false))
   }, [professional.UUID])
 
+  function handleClienteCriado(cliente) {
+    setClientes(prev => [...prev, cliente])
+    setClienteId(cliente.UUID)
+  }
+
+  function handleServicoCriado(servico) {
+    setServicos(prev => [...prev, servico])
+    handleServico(servico.UUID, [...servicos, servico])
+    // Vincula automaticamente o serviço criado ao profissional da agenda
+    api.post(`/service/${servico.UUID}/professionals`, { professional_id: professional.UUID }).catch(() => {})
+  }
+
   // Quando serviço muda, ajusta end_time pela duração
-  function handleServico(id) {
+  function handleServico(id, lista) {
     setServicoId(id)
-    const svc = servicos.find(s => s.UUID === id)
+    const svc = (lista ?? servicos).find(s => s.UUID === id)
     if (svc?.Duration) {
       const [h, m] = svc.Duration.split(':').map(Number)
       setEndTime(addMinutes(startTime, h * 60 + m))
@@ -239,83 +544,111 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const inputClass = 'w-full h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors'
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
-        {/* Handle mobile */}
-        <div className="flex justify-center pt-3 pb-1 md:hidden">
-          <div className="w-10 h-1 rounded-full bg-line-2" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
-          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
-            <Icon name="x" size={18} />
-          </button>
-          <div className="flex-1">
-            <h4 className="font-display font-medium text-[15px] tracking-tight">Novo agendamento</h4>
-            <p className="text-[11px] text-ink-3 font-mono">{professional.Name} · {slot}</p>
-          </div>
-        </div>
-
-        <div className="px-5 py-5 flex flex-col gap-4">
-          {/* Cliente */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-medium text-ink-2">Cliente</label>
-            <select value={clienteId} onChange={e => setClienteId(e.target.value)} className={inputClass}>
-              <option value="">Selecionar cliente…</option>
-              {clientes.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
-            </select>
+    <>
+      {modalCliente && (
+        <ModalNovoCliente onClose={() => setModalCliente(false)} onCreated={handleClienteCriado} />
+      )}
+      {modalServico && (
+        <ModalNovoServico onClose={() => setModalServico(false)} onCreated={handleServicoCriado} />
+      )}
+      <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+        <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+        <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
+          {/* Handle mobile */}
+          <div className="flex justify-center pt-3 pb-1 md:hidden">
+            <div className="w-10 h-1 rounded-full bg-line-2" />
           </div>
 
-          {/* Serviço */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-medium text-ink-2">Serviço</label>
-            <select
-              value={servicoId}
-              onChange={e => handleServico(e.target.value)}
-              disabled={loadingData || servicos.length === 0}
-              className={inputClass}
-            >
-              {loadingData
-                ? <option value="">Carregando…</option>
-                : servicos.length === 0
-                  ? <option value="">Nenhum serviço vinculado a este profissional</option>
-                  : <>
-                      <option value="">Selecionar serviço…</option>
-                      {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
-                    </>
-              }
-            </select>
+          {/* Header */}
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
+            <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
+              <Icon name="x" size={18} />
+            </button>
+            <div className="flex-1">
+              <h4 className="font-display font-medium text-[15px] tracking-tight">Novo agendamento</h4>
+              <p className="text-[11px] text-ink-3 font-mono">{professional.Name} · {slot}</p>
+            </div>
           </div>
 
-          {/* Horários */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="px-5 py-5 flex flex-col gap-4">
+            {/* Cliente */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-medium text-ink-2">Início</label>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClass} />
+              <div className="flex items-center justify-between">
+                <label className="text-[12px] font-medium text-ink-2">Cliente</label>
+                <button
+                  type="button"
+                  onClick={() => setModalCliente(true)}
+                  className="flex items-center gap-1 text-[11px] text-brand hover:text-brand/70 transition-colors cursor-pointer"
+                >
+                  <Icon name="plus" size={11} />
+                  Novo cliente
+                </button>
+              </div>
+              <select value={clienteId} onChange={e => setClienteId(e.target.value)} className={inputClass}>
+                <option value="">Selecionar cliente…</option>
+                {clientes.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
+              </select>
             </div>
+
+            {/* Serviço */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-medium text-ink-2">Fim</label>
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClass} />
+              <div className="flex items-center justify-between">
+                <label className="text-[12px] font-medium text-ink-2">Serviço</label>
+                <button
+                  type="button"
+                  onClick={() => setModalServico(true)}
+                  className="flex items-center gap-1 text-[11px] text-brand hover:text-brand/70 transition-colors cursor-pointer"
+                >
+                  <Icon name="plus" size={11} />
+                  Novo serviço
+                </button>
+              </div>
+              <select
+                value={servicoId}
+                onChange={e => handleServico(e.target.value)}
+                disabled={loadingData || servicos.length === 0}
+                className={inputClass}
+              >
+                {loadingData
+                  ? <option value="">Carregando…</option>
+                  : servicos.length === 0
+                    ? <option value="">Nenhum serviço vinculado a este profissional</option>
+                    : <>
+                        <option value="">Selecionar serviço…</option>
+                        {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
+                      </>
+                }
+              </select>
             </div>
-          </div>
 
-          {/* Profissional (read-only) */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-medium text-ink-2">Profissional</label>
-            <div className="flex items-center gap-2.5 h-[42px] px-[14px] rounded-md border border-line bg-surface-2 text-ink-3 text-md">
-              <Avatar name={professional.Name} index={0} size="sm" />
-              {professional.Name}
+            {/* Horários */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Início</label>
+                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClass} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Fim</label>
+                <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClass} />
+              </div>
             </div>
-          </div>
 
-          <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
-            Confirmar agendamento
-          </Button>
+            {/* Profissional (read-only) */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Profissional</label>
+              <div className="flex items-center gap-2.5 h-[42px] px-[14px] rounded-md border border-line bg-surface-2 text-ink-3 text-md">
+                <Avatar name={professional.Name} index={0} size="sm" />
+                {professional.Name}
+              </div>
+            </div>
+
+            <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
+              Confirmar agendamento
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -400,7 +733,15 @@ export default function AdminAgenda() {
     if (!silent) setLoading(true)
     try {
       const { data } = await api.get('/appointment', { params: { date: toDateStr(date) } })
-      setAppointments((data.data ?? []).filter((a) => a.Status !== 'cancelado'))
+      const all = data.data ?? []
+      const ativos = all.filter((a) => a.Status !== 'cancelado')
+      // Cancelados que não têm agendamento ativo sobreposto ficam visíveis na grade
+      const cancelados = all.filter((a) => a.Status === 'cancelado' && !ativos.some(
+        (b) => b.Professional === a.Professional &&
+          toMinutes(parseTime(b.Start_time)) < toMinutes(parseTime(a.End_time)) &&
+          toMinutes(parseTime(b.End_time)) > toMinutes(parseTime(a.Start_time))
+      ))
+      setAppointments([...ativos, ...cancelados])
     } catch {
       setAppointments([])
     } finally {
@@ -560,22 +901,23 @@ export default function AdminAgenda() {
                     const profObj = profObjects[pi]
                     const wh = breakByProf[profObj?.UUID] ?? null
                     const appt = appointments.find((a) => a.Professional === prof && isStart(a, slot))
-                    const occupied = appointments.some((a) => a.Professional === prof && coversSlot(a, slot))
+                    const occupied = appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado')
                     const onBreak = coversBreak(wh, slot)
                     const breakStart = isBreakStart(wh, slot)
                     const breakSpans = breakStart ? spanBreak(wh) : 0
                     const past = isSlotPast(date, slot)
                     const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
                     const spans = appt ? spanSlots(appt) : 0
+                    const isCancelado = appt?.Status === 'cancelado'
                     const clickable = !occupied && !past && !onBreak
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
-                        onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
+                        onClick={clickable && !isCancelado ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                           ${past || onBreak ? 'bg-surface-2' : ''}
-                          ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                        {appt && (
+                          ${clickable && !isCancelado ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
+                        {appt && !isCancelado && (
                           <button
                             onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
                             onContextMenu={e => openContextMenu(e, appt)}
@@ -594,6 +936,24 @@ export default function AdminAgenda() {
                             <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
                               {parseTime(appt.Start_time)} → {parseTime(appt.End_time)}
                             </div>
+                          </button>
+                        )}
+                        {appt && isCancelado && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setNewSlot({ slot, professional: profObj }) }}
+                            onContextMenu={e => openContextMenu(e, appt)}
+                            onTouchStart={e => handleLongPressStart(e, appt)}
+                            onTouchEnd={handleLongPressEnd}
+                            onTouchMove={handleLongPressEnd}
+                            style={{ height: spans * 64 - 4 }}
+                            className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
+                              hover:opacity-90 transition-opacity overflow-hidden ${style.card} opacity-60`}
+                          >
+                            <div className="flex items-center gap-1 leading-none">
+                              <Icon name="plus" size={9} className="opacity-70 flex-shrink-0" />
+                              <span className="font-semibold text-[11px] truncate line-through opacity-70">{appt.Client}</span>
+                            </div>
+                            <div className="font-mono text-[9.5px] text-inherit opacity-60 mt-0.5">Agendar aqui</div>
                           </button>
                         )}
                         {breakStart && (
@@ -623,13 +983,14 @@ export default function AdminAgenda() {
                 const wh = breakByProf[profObj?.UUID] ?? null
                 const isHour = slot.endsWith(':00')
                 const appt = prof ? appointments.find((a) => a.Professional === prof && isStart(a, slot)) : null
-                const occupied = prof ? appointments.some((a) => a.Professional === prof && coversSlot(a, slot)) : false
+                const occupied = prof ? appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado') : false
                 const onBreak = coversBreak(wh, slot)
                 const breakStart = isBreakStart(wh, slot)
                 const breakSpans = breakStart ? spanBreak(wh) : 0
                 const past = isSlotPast(date, slot)
                 const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
                 const spans = appt ? spanSlots(appt) : 0
+                const isCancelado = appt?.Status === 'cancelado'
                 const clickable = !occupied && !past && !onBreak
                 return [
                   <div key={`mt-${slot}`}
@@ -639,12 +1000,12 @@ export default function AdminAgenda() {
                     {isHour ? slot : ''}
                   </div>,
                   <div key={`mc-${slot}`}
-                    onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
+                    onClick={clickable && !isCancelado ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                     className={`relative h-14 overflow-visible border-line-2
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                       ${past || onBreak ? 'bg-surface-2' : ''}
-                      ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                    {appt && (
+                      ${clickable && !isCancelado ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
+                    {appt && !isCancelado && (
                       <button
                         onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
                         onContextMenu={e => openContextMenu(e, appt)}
@@ -663,6 +1024,24 @@ export default function AdminAgenda() {
                         <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
                           {parseTime(appt.Start_time)} → {parseTime(appt.End_time)}
                         </div>
+                      </button>
+                    )}
+                    {appt && isCancelado && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setNewSlot({ slot, professional: profObj }) }}
+                        onContextMenu={e => openContextMenu(e, appt)}
+                        onTouchStart={e => handleLongPressStart(e, appt)}
+                        onTouchEnd={handleLongPressEnd}
+                        onTouchMove={handleLongPressEnd}
+                        style={{ height: spans * 56 - 4 }}
+                        className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
+                          hover:opacity-90 transition-opacity overflow-hidden ${style.card} opacity-60`}
+                      >
+                        <div className="flex items-center gap-1 leading-none">
+                          <Icon name="plus" size={9} className="opacity-70 flex-shrink-0" />
+                          <span className="font-semibold text-[11px] truncate line-through opacity-70">{appt.Client}</span>
+                        </div>
+                        <div className="font-mono text-[9.5px] text-inherit opacity-60 mt-0.5">Agendar aqui</div>
                       </button>
                     )}
                     {breakStart && (
