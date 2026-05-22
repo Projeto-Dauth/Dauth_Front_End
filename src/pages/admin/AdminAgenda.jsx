@@ -632,52 +632,50 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
           <div className="px-5 py-5 flex flex-col gap-4">
             {/* Cliente */}
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[12px] font-medium text-ink-2">Cliente</label>
+              <label className="text-[12px] font-medium text-ink-2">Cliente</label>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setModalCliente(true)}
-                  className="flex items-center gap-1 text-[11px] text-brand hover:text-brand/70 transition-colors cursor-pointer"
+                  className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
                 >
-                  <Icon name="plus" size={11} />
-                  Novo cliente
+                  <Icon name="plus" size={16} />
                 </button>
+                <select value={clienteId} onChange={e => setClienteId(e.target.value)} className={`${inputClass} flex-1`}>
+                  <option value="">Selecionar cliente…</option>
+                  {clientes.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
+                </select>
               </div>
-              <select value={clienteId} onChange={e => setClienteId(e.target.value)} className={inputClass}>
-                <option value="">Selecionar cliente…</option>
-                {clientes.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
-              </select>
             </div>
 
             {/* Serviço */}
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[12px] font-medium text-ink-2">Serviço</label>
+              <label className="text-[12px] font-medium text-ink-2">Serviço</label>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setModalServico(true)}
-                  className="flex items-center gap-1 text-[11px] text-brand hover:text-brand/70 transition-colors cursor-pointer"
+                  className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
                 >
-                  <Icon name="plus" size={11} />
-                  Novo serviço
+                  <Icon name="plus" size={16} />
                 </button>
+                <select
+                  value={servicoId}
+                  onChange={e => handleServico(e.target.value)}
+                  disabled={loadingData || servicos.length === 0}
+                  className={`${inputClass} flex-1`}
+                >
+                  {loadingData
+                    ? <option value="">Carregando…</option>
+                    : servicos.length === 0
+                      ? <option value="">Nenhum serviço vinculado a este profissional</option>
+                      : <>
+                        <option value="">Selecionar serviço…</option>
+                        {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
+                      </>
+                  }
+                </select>
               </div>
-              <select
-                value={servicoId}
-                onChange={e => handleServico(e.target.value)}
-                disabled={loadingData || servicos.length === 0}
-                className={inputClass}
-              >
-                {loadingData
-                  ? <option value="">Carregando…</option>
-                  : servicos.length === 0
-                    ? <option value="">Nenhum serviço vinculado a este profissional</option>
-                    : <>
-                      <option value="">Selecionar serviço…</option>
-                      {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
-                    </>
-                }
-              </select>
             </div>
 
             {/* Horários */}
@@ -1308,3 +1306,4 @@ export default function AdminAgenda() {
     </AppLayout>
   )
 }
+""
