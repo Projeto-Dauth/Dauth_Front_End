@@ -3,7 +3,11 @@
     "allow": [
       "Bash(rtk grep *)",
       "Skill(frontend-design)",
-      "Bash(rtk npm *)"
+      "Bash(rtk npm *)",
+      "Bash(rtk wc *)",
+      "Bash(rtk npx *)",
+      "Bash(rtk git *)",
+      "Bash(xxd)"
     ]
   }
 }
