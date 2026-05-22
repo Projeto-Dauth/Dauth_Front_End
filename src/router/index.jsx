@@ -18,11 +18,14 @@ import MeusCombos from '@/pages/cliente/MeusCombos'
 import MinhasComanadas from '@/pages/cliente/MinhasComanadas'
 
 // Páginas do profissional
-import ProfissionalPainel from '@/pages/profissional/ProfissionalPainel'
+import ProfissionalAgenda from '@/pages/profissional/ProfissionalAgenda'
 import MinhaAgenda from '@/pages/profissional/MinhaAgenda'
 import ProfissionalHorarios from '@/pages/profissional/ProfissionalHorarios'
 import ProfissionalServicos from '@/pages/profissional/ProfissionalServicos'
 import ProfissionalComissoes from '@/pages/profissional/ProfissionalComissoes'
+import ProfissionalComandas from '@/pages/profissional/ProfissionalComandas'
+import ProfissionalProdutos from '@/pages/profissional/ProfissionalProdutos'
+import ProfissionalPedidosProdutos from '@/pages/profissional/ProfissionalPedidosProdutos'
 
 // Páginas do admin
 import AdminDashboard from '@/pages/admin/AdminDashboard'
@@ -123,7 +126,7 @@ const router = createBrowserRouter([
     path: '/profissional',
     element: (
       <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
-        <ProfissionalPainel />
+        <ProfissionalAgenda />
       </ProtectedRoute>
     ),
   },
@@ -132,6 +135,30 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
         <MinhaAgenda />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/profissional/comandas',
+    element: (
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+        <ProfissionalComandas />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/profissional/produtos',
+    element: (
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+        <ProfissionalProdutos />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/profissional/pedidos-produtos',
+    element: (
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+        <ProfissionalPedidosProdutos />
       </ProtectedRoute>
     ),
   },
