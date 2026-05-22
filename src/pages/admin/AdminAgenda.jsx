@@ -11,6 +11,8 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 
+// Tinha algum const bugado
+
 function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenComanda, onNavigate, onTransfer }) {
   const menuRef = useRef(null)
 
@@ -113,10 +115,10 @@ const WEEK_DAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 
 const STATUS_STYLE = {
-  pendente:   { card: 'bg-[#dbeafe] border-[#93c5fd] text-[#1d4ed8]',                        dot: 'bg-[#3b82f6]' },
-  confirmado: { card: 'bg-success-soft border-success/40 text-success',                       dot: 'bg-success' },
-  concluido:  { card: 'bg-[#faecd6] border-gold/50 text-[#7a5c2e]',                          dot: 'bg-gold' },
-  cancelado:  { card: 'bg-danger-soft border-danger/40 text-danger line-through opacity-60',  dot: 'bg-danger' },
+  pendente: { card: 'bg-[#dbeafe] border-[#93c5fd] text-[#1d4ed8]', dot: 'bg-[#3b82f6]' },
+  confirmado: { card: 'bg-success-soft border-success/40 text-success', dot: 'bg-success' },
+  concluido: { card: 'bg-[#faecd6] border-gold/50 text-[#7a5c2e]', dot: 'bg-gold' },
+  cancelado: { card: 'bg-danger-soft border-danger/40 text-danger line-through opacity-60', dot: 'bg-danger' },
 }
 
 function parseTime(t) {
@@ -238,8 +240,8 @@ function computeColumns(appts) {
 function applyPhoneMask(value) {
   const d = value.replace(/\D/g, '').slice(0, 11)
   if (d.length <= 2) return `(${d}`
-  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`
-  if (d.length <= 11) return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 11) return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`
   return value
 }
 
@@ -309,7 +311,7 @@ function ModalNovoServico({ onClose, onCreated }) {
   useEffect(() => {
     api.get('/category')
       .then(({ data }) => setCategories(data.data ?? []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingCats(false))
   }, [])
 
@@ -548,8 +550,8 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
     ]).then(([cRes, sRes]) => {
       setClientes(cRes.data.data ?? [])
       setServicos(sRes.data.data ?? [])
-    }).catch(() => {})
-    .finally(() => setLoadingData(false))
+    }).catch(() => { })
+      .finally(() => setLoadingData(false))
   }, [professional.UUID])
 
   function handleClienteCriado(cliente) {
@@ -561,7 +563,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
     setServicos(prev => [...prev, servico])
     handleServico(servico.UUID, [...servicos, servico])
     // Vincula automaticamente o serviço criado ao profissional da agenda
-    api.post(`/service/${servico.UUID}/professionals`, { professional_id: professional.UUID }).catch(() => {})
+    api.post(`/service/${servico.UUID}/professionals`, { professional_id: professional.UUID }).catch(() => { })
   }
 
   // Quando serviço muda, ajusta end_time pela duração
@@ -671,9 +673,9 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
                   : servicos.length === 0
                     ? <option value="">Nenhum serviço vinculado a este profissional</option>
                     : <>
-                        <option value="">Selecionar serviço…</option>
-                        {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
-                      </>
+                      <option value="">Selecionar serviço…</option>
+                      {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
+                    </>
                 }
               </select>
             </div>
