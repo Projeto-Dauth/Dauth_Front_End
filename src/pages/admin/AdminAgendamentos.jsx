@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
@@ -13,15 +13,13 @@ import { navItemsByRole } from '@/config/navItems'
 
 const navItems = navItemsByRole['Admin']
 
-const STATUS_OPTIONS = ['', 'pendente', 'confirmado', 'concluido', 'cancelado']
-const STATUS_LABELS = { '': 'Todos', pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
+const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 
-const statusStyle = {
-  confirmado: 'bg-success-soft text-success',
-  pendente: 'bg-warning-soft text-warning',
-  concluido: 'bg-surface-2 text-ink-3',
-  cancelado: 'bg-danger-soft text-danger',
-}
+const TABS = [
+  { id: 'ativos',     label: 'Ativos',     statuses: ['pendente', 'confirmado'] },
+  { id: 'concluidos', label: 'Concluídos', statuses: ['concluido'] },
+  { id: 'cancelados', label: 'Cancelados', statuses: ['cancelado'] },
+]
 
 function formatDate(str) {
   if (!str) return '—'
@@ -33,26 +31,32 @@ export default function AdminAgendamentos() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
 
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ date: '', status: '' })
+  const [allItems, setAllItems] = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [date, setDate]         = useState('')
+  const [tab, setTab]           = useState('ativos')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = {}
-      if (filters.date) params.date = filters.date
-      if (filters.status) params.status = filters.status
+      if (date) params.date = date
       const { data } = await api.get('/appointment', { params })
-      setItems(data.data ?? [])
+      setAllItems(data.data ?? [])
     } catch {
-      setItems([])
+      setAllItems([])
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [date])
 
   useEffect(() => { load() }, [load])
+
+  const activeTab = TABS.find(t => t.id === tab)
+  const items = allItems.filter(a => activeTab.statuses.includes(a.Status))
+
+  const counts = {}
+  TABS.forEach(t => { counts[t.id] = allItems.filter(a => t.statuses.includes(a.Status)).length })
 
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
@@ -60,6 +64,7 @@ export default function AdminAgendamentos() {
 
   return (
     <AppLayout sidebar={sidebar}>
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-5 md:mb-6">
         <div>
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agendamentos</h3>
@@ -70,29 +75,17 @@ export default function AdminAgendamentos() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 md:gap-3 mb-5 items-center flex-wrap">
+      {/* Date filter */}
+      <div className="flex gap-2 items-center mb-4">
         <input
           type="date"
-          value={filters.date}
-          onChange={e => setFilters(f => ({ ...f, date: e.target.value }))}
+          value={date}
+          onChange={e => setDate(e.target.value)}
           className="h-[36px] px-3 rounded-md border border-line bg-surface text-ink-2 text-[13px] focus:outline-none focus:border-brand transition-colors"
         />
-        <div className="flex gap-1.5 flex-wrap">
-          {STATUS_OPTIONS.map(s => (
-            <button
-              key={s}
-              onClick={() => setFilters(f => ({ ...f, status: s }))}
-              className={`inline-flex items-center px-2.5 py-[4px] rounded-full text-xs font-medium border cursor-pointer transition-colors
-                ${filters.status === s ? 'bg-ink text-bg border-ink' : 'bg-surface-2 text-ink-2 border-line hover:border-ink-3'}`}
-            >
-              {STATUS_LABELS[s]}
-            </button>
-          ))}
-        </div>
-        {(filters.date || filters.status) && (
+        {date && (
           <button
-            onClick={() => setFilters({ date: '', status: '' })}
+            onClick={() => setDate('')}
             className="text-[12.5px] text-ink-3 hover:text-ink transition-colors cursor-pointer flex items-center gap-1"
           >
             <Icon name="x" size={12} />Limpar
@@ -100,10 +93,37 @@ export default function AdminAgendamentos() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5 border-b border-line">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`relative px-3 pb-2.5 pt-1 text-[13px] font-medium transition-colors cursor-pointer flex items-center gap-1.5
+              ${tab === t.id ? 'text-brand' : 'text-ink-3 hover:text-ink'}`}
+          >
+            {t.label}
+            {counts[t.id] > 0 && (
+              <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold
+                ${tab === t.id ? 'bg-brand text-bg' : 'bg-surface-3 text-ink-3'}`}>
+                {counts[t.id]}
+              </span>
+            )}
+            {tab === t.id && (
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-brand rounded-t-full" />
+            )}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <PageSpinner />
       ) : items.length === 0 ? (
-        <EmptyState icon="cal" title="Nenhum agendamento" description="Nenhum agendamento encontrado para os filtros selecionados." />
+        <EmptyState
+          icon="cal"
+          title={`Nenhum agendamento ${activeTab.label.toLowerCase()}`}
+          description={date ? 'Nenhum resultado para a data selecionada.' : 'Nenhum agendamento nesta categoria.'}
+        />
       ) : (
         <>
           {/* Desktop table */}
@@ -150,10 +170,7 @@ export default function AdminAgendamentos() {
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="font-medium text-[14px] flex-1 min-w-0 truncate">{row.Service ?? '—'}</div>
-                  <span className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-full text-[11px] font-medium shrink-0 ${statusStyle[row.Status] ?? ''}`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                    {STATUS_LABELS[row.Status] ?? row.Status}
-                  </span>
+                  <Chip status={row.Status} dot>{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
                 </div>
                 <div className="text-[12px] text-ink-3 mb-0.5">
                   {formatDate(row.Date)} · {row.Start_time?.slice(0, 5)} → {row.End_time?.slice(0, 5)}

@@ -632,9 +632,11 @@ export default function AgendarPage() {
         {/* Navegação — visível só no desktop, mobile usa a barra sticky */}
         {!(step === 4 && confirmed) && (
           <div className="hidden md:flex justify-between items-center mt-8">
-            <Button variant="ghost" onClick={back} disabled={step === 0}>
-              <Icon name="arrowLeft" size={14} />Voltar
-            </Button>
+            {step > 0 ? (
+              <Button variant="ghost" onClick={back}>
+                <Icon name="arrowLeft" size={14} />Voltar
+              </Button>
+            ) : <div />}
             {step < 4 ? (
               <Button variant="primary" onClick={next} disabled={!canContinue}>
                 Continuar <Icon name="arrowRight" size={14} />

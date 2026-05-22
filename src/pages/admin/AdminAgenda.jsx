@@ -11,7 +11,7 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 
-function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenComanda, onNavigate }) {
+function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenComanda, onNavigate, onTransfer }) {
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -69,6 +69,16 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
 
       {actions.length > 0 && <div className="border-t border-line my-1" />}
 
+      {(appt.Status === 'pendente' || appt.Status === 'confirmado') && (
+        <button
+          onClick={() => { onTransfer(appt); onClose() }}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer"
+        >
+          <Icon name="cal" size={13} />
+          Transferir data
+        </button>
+      )}
+
       {appt.Status !== 'cancelado' && (
         <button
           onClick={() => { onOpenComanda(appt); onClose() }}
@@ -103,10 +113,10 @@ const WEEK_DAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 
 const STATUS_STYLE = {
-  pendente: { card: 'bg-warning-soft border-warning/30 text-warning', dot: 'bg-warning' },
-  confirmado: { card: 'bg-success-soft border-success/30 text-success', dot: 'bg-success' },
-  concluido: { card: 'bg-surface-2 border-line text-ink-3', dot: 'bg-ink-3' },
-  cancelado: { card: 'bg-danger-soft border-danger/30 text-danger', dot: 'bg-danger' },
+  pendente:   { card: 'bg-[#dbeafe] border-[#93c5fd] text-[#1d4ed8]',                        dot: 'bg-[#3b82f6]' },
+  confirmado: { card: 'bg-success-soft border-success/40 text-success',                       dot: 'bg-success' },
+  concluido:  { card: 'bg-[#faecd6] border-gold/50 text-[#7a5c2e]',                          dot: 'bg-gold' },
+  cancelado:  { card: 'bg-danger-soft border-danger/40 text-danger line-through opacity-60',  dot: 'bg-danger' },
 }
 
 function parseTime(t) {
@@ -126,14 +136,28 @@ function coversSlot(appt, slot) {
   return s >= start && s < end
 }
 
-function isStart(appt, slot) {
-  return parseTime(appt.Start_time) === slot
+function anchoredToSlot(appt, slot) {
+  const startMin = toMinutes(parseTime(appt.Start_time))
+  const slotMin = toMinutes(slot)
+  return startMin >= slotMin && startMin < slotMin + 30
 }
 
 function spanSlots(appt) {
   const start = toMinutes(parseTime(appt.Start_time))
   const end = toMinutes(parseTime(appt.End_time))
   return Math.max(1, Math.ceil((end - start) / 30))
+}
+
+function apptHeight(appt, cellH) {
+  const startMin = toMinutes(parseTime(appt.Start_time))
+  const endMin = toMinutes(parseTime(appt.End_time))
+  return Math.max(cellH / 2 - 4, ((endMin - startMin) / 30) * cellH - 4)
+}
+
+function apptTop(appt, slot, cellH) {
+  const startMin = toMinutes(parseTime(appt.Start_time))
+  const slotMin = toMinutes(slot)
+  return ((startMin - slotMin) / 30) * cellH + 2
 }
 
 function isSlotPast(date, slot) {
@@ -178,6 +202,37 @@ function coversBreak(wh, slot) {
 function spanBreak(wh) {
   if (!wh?.Break_start || !wh?.Break_end) return 0
   return Math.max(1, Math.ceil((toMinutes(wh.Break_end.slice(0, 5)) - toMinutes(wh.Break_start.slice(0, 5))) / 30))
+}
+
+// Calcula coluna e total de colunas para agendamentos sobrepostos de um profissional
+function computeColumns(appts) {
+  const sorted = [...appts].sort((a, b) =>
+    toMinutes(parseTime(a.Start_time)) - toMinutes(parseTime(b.Start_time))
+  )
+  const colEnds = [] // minuto de fim do último agendamento em cada coluna
+  const colMap = new Map() // UUID → { col, start, end }
+
+  sorted.forEach(appt => {
+    const start = toMinutes(parseTime(appt.Start_time))
+    const end = toMinutes(parseTime(appt.End_time))
+    let col = colEnds.findIndex(e => e <= start)
+    if (col === -1) { col = colEnds.length; colEnds.push(end) }
+    else colEnds[col] = end
+    colMap.set(appt.UUID, { col, start, end })
+  })
+
+  // totalCols = maior índice de coluna entre todos os sobrepostos + 1
+  const result = new Map()
+  colMap.forEach((data, uuid) => {
+    let maxCol = data.col
+    colMap.forEach((other, otherUuid) => {
+      if (uuid !== otherUuid && other.start < data.end && other.end > data.start) {
+        maxCol = Math.max(maxCol, other.col)
+      }
+    })
+    result.set(uuid, { col: data.col, totalCols: maxCol + 1 })
+  })
+  return result
 }
 
 function applyPhoneMask(value) {
@@ -479,6 +534,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const [servicoId, setServicoId] = useState('')
   const [startTime, setStartTime] = useState(slot)
   const [endTime, setEndTime] = useState(addMinutes(slot, 60))
+  const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
   const [modalCliente, setModalCliente] = useState(false)
@@ -530,6 +586,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
         Date: dateStr,
         Start_time: startTime,
         End_time: endTime,
+        Is_urgent: isUrgent,
       })
       addToast('Agendamento criado!')
       onSaved()
@@ -642,10 +699,138 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
               </div>
             </div>
 
+            {/* Urgência */}
+            <button
+              type="button"
+              onClick={() => setIsUrgent(v => !v)}
+              className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+                ${isUrgent ? 'bg-warning-soft border-warning/40' : 'bg-surface border-line hover:border-ink-3'}`}
+            >
+              <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+                ${isUrgent ? 'bg-warning border-warning' : 'border-line-2'}`}>
+                {isUrgent && <Icon name="check" size={10} className="text-white" />}
+              </div>
+              <div>
+                <div className={`text-[13px] font-medium ${isUrgent ? 'text-warning' : 'text-ink-2'}`}>Agendamento urgente</div>
+                <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
+              </div>
+            </button>
+
             <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
               Confirmar agendamento
             </Button>
           </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function TransferirDrawer({ appt, onClose, onSaved }) {
+  const { addToast } = useToast()
+
+  // Calcula duração em minutos do agendamento original
+  const durationMin = (() => {
+    const [sh, sm] = appt.Start_time.slice(0, 5).split(':').map(Number)
+    const [eh, em] = appt.End_time.slice(0, 5).split(':').map(Number)
+    return (eh * 60 + em) - (sh * 60 + sm)
+  })()
+
+  const [newDate, setNewDate] = useState(appt.Date)
+  const [startTime, setStartTime] = useState(appt.Start_time.slice(0, 5))
+  const [saving, setSaving] = useState(false)
+
+  // Calcula end_time automaticamente pela duração
+  const endTime = (() => {
+    const [h, m] = startTime.split(':').map(Number)
+    const total = h * 60 + m + durationMin
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+  })()
+
+  async function handleSalvar() {
+    setSaving(true)
+    try {
+      await api.patch(`/appointment/${appt.UUID}`, {
+        Date: newDate,
+        Start_time: startTime,
+        End_time: endTime,
+      })
+      addToast('Agendamento transferido com sucesso', 'success')
+      onSaved()
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao transferir agendamento', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputClass = 'h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/12 transition-colors w-full'
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-50 md:inset-y-0 md:right-0 md:left-auto md:w-[400px] flex flex-col bg-surface border-t border-line md:border-t-0 md:border-l rounded-t-2xl md:rounded-none shadow-xl">
+        {/* Alça mobile */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-line-2" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 md:px-7 py-4 md:py-6 border-b border-line">
+          <div>
+            <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Transferir agendamento</span>
+            <h4 className="font-display font-medium text-[18px] tracking-tight mt-0.5">{appt.Client}</h4>
+            <p className="text-[12.5px] text-ink-3 mt-0.5">{appt.Service} · {appt.Start_time.slice(0, 5)}</p>
+          </div>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer mt-1">
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        {/* Formulário */}
+        <div className="flex-1 overflow-y-auto px-5 md:px-7 py-5 space-y-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Nova data</label>
+            <input
+              type="date"
+              value={newDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={e => setNewDate(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Novo horário</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={e => setStartTime(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            {/* Serviço */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Término (automático)</label>
+              <div className="h-[42px] px-[14px] flex items-center rounded-md border border-line bg-surface-2 text-ink-3 text-md">
+                {endTime}
+              </div>
+            </div>
+
+          <div className="bg-surface-2 border border-line rounded-[10px] px-4 py-3 text-[12.5px] text-ink-3">
+            Duração mantida: <span className="font-medium text-ink-2">{durationMin} min</span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 md:px-7 py-4 md:py-5 border-t border-line">
+          <Button onClick={handleSalvar} loading={saving} className="w-full justify-center">
+            <Icon name="cal" size={14} />
+            Confirmar transferência
+          </Button>
         </div>
       </div>
     </>
@@ -669,6 +854,7 @@ export default function AdminAgenda() {
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
   const [newSlot, setNewSlot] = useState(null)
   const [contextMenu, setContextMenu] = useState(null) // { appt, x, y }
+  const [transferAppt, setTransferAppt] = useState(null)
   const longPressTimer = useRef(null)
   const dateInputRef = useRef(null)
 
@@ -734,14 +920,7 @@ export default function AdminAgenda() {
     try {
       const { data } = await api.get('/appointment', { params: { date: toDateStr(date) } })
       const all = data.data ?? []
-      const ativos = all.filter((a) => a.Status !== 'cancelado')
-      // Cancelados que não têm agendamento ativo sobreposto ficam visíveis na grade
-      const cancelados = all.filter((a) => a.Status === 'cancelado' && !ativos.some(
-        (b) => b.Professional === a.Professional &&
-          toMinutes(parseTime(b.Start_time)) < toMinutes(parseTime(a.End_time)) &&
-          toMinutes(parseTime(b.End_time)) > toMinutes(parseTime(a.Start_time))
-      ))
-      setAppointments([...ativos, ...cancelados])
+      setAppointments(all)
     } catch {
       setAppointments([])
     } finally {
@@ -762,6 +941,15 @@ export default function AdminAgenda() {
   const profNames = professionals.map((p) => p.Name)
   const profObjects = professionals
 
+  // Pré-computa layout de colunas para agendamentos sobrepostos (exceto urgentes)
+  const columnMap = new Map()
+  profObjects.forEach(profObj => {
+    const profAppts = appointments.filter(
+      a => a.Professional === profObj.Name && !a.Is_urgent
+    )
+    computeColumns(profAppts).forEach((data, uuid) => columnMap.set(uuid, data))
+  })
+
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
   )
@@ -777,6 +965,14 @@ export default function AdminAgenda() {
           onStatusChange={handleStatusChange}
           onOpenComanda={(appt) => navigate(`/admin/caixa?appointment=${appt.UUID}`)}
           onNavigate={(appt) => navigate(`/agendamento/${appt.UUID}`)}
+          onTransfer={(appt) => setTransferAppt(appt)}
+        />
+      )}
+      {transferAppt && (
+        <TransferirDrawer
+          appt={transferAppt}
+          onClose={() => setTransferAppt(null)}
+          onSaved={() => load(true)}
         />
       )}
       {newSlot && (
@@ -900,15 +1096,12 @@ export default function AdminAgenda() {
                   ...profNames.map((prof, pi) => {
                     const profObj = profObjects[pi]
                     const wh = breakByProf[profObj?.UUID] ?? null
-                    const appt = appointments.find((a) => a.Professional === prof && isStart(a, slot))
+                    const appts = appointments.filter((a) => a.Professional === prof && anchoredToSlot(a, slot))
                     const occupied = appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado')
                     const onBreak = coversBreak(wh, slot)
                     const breakStart = isBreakStart(wh, slot)
                     const breakSpans = breakStart ? spanBreak(wh) : 0
                     const past = isSlotPast(date, slot)
-                    const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
-                    const spans = appt ? spanSlots(appt) : 0
-                    const isCancelado = appt?.Status === 'cancelado'
                     const clickable = !occupied && !past && !onBreak
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
@@ -916,46 +1109,68 @@ export default function AdminAgenda() {
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                           ${past || onBreak ? 'bg-surface-2' : ''}
-                          ${clickable && !isCancelado ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                        {appt && !isCancelado && (
-                          <button
-                            onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
-                            onContextMenu={e => openContextMenu(e, appt)}
-                            onTouchStart={e => handleLongPressStart(e, appt)}
-                            onTouchEnd={handleLongPressEnd}
-                            onTouchMove={handleLongPressEnd}
-                            style={{ height: spans * 64 - 4 }}
-                            className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
-                              hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}
-                          >
-                            <div className="flex items-center gap-1.5 leading-none">
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
-                              <span className="font-semibold text-[11px] truncate">{appt.Client}</span>
-                            </div>
-                            <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{appt.Service}</div>
-                            <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                              {parseTime(appt.Start_time)} → {parseTime(appt.End_time)}
-                            </div>
-                          </button>
-                        )}
-                        {appt && isCancelado && (
-                          <button
-                            onClick={e => { e.stopPropagation(); setNewSlot({ slot, professional: profObj }) }}
-                            onContextMenu={e => openContextMenu(e, appt)}
-                            onTouchStart={e => handleLongPressStart(e, appt)}
-                            onTouchEnd={handleLongPressEnd}
-                            onTouchMove={handleLongPressEnd}
-                            style={{ height: spans * 64 - 4 }}
-                            className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
-                              hover:opacity-90 transition-opacity overflow-hidden ${style.card} opacity-60`}
-                          >
-                            <div className="flex items-center gap-1 leading-none">
-                              <Icon name="plus" size={9} className="opacity-70 flex-shrink-0" />
-                              <span className="font-semibold text-[11px] truncate line-through opacity-70">{appt.Client}</span>
-                            </div>
-                            <div className="font-mono text-[9.5px] text-inherit opacity-60 mt-0.5">Agendar aqui</div>
-                          </button>
-                        )}
+                          ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
+                        {(() => {
+                          const normalAppts = appts.filter(a => !a.Is_urgent)
+                          const urgentAppts = appts.filter(a => a.Is_urgent)
+                          return <>
+                            {normalAppts.map((a) => {
+                              const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                              const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
+                              const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
+                              const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
+                              const right = totalCols > 1 ? undefined : '3px'
+                              return (
+                                <button
+                                  key={a.UUID}
+                                  onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                                  onContextMenu={e => openContextMenu(e, a)}
+                                  onTouchStart={e => handleLongPressStart(e, a)}
+                                  onTouchEnd={handleLongPressEnd}
+                                  onTouchMove={handleLongPressEnd}
+                                  style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64), width: w, left, right }}
+                                  className={`absolute z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
+                                    hover:opacity-80 transition-opacity overflow-hidden ${s.card}`}
+                                >
+                                  <div className="flex items-center gap-1.5 leading-none">
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                                    <span className="font-semibold text-[11px] truncate">{a.Client}</span>
+                                  </div>
+                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                                  <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                                    {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                                  </div>
+                                </button>
+                              )
+                            })}
+                            {urgentAppts.map((a) => {
+                              const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                              return (
+                                <button
+                                  key={a.UUID}
+                                  onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                                  onContextMenu={e => openContextMenu(e, a)}
+                                  onTouchStart={e => handleLongPressStart(e, a)}
+                                  onTouchEnd={handleLongPressEnd}
+                                  onTouchMove={handleLongPressEnd}
+                                  style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64) }}
+                                  className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-center border-2 border-warning cursor-pointer flex flex-col justify-center items-center
+                                    hover:opacity-90 transition-opacity overflow-hidden ${s.card} shadow-md`}
+                                >
+                                  <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>
+                                  <div className="flex items-center gap-1.5 leading-none">
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                                    <span className="font-semibold text-[11px] truncate">{a.Client}</span>
+                                  </div>
+                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                                  <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                                    {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                                  </div>
+                                </button>
+                              )
+                            })}
+                          </>
+                        })()}
                         {breakStart && (
                           <div
                             style={{ height: breakSpans * 64 - 4 }}
@@ -982,15 +1197,12 @@ export default function AdminAgenda() {
                 const profObj = profObjects[mobileProfIdx]
                 const wh = breakByProf[profObj?.UUID] ?? null
                 const isHour = slot.endsWith(':00')
-                const appt = prof ? appointments.find((a) => a.Professional === prof && isStart(a, slot)) : null
+                const appts = prof ? appointments.filter((a) => a.Professional === prof && anchoredToSlot(a, slot)) : []
                 const occupied = prof ? appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado') : false
                 const onBreak = coversBreak(wh, slot)
                 const breakStart = isBreakStart(wh, slot)
                 const breakSpans = breakStart ? spanBreak(wh) : 0
                 const past = isSlotPast(date, slot)
-                const style = appt ? (STATUS_STYLE[appt.Status] ?? STATUS_STYLE.pendente) : null
-                const spans = appt ? spanSlots(appt) : 0
-                const isCancelado = appt?.Status === 'cancelado'
                 const clickable = !occupied && !past && !onBreak
                 return [
                   <div key={`mt-${slot}`}
@@ -1004,46 +1216,68 @@ export default function AdminAgenda() {
                     className={`relative h-14 overflow-visible border-line-2
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                       ${past || onBreak ? 'bg-surface-2' : ''}
-                      ${clickable && !isCancelado ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                    {appt && !isCancelado && (
-                      <button
-                        onClick={e => { e.stopPropagation(); navigate(`/agendamento/${appt.UUID}`) }}
-                        onContextMenu={e => openContextMenu(e, appt)}
-                        onTouchStart={e => handleLongPressStart(e, appt)}
-                        onTouchEnd={handleLongPressEnd}
-                        onTouchMove={handleLongPressEnd}
-                        style={{ height: spans * 56 - 4 }}
-                        className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
-                          hover:opacity-80 transition-opacity overflow-hidden ${style.card}`}
-                      >
-                        <div className="flex items-center gap-1.5 leading-none">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
-                          <span className="font-semibold text-[11px] truncate">{appt.Client}</span>
-                        </div>
-                        <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{appt.Service}</div>
-                        <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                          {parseTime(appt.Start_time)} → {parseTime(appt.End_time)}
-                        </div>
-                      </button>
-                    )}
-                    {appt && isCancelado && (
-                      <button
-                        onClick={e => { e.stopPropagation(); setNewSlot({ slot, professional: profObj }) }}
-                        onContextMenu={e => openContextMenu(e, appt)}
-                        onTouchStart={e => handleLongPressStart(e, appt)}
-                        onTouchEnd={handleLongPressEnd}
-                        onTouchMove={handleLongPressEnd}
-                        style={{ height: spans * 56 - 4 }}
-                        className={`absolute inset-x-[3px] top-[2px] z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
-                          hover:opacity-90 transition-opacity overflow-hidden ${style.card} opacity-60`}
-                      >
-                        <div className="flex items-center gap-1 leading-none">
-                          <Icon name="plus" size={9} className="opacity-70 flex-shrink-0" />
-                          <span className="font-semibold text-[11px] truncate line-through opacity-70">{appt.Client}</span>
-                        </div>
-                        <div className="font-mono text-[9.5px] text-inherit opacity-60 mt-0.5">Agendar aqui</div>
-                      </button>
-                    )}
+                      ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
+                    {(() => {
+                      const normalAppts = appts.filter(a => !a.Is_urgent)
+                      const urgentAppts = appts.filter(a => a.Is_urgent)
+                      return <>
+                        {normalAppts.map((a) => {
+                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                          const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
+                          const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
+                          const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
+                          const right = totalCols > 1 ? undefined : '3px'
+                          return (
+                            <button
+                              key={a.UUID}
+                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                              onContextMenu={e => openContextMenu(e, a)}
+                              onTouchStart={e => handleLongPressStart(e, a)}
+                              onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressEnd}
+                              style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56), width: w, left, right }}
+                              className={`absolute z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
+                                hover:opacity-80 transition-opacity overflow-hidden ${s.card}`}
+                            >
+                              <div className="flex items-center gap-1.5 leading-none">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                                <span className="font-semibold text-[11px] truncate">{a.Client}</span>
+                              </div>
+                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                              </div>
+                            </button>
+                          )
+                        })}
+                        {urgentAppts.map((a) => {
+                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                          return (
+                            <button
+                              key={a.UUID}
+                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                              onContextMenu={e => openContextMenu(e, a)}
+                              onTouchStart={e => handleLongPressStart(e, a)}
+                              onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressEnd}
+                              style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56) }}
+                              className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-left border-2 border-warning cursor-pointer
+                                hover:opacity-90 transition-opacity overflow-hidden ${s.card} shadow-md`}
+                            >
+                              <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>
+                              <div className="flex items-center gap-1.5 leading-none">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                                <span className="font-semibold text-[11px] truncate">{a.Client}</span>
+                              </div>
+                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </>
+                    })()}
                     {breakStart && (
                       <div
                         style={{ height: breakSpans * 56 - 4 }}
