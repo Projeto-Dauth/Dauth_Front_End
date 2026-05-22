@@ -68,9 +68,11 @@ function TabComandas({ user, initialAppointmentId }) {
   const [paying, setPaying] = useState(false)
 
   // Fechar conta (batch pay)
-  const [batchClient, setBatchClient] = useState(null) // { name, tabs: [] }
+  const [batchClient, setBatchClient] = useState(null) // { name, clientId, tabs: [] }
   const [batchMethod, setBatchMethod] = useState('pix')
   const [batchPaying, setBatchPaying] = useState(false)
+  const [batchOrders, setBatchOrders] = useState([])
+  const [batchOrdersLoading, setBatchOrdersLoading] = useState(false)
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -107,15 +109,15 @@ function TabComandas({ user, initialAppointmentId }) {
   const emAberto = tabs.filter((t) => t.Status === 'Em aberto').length
   const totalAberto = tabs.filter((t) => t.Status === 'Em aberto').reduce((s, t) => s + t.Value, 0)
 
-  // Agrupamento por cliente para detectar múltiplas comandas em aberto
-  const clientsWithMultipleTabs = (() => {
+  // Agrupamento por cliente para detectar comandas em aberto
+  const clientsWithOpenTabs = (() => {
     const map = {}
-    tabs.filter(t => t.Status === 'Em aberto' && t.Appointment?.Client).forEach(t => {
-      const name = t.Appointment.Client
-      if (!map[name]) map[name] = []
-      map[name].push(t)
+    tabs.filter(t => t.Status === 'Em aberto' && t.Appointment?.ClientId).forEach(t => {
+      const id = t.Appointment.ClientId
+      if (!map[id]) map[id] = { name: t.Appointment.Client, clientId: id, tabs: [] }
+      map[id].tabs.push(t)
     })
-    return Object.entries(map).filter(([, ts]) => ts.length > 1).map(([name, ts]) => ({ name, tabs: ts }))
+    return Object.values(map)
   })()
 
   async function handlePagar() {
@@ -142,6 +144,21 @@ function TabComandas({ user, initialAppointmentId }) {
     }
   }
 
+  async function openBatchModal(c) {
+    setBatchClient(c)
+    setBatchMethod('pix')
+    setBatchOrders([])
+    setBatchOrdersLoading(true)
+    try {
+      const { data } = await api.get(`/product-order?client_id=${c.clientId}&status=encomendado`)
+      setBatchOrders(data.data ?? [])
+    } catch {
+      setBatchOrders([])
+    } finally {
+      setBatchOrdersLoading(false)
+    }
+  }
+
   async function handleFecharConta() {
     if (!batchClient) return
     setBatchPaying(true)
@@ -150,9 +167,11 @@ function TabComandas({ user, initialAppointmentId }) {
         tab_ids: batchClient.tabs.map(t => t.UUID),
         Method: batchMethod,
         Payment_date: new Date().toISOString(),
+        client_id: batchClient.clientId,
       })
       addToast(`Conta de ${batchClient.name} fechada com sucesso`, 'success')
       setBatchClient(null)
+      setBatchOrders([])
       load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
@@ -163,22 +182,42 @@ function TabComandas({ user, initialAppointmentId }) {
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 md:mb-6">
+      <div className="flex items-center justify-between mb-5 md:mb-6">
         <p className="text-[12px] md:text-[13px] text-ink-3">
           {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
         </p>
-        {clientsWithMultipleTabs.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {clientsWithMultipleTabs.map(c => (
-              <button key={c.name} onClick={() => { setBatchClient(c); setBatchMethod('pix') }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium bg-brand text-white cursor-pointer hover:bg-brand/90 transition-colors">
-                <Icon name="cash" size={12} />
-                Fechar conta · {c.name}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* Contas a fechar */}
+      {clientsWithOpenTabs.length > 0 && (
+        <div className="mb-5 space-y-2">
+          <p className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">
+            {clientsWithOpenTabs.length === 1 ? 'Conta em aberto' : 'Contas em aberto'}
+          </p>
+          {clientsWithOpenTabs.map((c, idx) => {
+            const total = c.tabs.reduce((s, t) => s + t.Value, 0)
+            return (
+              <div key={c.clientId} className="flex items-center justify-between gap-3 bg-surface border border-line rounded-[12px] px-4 py-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar name={c.name} index={idx} size="sm" />
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium truncate">{c.name}</div>
+                    <div className="font-mono text-[11px] text-ink-3">
+                      {c.tabs.length} comanda{c.tabs.length !== 1 ? 's' : ''} · {formatCurrency(total)}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => openBatchModal(c)}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] text-[12.5px] font-medium bg-brand text-white hover:bg-brand/90 transition-colors cursor-pointer">
+                  <Icon name="cash" size={13} />
+                  Fechar conta
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="flex gap-1.5 mb-5">
@@ -200,25 +239,63 @@ function TabComandas({ user, initialAppointmentId }) {
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Fechar conta</span>
                 <h4 className="font-display font-medium text-[18px] tracking-tight mt-1">{batchClient.name}</h4>
               </div>
-              <button onClick={() => setBatchClient(null)} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
+              <button onClick={() => { setBatchClient(null); setBatchOrders([]) }} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
                 <Icon name="x" size={18} />
               </button>
             </div>
             <div className="px-6 py-5">
-              <div className="space-y-2 mb-5">
-                {batchClient.tabs.map(t => (
-                  <div key={t.UUID} className="flex items-center justify-between text-[13px]">
-                    <span className="text-ink-2">{t.Appointment?.Service} · {formatTime(t.Appointment?.Start_time)}</span>
-                    <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
+              {batchOrdersLoading ? (
+                <div className="space-y-2 mb-5 animate-pulse">
+                  {batchClient.tabs.map(t => (
+                    <div key={t.UUID} className="flex items-center justify-between">
+                      <div className="h-3.5 bg-line rounded w-2/3" />
+                      <div className="h-3.5 bg-line rounded w-16" />
+                    </div>
+                  ))}
+                  <div className="pt-2 border-t border-dashed border-line-2 space-y-2">
+                    <div className="h-3 bg-line rounded w-1/4" />
+                    <div className="flex items-center justify-between">
+                      <div className="h-3.5 bg-line rounded w-1/2" />
+                      <div className="h-3.5 bg-line rounded w-16" />
+                    </div>
                   </div>
-                ))}
-                <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
-                  <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
-                  <span className="font-display text-[20px] font-medium text-ink">
-                    {formatCurrency(batchClient.tabs.reduce((s, t) => s + t.Value, 0))}
-                  </span>
+                  <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
+                    <div className="h-3 bg-line rounded w-10" />
+                    <div className="h-6 bg-line rounded w-24" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-2 mb-5">
+                  {batchClient.tabs.map(t => (
+                    <div key={t.UUID} className="flex items-center justify-between text-[13px]">
+                      <span className="text-ink-2">{t.Appointment?.Service} · {formatTime(t.Appointment?.Start_time)}</span>
+                      <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
+                    </div>
+                  ))}
+                  {batchOrders.length > 0 && (
+                    <>
+                      <div className="pt-2 border-t border-dashed border-line-2">
+                        <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Produtos</span>
+                      </div>
+                      {batchOrders.map(o => (
+                        <div key={o.UUID} className="flex items-center justify-between text-[13px]">
+                          <span className="text-ink-2">{o.Product?.Name} × {o.Quantity}</span>
+                          <span className="font-mono font-medium text-ink">{formatCurrency(o.Total_price)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
+                    <span className="font-display text-[20px] font-medium text-ink">
+                      {formatCurrency(
+                        batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
+                        batchOrders.reduce((s, o) => s + o.Total_price, 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">Método de pagamento</div>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {PAY_METHODS.map((m) => (
@@ -230,9 +307,12 @@ function TabComandas({ user, initialAppointmentId }) {
                   </button>
                 ))}
               </div>
-              <Button variant="primary" className="w-full justify-center" onClick={handleFecharConta} disabled={batchPaying}>
+              <Button variant="primary" className="w-full justify-center" onClick={handleFecharConta} disabled={batchPaying || batchOrdersLoading}>
                 <Icon name="check" size={14} />
-                {batchPaying ? 'Fechando...' : `Fechar conta · ${formatCurrency(batchClient.tabs.reduce((s, t) => s + t.Value, 0))}`}
+                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : `Fechar conta · ${formatCurrency(
+                  batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
+                  batchOrders.reduce((s, o) => s + o.Total_price, 0)
+                )}`}
               </Button>
             </div>
           </div>
