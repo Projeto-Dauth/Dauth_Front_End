@@ -1306,4 +1306,3 @@ export default function AdminAgenda() {
     </AppLayout>
   )
 }
-""
