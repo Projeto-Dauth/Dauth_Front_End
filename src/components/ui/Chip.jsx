@@ -1,21 +1,23 @@
 const variants = {
   default: 'bg-surface-2 text-ink-2 border-line',
-  brand: 'bg-brand-soft text-brand-soft-ink border-transparent',
+  brand:   'bg-brand-soft text-brand-soft-ink border-transparent',
   success: 'bg-success-soft text-success border-transparent',
   warning: 'bg-warning-soft text-warning border-transparent',
-  danger: 'bg-danger-soft text-danger border-transparent',
-  ghost: 'bg-transparent text-ink-2 border-line',
+  danger:  'bg-danger-soft text-danger border-transparent',
+  ghost:   'bg-transparent text-ink-2 border-line',
+  gold:    'bg-[#faecd6] text-[#7a5c2e] border-gold/50',
+  blue:    'bg-[#dbeafe] text-[#1d4ed8] border-[#93c5fd]',
 }
 
 // Status específicos para agendamentos
 const statusMap = {
-  pendente: 'warning',
+  pendente:   'blue',
   confirmado: 'success',
-  concluido: 'default',
-  cancelado: 'danger',
+  concluido:  'gold',
+  cancelado:  'danger',
   'Em aberto': 'warning',
-  Paga: 'success',
-  Expirada: 'default',
+  Paga:        'success',
+  Expirada:    'default',
 }
 
 export default function Chip({ children, variant, status, dot, className = '' }) {
