@@ -811,13 +811,14 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
                 className={inputClass}
               />
             </div>
+
+            {/* Serviço */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-medium text-ink-2">Término (automático)</label>
               <div className="h-[42px] px-[14px] flex items-center rounded-md border border-line bg-surface-2 text-ink-3 text-md">
                 {endTime}
               </div>
             </div>
-          </div>
 
           <div className="bg-surface-2 border border-line rounded-[10px] px-4 py-3 text-[12.5px] text-ink-3">
             Duração mantida: <span className="font-medium text-ink-2">{durationMin} min</span>
@@ -1104,7 +1105,7 @@ export default function AdminAgenda() {
                     const clickable = !occupied && !past && !onBreak
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
-                        onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
+                        onClick={clickable && !isCancelado ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                           ${past || onBreak ? 'bg-surface-2' : ''}
@@ -1211,7 +1212,7 @@ export default function AdminAgenda() {
                     {isHour ? slot : ''}
                   </div>,
                   <div key={`mc-${slot}`}
-                    onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
+                    onClick={clickable && !isCancelado ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                     className={`relative h-14 overflow-visible border-line-2
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                       ${past || onBreak ? 'bg-surface-2' : ''}
