@@ -13,6 +13,8 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { useTour } from '@/hooks/useTour'
+import { profissionalComandasSteps } from '@/tours/profissionalComandasTour'
 
 const navItems = navItemsByRole['Profissional']
 
@@ -364,6 +366,7 @@ export default function ProfissionalComandas() {
 
   const [tabs, setTabs] = useState([])
   const [loading, setLoading] = useState(true)
+  useTour('profissional_comandas', profissionalComandasSteps, !loading)
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [selectedId, setSelectedId] = useState(null)
   const [payMethod, setPayMethod] = useState('pix')
@@ -493,7 +496,7 @@ export default function ProfissionalComandas() {
     <AppLayout sidebar={sidebar}>
       <div className="mb-5 md:mb-6">
         <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight mb-4">Comandas</h3>
-        <div className="flex gap-1 border-b border-line">
+        <div data-tour="sub-abas" className="flex gap-1 border-b border-line">
           {[['servicos', 'Serviços', 'scissors'], ['produtos', 'Produtos', 'package']].map(([id, label, icon]) => (
             <button key={id} onClick={() => setSubTab(id)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-[13.5px] font-medium border-b-2 -mb-px transition-colors cursor-pointer
@@ -651,7 +654,7 @@ export default function ProfissionalComandas() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
 
           {/* Lista */}
-          <div className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
+          <div data-tour="comanda-lista" className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
             <div className="px-5 py-3.5 border-b border-line flex justify-between items-center">
               <div className="font-display font-medium text-[16px]">Comandas</div>
               <span className="font-mono text-[11px] text-ink-3">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
@@ -681,7 +684,7 @@ export default function ProfissionalComandas() {
 
           {/* Painel de pagamento */}
           {selected && (
-            <div className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
+            <div data-tour="comanda-painel" className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
               <div className="px-6 py-5 border-b border-line">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Comanda selecionada</span>
                 <h4 className="font-display font-medium text-[19px] tracking-tight mt-1.5">

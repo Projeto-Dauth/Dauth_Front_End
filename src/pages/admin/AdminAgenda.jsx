@@ -10,6 +10,8 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { useTour } from '@/hooks/useTour'
+import { adminSteps } from '@/tours/adminTour'
 
 // Tinha algum const bugado
 
@@ -850,6 +852,7 @@ export default function AdminAgenda() {
   const [professionals, setProfessionals] = useState([])
   const [breakByProf, setBreakByProf] = useState({})
   const [loading, setLoading] = useState(true)
+  useTour('admin', adminSteps, !loading)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
   const [newSlot, setNewSlot] = useState(null)
   const [contextMenu, setContextMenu] = useState(null) // { appt, x, y }
@@ -996,7 +999,7 @@ export default function AdminAgenda() {
       </div>
 
       {/* Navegação de dia */}
-      <div className="flex items-center gap-2 md:gap-3 mb-5 overflow-x-auto">
+      <div data-tour="day-nav" className="flex items-center gap-2 md:gap-3 mb-5 overflow-x-auto">
         <button onClick={prevDay}
           className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowLeft" size={14} />
@@ -1071,7 +1074,7 @@ export default function AdminAgenda() {
           )}
 
           {/* Grade — desktop: todos profissionais · mobile: profissional selecionado */}
-          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+          <div data-tour="schedule-grid" className="bg-surface border border-line rounded-lg overflow-hidden">
             {/* Desktop */}
             <div
               className="hidden md:grid"

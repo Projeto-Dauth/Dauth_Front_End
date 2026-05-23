@@ -10,13 +10,17 @@ import { ToastProvider } from './context/ToastContext'
 async function bootstrap() {
   try {
     const { data } = await api.get('/users/perfil/me')
-    // /users/perfil/me retorna { UUID, Name, Email, Role, Phone, Birthday, active }
     useAuthStore.getState().restoreSession({
       id: data.UUID,
       publicId: data.UUID,
       email: data.Email,
       name: data.Name,
       role: data.Role,
+    })
+    // Populate localStorage from backend so returning users don't see tours again
+    const toursCompleted = data.Tours_completed ?? {}
+    Object.entries(toursCompleted).forEach(([key, done]) => {
+      if (done) localStorage.setItem(`dauth_tour_${key}`, 'done')
     })
   } catch {
     // 401 = sem sessão ativa — continua sem autenticação

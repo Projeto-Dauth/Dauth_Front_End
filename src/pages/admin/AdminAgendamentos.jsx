@@ -10,6 +10,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { useTour } from '@/hooks/useTour'
+import { adminAgendamentosSteps } from '@/tours/adminAgendamentosTour'
 
 const navItems = navItemsByRole['Admin']
 
@@ -33,6 +35,7 @@ export default function AdminAgendamentos() {
 
   const [allItems, setAllItems] = useState([])
   const [loading, setLoading]   = useState(true)
+  useTour('admin_agendamentos', adminAgendamentosSteps, !loading)
   const [date, setDate]         = useState('')
   const [tab, setTab]           = useState('ativos')
 
@@ -70,13 +73,13 @@ export default function AdminAgendamentos() {
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agendamentos</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie todos os agendamentos do salão</p>
         </div>
-        <Button size="sm" onClick={() => navigate('/agendar')}>
+        <Button data-tour="agendamentos-novo" size="sm" onClick={() => navigate('/agendar')}>
           <Icon name="plus" size={14} />Novo agendamento
         </Button>
       </div>
 
       {/* Date filter */}
-      <div className="flex gap-2 items-center mb-4">
+      <div data-tour="agendamentos-filtro" className="flex gap-2 items-center mb-4">
         <input
           type="date"
           value={date}
@@ -94,7 +97,7 @@ export default function AdminAgendamentos() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 border-b border-line">
+      <div data-tour="agendamentos-tabs" className="flex gap-1 mb-5 border-b border-line">
         {TABS.map(t => (
           <button
             key={t.id}

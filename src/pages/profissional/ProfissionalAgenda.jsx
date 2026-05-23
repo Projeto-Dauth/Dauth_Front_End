@@ -10,6 +10,8 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { useTour } from '@/hooks/useTour'
+import { profissionalSteps } from '@/tours/profissionalTour'
 
 const navItems = navItemsByRole['Profissional']
 
@@ -452,6 +454,7 @@ export default function ProfissionalAgenda() {
   const [appointments, setAppointments] = useState([])
   const [workingHour, setWorkingHour]   = useState(null)
   const [loading, setLoading]           = useState(true)
+  useTour('profissional', profissionalSteps, !loading)
   const [newSlot, setNewSlot]           = useState(null)
   const [contextMenu, setContextMenu]   = useState(null)
   const [transferAppt, setTransferAppt] = useState(null)
@@ -609,7 +612,7 @@ export default function ProfissionalAgenda() {
       {loading ? <PageSpinner /> : (
         <>
           {/* Grade — desktop: col de hora + col do profissional */}
-          <div className="bg-surface border border-line rounded-lg overflow-hidden">
+          <div data-tour="schedule-grid" className="bg-surface border border-line rounded-lg overflow-hidden">
             <div className="grid" style={{ gridTemplateColumns: '64px 1fr' }}>
               {/* Cabeçalho */}
               <div className="px-3 py-3 border-b border-r border-line bg-surface-2" />

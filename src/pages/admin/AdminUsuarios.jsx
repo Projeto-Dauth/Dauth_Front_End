@@ -13,6 +13,8 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { useTour } from '@/hooks/useTour'
+import { adminUsuariosSteps } from '@/tours/adminUsuariosTour'
 
 const navItems = navItemsByRole['Admin']
 
@@ -53,6 +55,7 @@ export default function AdminUsuarios() {
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  useTour('admin_usuarios', adminUsuariosSteps, !loading)
   const [roleFilter, setRoleFilter] = useState('Todos')
   const [toggleTarget, setToggleTarget] = useState(null)
   const [toggling, setToggling] = useState(false)
@@ -143,14 +146,14 @@ export default function AdminUsuarios() {
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Clientes</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie clientes, profissionais e administradores</p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => { setForm(EMPTY_FORM); setFormErrors({}); setDrawerOpen(true) }}>
+        <Button data-tour="usuarios-novo" variant="primary" size="sm" onClick={() => { setForm(EMPTY_FORM); setFormErrors({}); setDrawerOpen(true) }}>
           <Icon name="plus" size={14} />
           Novo cliente
         </Button>
       </div>
 
       {/* Filtro de role */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
+      <div data-tour="usuarios-filtro" className="flex gap-1.5 mb-5 flex-wrap">
         {ROLE_FILTERS.map((r) => (
           <button
             key={r}
@@ -170,7 +173,7 @@ export default function AdminUsuarios() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
+          <div data-tour="usuarios-lista" className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
             <table className="w-full border-collapse">
               <thead>
                 <tr>

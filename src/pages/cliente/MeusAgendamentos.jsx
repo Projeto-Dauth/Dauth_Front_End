@@ -10,6 +10,8 @@ import logo from '@/logo-dauth-agendamentos.png'
 import EmptyState from '@/components/ui/EmptyState'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { useTour } from '@/hooks/useTour'
+import { clienteAgendamentosSteps } from '@/tours/clienteAgendamentosTour'
 
 const navItems = [
   { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
@@ -101,6 +103,7 @@ export default function MeusAgendamentos() {
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  useTour('cliente_agendamentos', clienteAgendamentosSteps, !loading)
   const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
@@ -121,12 +124,12 @@ export default function MeusAgendamentos() {
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Histórico completo dos seus atendimentos</p>
         </div>
         <NavLink to="/agendar">
-          <Button size="sm"><Icon name="plus" size={14} />Novo agendamento</Button>
+          <Button data-tour="agendamentos-novo-cliente" size="sm"><Icon name="plus" size={14} />Novo agendamento</Button>
         </NavLink>
       </div>
 
       {/* Status filters */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
+      <div data-tour="agendamentos-filtro-cliente" className="flex gap-1.5 mb-5 flex-wrap">
         {STATUS_OPTIONS.map(s => (
           <button
             key={s}
@@ -152,7 +155,7 @@ export default function MeusAgendamentos() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
+          <div data-tour="agendamentos-lista-cliente" className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
             <table className="w-full border-collapse">
               <thead>
                 <tr>

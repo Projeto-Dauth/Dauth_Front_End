@@ -13,6 +13,9 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { useTour } from '@/hooks/useTour'
+import { adminCaixaComandasSteps } from '@/tours/adminCaixaComandas'
+import { adminCaixaComissoesSteps } from '@/tours/adminCaixaComissoes'
 
 const navItems = navItemsByRole['Admin']
 
@@ -92,6 +95,7 @@ function TabComandas({ user, initialAppointmentId }) {
 
   const [tabs, setTabs] = useState([])
   const [loading, setLoading] = useState(true)
+  useTour('admin_caixa_comandas', adminCaixaComandasSteps, !loading)
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [selectedId, setSelectedId] = useState(null)
   const [payMethod, setPayMethod] = useState('pix')
@@ -355,7 +359,7 @@ function TabComandas({ user, initialAppointmentId }) {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
 
           {/* Lista */}
-          <div className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
+          <div data-tour="comanda-lista" className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
             <div className="px-5 py-3.5 border-b border-line flex justify-between items-center">
               <div className="font-display font-medium text-[16px]">Comandas</div>
               <span className="font-mono text-[11px] text-ink-3">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
@@ -385,7 +389,7 @@ function TabComandas({ user, initialAppointmentId }) {
 
           {/* Painel de pagamento */}
           {selected && (
-            <div className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
+            <div data-tour="comanda-painel" className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
               <div className="px-6 py-5 border-b border-line">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Comanda selecionada</span>
                 <h4 className="font-display font-medium text-[19px] tracking-tight mt-1.5">
@@ -747,6 +751,7 @@ function TabComissoes() {
   const [selYear, setSelYear] = useState(now.getFullYear())
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
+  useTour('admin_caixa_comissoes', adminCaixaComissoesSteps, !loading)
   const [markingPaid, setMarkingPaid] = useState(null)
 
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
@@ -786,7 +791,7 @@ function TabComissoes() {
   return (
     <>
       {/* Cabeçalho com seletor */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+      <div data-tour="comissoes-filtro" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <p className="text-[13px] text-ink-3">
           {loading ? '...' : transactions.length === 0
             ? 'Nenhum atendimento registrado neste período'
@@ -809,7 +814,7 @@ function TabComissoes() {
       ) : (
         <>
           {/* Totalizadores */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div data-tour="comissoes-lista" className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Receita total do período</span>
               <span className="text-[28px] font-serif font-light leading-none tracking-wide text-ink">{formatCurrency(totalReceita)}</span>
@@ -1108,7 +1113,7 @@ export default function AdminCaixa() {
       {/* Header + tabs */}
       <div className="mb-5 md:mb-6">
         <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight mb-4">Caixa</h3>
-        <div className="flex gap-1 border-b border-line">
+        <div data-tour="caixa-tabs" className="flex gap-1 border-b border-line">
           {[
             { id: 'comandas', label: 'Comandas', icon: 'receipt' },
             { id: 'produtos', label: 'Produtos', icon: 'package' },

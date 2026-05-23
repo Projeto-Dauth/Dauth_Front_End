@@ -9,6 +9,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { useTour } from '@/hooks/useTour'
+import { clienteCombosSteps } from '@/tours/clienteCombosTour'
 
 const navItems = [
   { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
@@ -232,6 +234,7 @@ export default function MeusCombos() {
 
   const [combos, setCombos] = useState([])
   const [loadingCombos, setLoadingCombos] = useState(true)
+  useTour('cliente_combos', clienteCombosSteps, !loadingCombos)
 
   const [catalog, setCatalog] = useState([])
   const [loadingCatalog, setLoadingCatalog] = useState(false)
@@ -274,7 +277,7 @@ export default function MeusCombos() {
       </div>
 
       {/* Abas */}
-      <div className="flex gap-1 mb-6 md:mb-7 border-b border-line">
+      <div data-tour="combos-abas" className="flex gap-1 mb-6 md:mb-7 border-b border-line">
         {[
           { key: 'meus', label: 'Meus combos' },
           { key: 'explorar', label: 'Explorar combos' },
@@ -311,7 +314,7 @@ export default function MeusCombos() {
                 <h4 className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-3">
                   Ativos · {ativos.length}
                 </h4>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-7 md:mb-8">
+                <div data-tour="combos-lista" className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-7 md:mb-8">
                   {ativos.map(c => <ComboCard key={c.UUID} combo={c} />)}
                 </div>
               </>
