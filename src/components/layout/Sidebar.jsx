@@ -19,6 +19,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
 
   return (
     <aside
+      data-tour="sidebar"
       className="flex flex-col gap-0.5 bg-surface-2 border-r border-line px-4 py-6 h-full overflow-hidden"
       style={{ width, minWidth: width }}
     >
@@ -70,6 +71,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
             to={item.to}
             end={item.end}
             onClick={onClose}
+            {...(item.to === '/profissional/comissoes' ? { 'data-tour': 'comissoes-link' } : {})}
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors
               ${isActive ? 'bg-brand-soft text-brand border border-brand/20 font-medium' : ''}`
@@ -92,6 +94,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
               <div className="text-[11px] text-ink-3">{footerRole}</div>
             </div>
             <button
+              data-tour="notifications"
               onClick={openDrawer}
               title="Notificações"
               className="relative p-1.5 rounded-lg text-ink-4 hover:bg-surface-3 transition-colors shrink-0 cursor-pointer"

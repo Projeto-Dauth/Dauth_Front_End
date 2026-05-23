@@ -10,16 +10,9 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { navItemsByRole } from '@/config/navItems'
 
-const navItems = [
-  { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
-  { to: '/profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-  { to: '/profissional/comissoes', icon: 'cash', label: 'Minhas comissões' },
-  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-  { type: 'label', label: 'Conta' },
-  { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-]
+const navItems = navItemsByRole['Profissional']
 
 const STATUS_OPTIONS = ['', 'pendente', 'confirmado', 'concluido', 'cancelado']
 const STATUS_LABELS = { '': 'Todos', pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
@@ -161,12 +154,6 @@ export default function MinhaAgenda() {
                 <div className="font-mono text-[11px] text-ink-3 mt-0.5">{formatDate(row.Date)}</div>
               </div>
               <Chip status={row.Status} dot className="shrink-0">{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
-              {row.tab_status && (
-                <span className={`hidden sm:inline-flex items-center px-2 py-[3px] rounded-full text-[10.5px] font-medium shrink-0 border
-                  ${row.tab_status === 'Paga' ? 'bg-success-soft text-success border-success/20' : 'bg-warning-soft text-warning border-warning/20'}`}>
-                  {row.tab_status === 'Paga' ? 'Paga' : 'Em aberto'}
-                </span>
-              )}
               <Icon name="chevronRight" size={14} className="text-ink-3 shrink-0" />
             </div>
           ))}
