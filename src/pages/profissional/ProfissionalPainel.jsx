@@ -10,16 +10,9 @@ import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { navItemsByRole } from '@/config/navItems'
 
-const navItems = [
-  { to: '/profissional', end: true, icon: 'cal', label: 'Minha agenda' },
-  { to: '/profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-  { to: '/profissional/comissoes', icon: 'cash', label: 'Minhas comissões' },
-  { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
-  { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
-  { type: 'label', label: 'Conta' },
-  { to: '/perfil', icon: 'users', label: 'Meu perfil' },
-]
+const navItems = navItemsByRole['Profissional']
 
 const DOW_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const MONTH_NAMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']

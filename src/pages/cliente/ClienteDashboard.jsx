@@ -9,6 +9,8 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import logo from '@/logo-dauth-agendamentos.png'
+import { useTour } from '@/hooks/useTour'
+import { clienteSteps } from '@/tours/clienteTour'
 
 const navItems = [
   { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
@@ -189,7 +191,7 @@ function ClienteSidebar({ user, sinceYear, onClose }) {
       ))}
       <div className="flex-1" />
       <NavLink to="/agendar" onClick={onClose}>
-        <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-brand text-white border border-brand cursor-pointer hover:bg-[#72391f] transition-colors">
+        <button data-tour="agendar-btn" className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-brand text-white border border-brand cursor-pointer hover:bg-[#72391f] transition-colors">
           <Icon name="plus" size={14} />Novo agendamento
         </button>
       </NavLink>
@@ -211,6 +213,7 @@ export default function ClienteDashboard() {
   const { user } = useAuthStore()
 
   const [loading, setLoading] = useState(true)
+  useTour('cliente', clienteSteps, !loading)
   const [appointments, setAppointments] = useState([])
   const [sinceYear, setSinceYear] = useState(null)
   const [combos, setCombos] = useState([])
@@ -289,7 +292,7 @@ export default function ClienteDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-4 mb-5 md:mb-6">
             {/* Next appointment */}
             {next ? (
-              <div className="bg-surface border border-line rounded-2xl p-5 md:p-7 flex gap-5 md:gap-7 items-center relative">
+              <div data-tour="next-appointment" className="bg-surface border border-line rounded-2xl p-5 md:p-7 flex gap-5 md:gap-7 items-center relative">
                 <div className="text-center pr-5 md:pr-7 border-r border-line-2">
                   <div className="font-display font-medium text-[44px] md:text-[56px] leading-none tracking-tighter">
                     {nextDate.getDate()}
@@ -336,7 +339,7 @@ export default function ClienteDashboard() {
               const remaining = totalSessions - usedSessions
               const pct = totalSessions > 0 ? Math.min((usedSessions / totalSessions) * 100, 100) : 0
               return (
-                <div className="rounded-2xl p-5 md:p-6 border border-line bg-surface flex flex-col justify-between">
+                <div data-tour="combos-card" className="rounded-2xl p-5 md:p-6 border border-line bg-surface flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-widest text-brand">

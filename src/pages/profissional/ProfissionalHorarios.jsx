@@ -95,23 +95,14 @@ export default function ProfissionalHorarios() {
     if (!validate()) return
     setSaving(true)
     try {
-      const breakStart = form.break_start || null
-      const breakEnd = form.break_end || null
-
-      const { data: created } = await api.post('/working-hours', {
+      await api.post('/working-hours', {
         professional_id: user.id,
         weekday: drawer.weekday,
         start_time: form.start_time,
         end_time: form.end_time,
+        break_start: form.break_start || null,
+        break_end: form.break_end || null,
       })
-
-      if (breakStart && breakEnd && created?.UUID) {
-        await api.patch(`/working-hours/${created.UUID}`, {
-          break_start: breakStart,
-          break_end: breakEnd,
-        })
-      }
-
       addToast('Horário adicionado')
       setDrawer(null)
       load()
