@@ -16,12 +16,20 @@ async function bootstrap() {
       email: data.Email,
       name: data.Name,
       role: data.Role,
+      must_change_password: data.Must_change_password,
     })
     // Populate localStorage from backend so returning users don't see tours again
     const toursCompleted = data.Tours_completed ?? {}
     Object.entries(toursCompleted).forEach(([key, done]) => {
       if (done) localStorage.setItem(`dauth_tour_${key}`, 'done')
     })
+    // Se o usuário tem sessão válida e está em / ou /login, redireciona para o dashboard
+    const path = window.location.pathname
+    if (path === '/' || path === '/login') {
+      const dest = data.Role === 'Admin' ? '/admin' : data.Role === 'Profissional' ? '/profissional' : '/cliente'
+      window.location.replace(dest)
+      return
+    }
   } catch {
     // 401 = sem sessão ativa — continua sem autenticação
   }

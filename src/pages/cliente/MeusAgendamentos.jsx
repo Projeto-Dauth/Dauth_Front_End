@@ -196,7 +196,7 @@ export default function MeusAgendamentos() {
                 onClick={() => navigate(`/agendamento/${row.UUID}`)}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="font-medium text-[14px] flex-1 min-w-0">{row.Service ?? '—'}</div>
+                  <div className="font-medium text-[14px] flex-1 min-w-0 truncate">{row.Service ?? '—'}</div>
                   <span className={`inline-flex items-center gap-1 px-2 py-[3px] rounded-full text-[11px] font-medium shrink-0 ${statusStyle[row.Status] ?? ''}`}>
                     <span className="w-1.5 h-1.5 rounded-full bg-current" />
                     {STATUS_LABELS[row.Status] ?? row.Status}

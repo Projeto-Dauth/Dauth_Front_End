@@ -305,7 +305,13 @@ export default function ClienteDashboard() {
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-display font-medium text-[18px] md:text-[22px] tracking-tight mb-0.5 truncate">{next.Service}</div>
+                  <div className="flex items-start justify-between gap-2 mb-0.5">
+                    <div className="font-display font-medium text-[18px] md:text-[22px] tracking-tight truncate flex-1 min-w-0">{next.Service}</div>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-xs font-medium shrink-0 ${statusStyle[next.Status]}`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {statusLabel[next.Status]}
+                    </span>
+                  </div>
                   <div className="font-mono text-[11px] md:text-[12px] text-ink-3">com {next.Professional}</div>
                   <div className="flex gap-2 mt-3 md:mt-4">
                     <Button variant="ghost" size="sm" onClick={() => setSelectedId(next.UUID)}>
@@ -313,10 +319,6 @@ export default function ClienteDashboard() {
                     </Button>
                   </div>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-xs font-medium absolute top-4 right-4 ${statusStyle[next.Status]}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                  {statusLabel[next.Status]}
-                </span>
               </div>
             ) : (
               <div className="bg-surface border border-line border-dashed rounded-2xl p-6 md:p-7 flex flex-col items-center justify-center gap-3 text-center">
