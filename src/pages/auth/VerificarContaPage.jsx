@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '@/lib/api'
 import logo from '@/logo-dauth-agendamentos.png'
-
-function loginHref() {
-  return sessionStorage.getItem('dauth_booking_pending') ? '/login?redirect=/agendar' : '/login'
-}
 
 export default function VerificarContaPage() {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState('loading') // 'loading' | 'success' | 'error'
   const [errorMsg, setErrorMsg] = useState('')
+  const called = useRef(false)
+
+  const next = searchParams.get('next')
+  const loginHref = next ? `/login?redirect=${encodeURIComponent(next)}` : '/login'
+  const hasBooking = Boolean(next)
 
   useEffect(() => {
+    if (called.current) return
+    called.current = true
+
     const token = searchParams.get('token')
 
     if (!token) {
@@ -63,15 +67,15 @@ export default function VerificarContaPage() {
                 Conta verificada!
               </h3>
               <p className="text-[13px] text-ink-3 mb-6">
-                {sessionStorage.getItem('dauth_booking_pending')
+                {hasBooking
                   ? 'Sua conta está ativa. Entre para continuar seu agendamento.'
                   : 'Sua conta está ativa. Agora é só entrar.'}
               </p>
               <Link
-                to={loginHref()}
+                to={loginHref}
                 className="inline-flex items-center justify-center h-[42px] px-6 rounded-md bg-brand text-white font-medium text-[14px] hover:bg-brand/90 transition-colors w-full"
               >
-                {sessionStorage.getItem('dauth_booking_pending') ? 'Entrar e continuar agendamento' : 'Ir para o login'}
+                {hasBooking ? 'Entrar e continuar agendamento' : 'Ir para o login'}
               </Link>
             </>
           )}
@@ -102,7 +106,7 @@ export default function VerificarContaPage() {
 
         {status !== 'loading' && (
           <div className="text-center mt-5">
-            <Link to="/login" className="text-[13px] text-ink-3 hover:text-ink transition-colors">
+            <Link to={loginHref} className="text-[13px] text-ink-3 hover:text-ink transition-colors">
               Já tenho conta — entrar
             </Link>
           </div>
