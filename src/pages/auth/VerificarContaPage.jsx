@@ -3,6 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import api from '@/lib/api'
 import logo from '@/logo-dauth-agendamentos.png'
 
+function loginHref() {
+  return sessionStorage.getItem('dauth_booking_pending') ? '/login?redirect=/agendar' : '/login'
+}
+
 export default function VerificarContaPage() {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState('loading') // 'loading' | 'success' | 'error'
@@ -59,13 +63,15 @@ export default function VerificarContaPage() {
                 Conta verificada!
               </h3>
               <p className="text-[13px] text-ink-3 mb-6">
-                Sua conta está ativa. Agora é só entrar.
+                {sessionStorage.getItem('dauth_booking_pending')
+                  ? 'Sua conta está ativa. Entre para continuar seu agendamento.'
+                  : 'Sua conta está ativa. Agora é só entrar.'}
               </p>
               <Link
-                to="/login"
+                to={loginHref()}
                 className="inline-flex items-center justify-center h-[42px] px-6 rounded-md bg-brand text-white font-medium text-[14px] hover:bg-brand/90 transition-colors w-full"
               >
-                Ir para o login
+                {sessionStorage.getItem('dauth_booking_pending') ? 'Entrar e continuar agendamento' : 'Ir para o login'}
               </Link>
             </>
           )}

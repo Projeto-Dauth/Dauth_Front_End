@@ -658,9 +658,77 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - **ProfissionalComandas — sub-abas Serviços | Produtos** — switcher de sub-abas no topo da página; aba Produtos usa `TabPedidosProdutos` inline sem campo "Vendido por"; constante `PAY_METHODS_PROD` definida antes de `TabPedidosProdutos` (aba Serviços também usa essa mesma constante para batch pay e painel individual — `PAY_METHODS` não existe neste arquivo)
 - **ProfissionalAgenda — context menu "Abrir comanda"** — opção adicionada para status não-cancelado; navega para `/profissional/comandas?appointment=UUID` (mesmo padrão de deep link do AdminCaixa)
 - **MinhaAgenda — badge tab_status removido** — exibição de "Em aberto"/"Paga" ao lado do chip de status foi removida para paridade com `AdminAgendamentos`
+- **Tour/Onboarding guiado (react-shepherd)** — dispara automaticamente na primeira vez que cada role acessa sua tela principal; persiste via `localStorage` (cache rápido) + backend `Tours_completed` JSONB (fonte da verdade). Detalhes: ver seção "Tour/Onboarding" abaixo.
 
 ### Ainda com dados mockados / não implementado
 - `PortalPage` — landing page pública, sem implementação
+
+---
+
+## Tour/Onboarding
+
+**Biblioteca:** `shepherd.js` importado direto (dependência transitiva de `react-shepherd`) — sem `ShepherdTour` provider, sem wrapping de rotas.
+
+**Hook:** `src/hooks/useTour.js` — `useTour(role, steps, ready)`
+- `role`: chave string que identifica o tour (ver KEYS abaixo)
+- `steps`: array de steps Shepherd importado de `src/tours/`
+- `ready`: boolean — espera página carregar antes de iniciar (usar `!loading`)
+- Verifica `localStorage.getItem(key) === 'done'` antes de iniciar — não mostra se já visto
+- No complete/cancel: grava `localStorage` e faz `PATCH /users/perfil/me { Tours_completed: { [role]: true } }` silenciosamente (`.catch(() => {})`)
+
+**Persistência dual:**
+- `localStorage` — cache local instantâneo, sem round-trip
+- Backend `Users.Tours_completed JSONB` — fonte da verdade; populado no bootstrap em `main.jsx` após `GET /users/perfil/me`; protege contra Safari 7-day expiry, modo privado e troca de dispositivo
+
+**Bootstrap (`main.jsx`):** após `restoreSession`, itera `data.Tours_completed ?? {}` e seta cada chave completada no localStorage com `localStorage.setItem('dauth_tour_${key}', 'done')`.
+
+**KEYS mapeadas (role → localStorage key):**
+| role | localStorage key |
+|---|---|
+| `admin` | `dauth_tour_admin` |
+| `profissional` | `dauth_tour_profissional` |
+| `cliente` | `dauth_tour_cliente` |
+| `admin_caixa_comandas` | `dauth_tour_admin_caixa_comandas` |
+| `admin_caixa_comissoes` | `dauth_tour_admin_caixa_comissoes` |
+| `admin_agendamentos` | `dauth_tour_admin_agendamentos` |
+| `admin_usuarios` | `dauth_tour_admin_usuarios` |
+| `profissional_comandas` | `dauth_tour_profissional_comandas` |
+| `cliente_agendamentos` | `dauth_tour_cliente_agendamentos` |
+| `cliente_combos` | `dauth_tour_cliente_combos` |
+
+**Arquivos de steps (`src/tours/`):**
+| Arquivo | role | Página | Steps |
+|---|---|---|---|
+| `adminTour.js` | `admin` | AdminAgenda | sidebar, day-nav, schedule-grid, context-menu, notifications |
+| `profissionalTour.js` | `profissional` | ProfissionalAgenda | sidebar, schedule-grid, context-menu, comissoes |
+| `clienteTour.js` | `cliente` | ClienteDashboard | next-appointment, agendar-btn, combos-card |
+| `adminCaixaComandas.js` | `admin_caixa_comandas` | AdminCaixa (tab Comandas) | caixa-tabs, comanda-origem, comanda-pagamento, fechar-conta |
+| `adminCaixaComissoes.js` | `admin_caixa_comissoes` | AdminCaixa (tab Comissões) | comissao-conceito, comissao-status, comissao-mes |
+| `adminAgendamentosTour.js` | `admin_agendamentos` | AdminAgendamentos | agendamentos-tabs, agendamentos-filtro, agendamentos-novo |
+| `adminUsuariosTour.js` | `admin_usuarios` | AdminUsuarios | usuarios-filtro, usuarios-novo, usuarios-lista |
+| `profissionalComandasTour.js` | `profissional_comandas` | ProfissionalComandas | comanda-origem, comanda-pagamento, sub-abas |
+| `clienteAgendamentosTour.js` | `cliente_agendamentos` | MeusAgendamentos | agendamentos-filtro-cliente, agendamentos-lista-cliente, agendamentos-novo-cliente |
+| `clienteCombosTour.js` | `cliente_combos` | MeusCombos | combos-abas, combos-lista |
+
+**data-tour attributes adicionados:**
+- `Sidebar.jsx`: `data-tour="sidebar"` no `<aside>`, `data-tour="notifications"` no sino desktop, `data-tour="comissoes-link"` no NavLink para `/profissional/comissoes`
+- `AdminAgenda.jsx`: `data-tour="day-nav"`, `data-tour="schedule-grid"`
+- `ProfissionalAgenda.jsx`: `data-tour="schedule-grid"`
+- `ClienteDashboard.jsx`: `data-tour="next-appointment"`, `data-tour="agendar-btn"`, `data-tour="combos-card"`
+- `AdminCaixa.jsx`: `data-tour="caixa-tabs"`, `data-tour="comanda-lista"`, `data-tour="comanda-painel"`, `data-tour="comissoes-filtro"`, `data-tour="comissoes-lista"`
+- `AdminAgendamentos.jsx`: `data-tour="agendamentos-tabs"`, `data-tour="agendamentos-filtro"`, `data-tour="agendamentos-novo"`
+- `AdminUsuarios.jsx`: `data-tour="usuarios-filtro"`, `data-tour="usuarios-novo"`, `data-tour="usuarios-lista"`
+- `ProfissionalComandas.jsx`: `data-tour="sub-abas"`, `data-tour="comanda-lista"`, `data-tour="comanda-painel"`
+- `MeusAgendamentos.jsx`: `data-tour="agendamentos-novo-cliente"`, `data-tour="agendamentos-filtro-cliente"`, `data-tour="agendamentos-lista-cliente"`
+- `MeusCombos.jsx`: `data-tour="combos-abas"`, `data-tour="combos-lista"`
+
+**Estilo:** CSS overrides no final de `src/index.css` usando hex direto (Tailwind v3 não gera CSS custom properties). Classes: `.dauth-shepherd`, `.shepherd-btn-primary` (bg #8b4a2b), `.shepherd-btn-skip`.
+
+**Último botão dos steps:** usar `action() { this.complete() }` (method shorthand) — Shepherd vincula `this` ao tour, arrow functions quebram o binding e `this.complete()` vira `undefined()`.
+
+**Reset para testar:** `localStorage.removeItem('dauth_tour_admin')` no console do browser.
+
+**Backend:** coluna `Tours_completed JSONB DEFAULT '{}'` na tabela `Users`. `PATCH /users/perfil/me` aceita `{ Tours_completed: { chave: true } }` — controller faz merge (`{ ...current, ...novo }`), nunca sobrescreve. `USER_FIELDS` em `userModels.js` inclui `Tours_completed`.
 
 ---
 

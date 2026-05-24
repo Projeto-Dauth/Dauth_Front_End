@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [apiError, setApiError] = useState('')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const login = useAuthStore((s) => s.login)
   const { addToast } = useToast()
 
@@ -47,7 +48,9 @@ export default function LoginPage() {
       if (perfil.Must_change_password) {
         navigate('/trocar-senha', { replace: true })
       } else {
-        navigate(ROLE_REDIRECT[perfil.Role] ?? '/', { replace: true })
+        const redirect = searchParams.get('redirect')
+        const dest = redirect?.startsWith('/') ? redirect : ROLE_REDIRECT[perfil.Role] ?? '/'
+        navigate(dest, { replace: true })
       }
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao entrar. Tente novamente.')
