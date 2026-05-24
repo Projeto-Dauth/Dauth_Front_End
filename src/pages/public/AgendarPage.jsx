@@ -100,6 +100,7 @@ export default function AgendarPage() {
   }, [step, selectedServiceId])
 
   useEffect(() => {
+    if (step !== 2) return
     if (!selectedDay || !selectedProf || !selectedServiceId) return
     setSlots([])
     setSlotsMessage('')
@@ -113,29 +114,26 @@ export default function AgendarPage() {
       })
       .catch(() => addToast('Erro ao buscar horários', 'error'))
       .finally(() => setLoadingSlots(false))
-  }, [selectedDay, calYear, calMonth])
+  }, [step, selectedDay, calYear, calMonth])
 
   useEffect(() => {
     if (step === 3 && isAuthenticated) setStep(4)
   }, [step, isAuthenticated])
 
-  // Restaurar agendamento pendente após verificação + login
+  // Restaurar agendamento pendente a partir dos query params da URL
   useEffect(() => {
-    if (!isAuthenticated) return
-    const raw = sessionStorage.getItem('dauth_booking_pending')
-    if (!raw) return
-    try {
-      const saved = JSON.parse(raw)
-      sessionStorage.removeItem('dauth_booking_pending')
-      setSelectedServiceId(saved.selectedServiceId)
-      setSelectedProf(saved.selectedProf)
-      setSelectedSlot(saved.selectedSlot)
-      setSelectedDay(saved.selectedDay)
-      setCalMonth(saved.calMonth)
-      setCalYear(saved.calYear)
-      setStep(4)
-    } catch {}
-  }, [isAuthenticated])
+    const params = new URLSearchParams(window.location.search)
+    const sid = params.get('sid')
+    if (!sid) return
+    setSelectedServiceId(sid)
+    setSelectedProf({ professional_id: params.get('prof_id'), name: params.get('prof_name') })
+    setSelectedDay(Number(params.get('day')))
+    setCalMonth(Number(params.get('month')))
+    setCalYear(Number(params.get('year')))
+    setSelectedSlot({ start_time: params.get('start'), end_time: params.get('end') })
+    window.history.replaceState({}, '', '/agendar')
+    if (isAuthenticated) setStep(4)
+  }, [])
 
   function isDayPast(d) {
     const cell = new Date(calYear, calMonth, d)
@@ -195,15 +193,8 @@ export default function AgendarPage() {
     e.preventDefault()
     setAuthLoading(true)
     try {
-      await api.post('/auth/register', registerData)
-      sessionStorage.setItem('dauth_booking_pending', JSON.stringify({
-        selectedServiceId,
-        selectedProf,
-        selectedSlot,
-        selectedDay,
-        calMonth,
-        calYear,
-      }))
+      const next = `/agendar?sid=${selectedServiceId}&prof_id=${selectedProf.professional_id}&prof_name=${encodeURIComponent(selectedProf.name)}&day=${selectedDay}&month=${calMonth}&year=${calYear}&start=${encodeURIComponent(selectedSlot.start_time)}&end=${encodeURIComponent(selectedSlot.end_time)}`
+      await api.post('/auth/register', { ...registerData, next })
       setRegistered(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao criar conta', 'error')
