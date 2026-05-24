@@ -64,6 +64,7 @@ export default function AgendarPage() {
   const [authLoading, setAuthLoading] = useState(false)
   const [loginData, setLoginData] = useState({ phone: '', password: '' })
   const [registerData, setRegisterData] = useState({ name: '', phone: '', birthday: '', password: '' })
+  const [registered, setRegistered] = useState(false)
 
   // Seleções
   const [selectedServiceId, setSelectedServiceId] = useState(null)
@@ -117,6 +118,24 @@ export default function AgendarPage() {
   useEffect(() => {
     if (step === 3 && isAuthenticated) setStep(4)
   }, [step, isAuthenticated])
+
+  // Restaurar agendamento pendente após verificação + login
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const raw = sessionStorage.getItem('dauth_booking_pending')
+    if (!raw) return
+    try {
+      const saved = JSON.parse(raw)
+      sessionStorage.removeItem('dauth_booking_pending')
+      setSelectedServiceId(saved.selectedServiceId)
+      setSelectedProf(saved.selectedProf)
+      setSelectedSlot(saved.selectedSlot)
+      setSelectedDay(saved.selectedDay)
+      setCalMonth(saved.calMonth)
+      setCalYear(saved.calYear)
+      setStep(4)
+    } catch {}
+  }, [isAuthenticated])
 
   function isDayPast(d) {
     const cell = new Date(calYear, calMonth, d)
@@ -177,10 +196,15 @@ export default function AgendarPage() {
     setAuthLoading(true)
     try {
       await api.post('/auth/register', registerData)
-      await api.post('/auth/login', { phone: registerData.phone, password: registerData.password })
-      const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
-      setStep(4)
+      sessionStorage.setItem('dauth_booking_pending', JSON.stringify({
+        selectedServiceId,
+        selectedProf,
+        selectedSlot,
+        selectedDay,
+        calMonth,
+        calYear,
+      }))
+      setRegistered(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao criar conta', 'error')
     } finally {
@@ -485,6 +509,23 @@ export default function AgendarPage() {
         {/* ── PASSO 3 — Auth ──────────────────────────────────────────── */}
         {step === 3 && !isAuthenticated && (
           <>
+            {registered ? (
+              <div className="max-w-[480px]">
+                <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mb-5">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4a6b3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.6 1.25h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.27 6.27l.97-.97a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                </div>
+                <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Verifique seu WhatsApp</h2>
+                <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 max-w-[420px]">
+                  Enviamos um link de verificação para <span className="font-medium text-ink">{registerData.phone}</span>. Clique no link para ativar sua conta e volte aqui para concluir o agendamento.
+                </p>
+                <Button variant="primary" onClick={() => navigate('/login')}>
+                  Ir para o login
+                </Button>
+              </div>
+            ) : (
+              <>
             <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Seus dados</h2>
             <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Entre na sua conta ou crie uma nova para finalizar o agendamento.
@@ -549,6 +590,8 @@ export default function AgendarPage() {
                 </form>
               </div>
             </div>
+              </>
+            )}
           </>
         )}
 
