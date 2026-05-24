@@ -118,7 +118,7 @@ src/
   pages/
     public/
       PortalPage.jsx            ← Landing page (/) — sem implementação
-      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação); barra sticky no rodapé mobile; auth step com tabs mobile login/cadastro — login usa phone/senha, cadastro usa name/phone/birthday/senha (sem email); exibe user.name (não email) no header e nas telas de resumo
+      AgendarPage.jsx           ← Stepper 5 etapas (serviço → profissional → data/hora → auth → confirmação); barra sticky no rodapé mobile; auth step com tabs mobile login/cadastro — login usa phone/senha, cadastro usa name/phone/birthday/senha (sem email); exibe user.name (não email) no header e nas telas de resumo. **Restore de estado pós-cadastro:** useEffect no mount lê query params (`sid`, `prof_id`, `prof_name`, `day`, `month`, `year`, `start`, `end`), restaura estado e seta step=4 se autenticado. **CRÍTICO — slots useEffect:** tem guard `if (step !== 2) return` para não apagar `selectedSlot` durante o restore (sem esse guard, `setSelectedDay` no restore disparava o effect que chamava `setSelectedSlot(null)`, quebrando a confirmação silenciosamente). Horários (`start`/`end`) são encodados com `encodeURIComponent` ao construir o `next` URL em `handleRegister`.
     auth/
       LoginPage.jsx             ← POST /auth/login (phone + senha) → GET /users/perfil/me → redireciona por role; campo telefone com máscara (11) 9 8765-4321; logo na brand section
       RegisterPage.jsx          ← POST /auth/register (name, phone, birthday, senha — sem email) → auto-login com phone → /cliente; campo email removido; logo na brand section
@@ -288,9 +288,19 @@ async function handleLogout() {
 // No bootstrap, sem verificação de localStorage — sempre tenta GET /users/perfil/me
 // Se 200 → sessão válida, popula store via restoreSession()
 // Se 401 → sem sessão, renderiza app sem autenticação (ProtectedRoute redireciona se necessário)
+// Auto-redirect: se a sessão for válida e o usuário estiver em / ou /login,
+// redireciona para o dashboard do role via window.location.replace() antes de montar o React.
+// O return impede o createRoot de rodar na página antiga — o browser carrega a nova URL
+// e o bootstrap roda novamente já no caminho correto.
 try {
   const { data } = await api.get('/users/perfil/me')
-  restoreSession({ id: data.UUID, publicId: data.UUID, email: data.Email, name: data.Name, role: data.Role })
+  restoreSession({ id: data.UUID, publicId: data.UUID, email: data.Email, name: data.Name, role: data.Role, must_change_password: data.Must_change_password })
+  const path = window.location.pathname
+  if (path === '/' || path === '/login') {
+    const dest = data.Role === 'Admin' ? '/admin' : data.Role === 'Profissional' ? '/profissional' : '/cliente'
+    window.location.replace(dest)
+    return  // não monta React nesta navegação
+  }
 } catch {
   // sem sessão — continua
 }
@@ -608,7 +618,10 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - **Comissões por transação individual** — `AdminCaixa` (aba Comissões): usa `GET /transaction/all-commissions?month=YYYY-MM`; transações agrupadas por profissional em duas seções ("A repassar" / "Repassadas"); cada linha tem botão "Marcar repassado" que faz `PATCH /transaction/:id { Commission_paid: true }`; labels de status: "Repassado"/"A repassar" (nunca "Em aberto" — evita confusão com status de comanda); `ProfissionalComissoes`: mesmos labels via `commission_paid` por linha
 - **Fechar conta por cliente (batch pay) + produtos** — `AdminCaixa` (aba Comandas): detecta clientes com **≥1 comanda em aberto** (antes era ≥2); botão "Fechar conta" abre modal que busca imediatamente `GET /product-order?client_id=...&status=encomendado`; enquanto carrega exibe **skeleton** (`animate-pulse`) com linhas para cada comanda + bloco de produtos + total; ao carregar exibe seção "Produtos" (se houver) com nome × quantidade e valor; total = serviços + produtos; botão desabilitado com "Carregando..." durante fetch; chama `POST /tab/batch-pay { tab_ids, Method, Payment_date, client_id }` — backend paga as tabs E os pedidos de produto em uma só operação
 - **Fix AgendarPage — redirect pós-agendamento por role** — botão "Ver minha conta" na tela de sucesso agora redireciona para `/admin`, `/profissional` ou `/cliente` conforme `user.role`; antes ia sempre para `/cliente`
-- **Fix AgendarPage — intervalo do profissional respeitado** — `GET /public/availability` agora inclui `Break_start`/`Break_end` do `WorkingHours` como bloco ocupado ao calcular slots disponíveis; slots que sobrepõem o intervalo são bloqueados (inclui slots que iniciam antes do intervalo mas terminam durante ele, dependendo da duração do serviço)
+- **Fix AgendarPage — intervalo do profissional respeitado** — `GET /public/availability` agora inclui `Break_start`/`Break_end` do `WorkingHours` como bloco ocupado ao calcular slots disponíveis
+- **Fix sobreposição serviço/status nos cards mobile do cliente (2026-05-24)** — `ClienteDashboard` (card "Próximo atendimento"): o badge de status usava `absolute top-4 right-4` e ficava sobreposto ao nome do serviço em mobile. Corrigido movendo o badge para dentro de um flex row com `justify-between` junto ao nome; nome usa `flex-1 min-w-0 truncate` e badge usa `shrink-0`. `MeusAgendamentos` (cards mobile): nome do serviço tinha `flex-1 min-w-0` mas sem `truncate`, permitindo overflow visual sobre o badge; adicionado `truncate`.
+- **Auto-redirect pós-restore de sessão (2026-05-24)** — `main.jsx`: ao restaurar sessão válida, se o usuário estiver em `/` ou `/login`, redireciona imediatamente para o dashboard do role via `window.location.replace()` antes de montar o React. O `return` previne o `createRoot` de rodar na página antiga. Também passa `must_change_password: data.Must_change_password` no `restoreSession` (antes ausente no bootstrap).
+- **Fix AgendarPage — confirmação falhava silenciosamente no fluxo de novo usuário (2026-05-24)** — slots useEffect tinha `[selectedDay, calYear, calMonth]` como deps e chamava `setSelectedSlot(null)` incondicionalmente. Quando o restore effect (pós-verificação+login) setava essas três deps simultaneamente, o effect disparava e apagava o slot restaurado. `handleConfirm` encontrava `selectedSlot === null`, lançava TypeError capturado pelo try/catch sem requisição de rede, exibindo toast genérico. Fix: `if (step !== 2) return` no início do effect + `step` nas dependências. Horários também passaram a ser encodados com `encodeURIComponent` no `next` URL de `handleRegister`.; slots que sobrepõem o intervalo são bloqueados (inclui slots que iniciam antes do intervalo mas terminam durante ele, dependendo da duração do serviço)
 - **AdminDashboard ampliado** — KPI de taxa de cancelamento (% agendamentos cancelados no mês); tabela de ranking de profissionais (top 5 por receita: avatar, nome, atendimentos, receita gerada, comissão); bug corrigido: `footerUser={user?.name}` agora passado ao Sidebar (ícone de logout e footer do sidebar estavam ausentes na página de dashboard)
 - **Comissões por profissional** (`GET /dashboard/commissions?month=YYYY-MM`) — aba "Comissões" dentro de AdminCaixa; seletor de mês+ano independente; cards totalizadores; tabela com % média de comissão e linha de totais no rodapé; cards mobile com todos os campos
 - Pacotes — grid + CRUD + vender combo (`GET/POST/PATCH/DELETE /package` · `GET/POST/DELETE /package/:id/items` · `POST /package/:id/sell`)
