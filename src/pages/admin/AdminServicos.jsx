@@ -6,6 +6,7 @@ import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -443,17 +444,23 @@ export default function AdminServicos() {
                 />
               </Field>
               <Field label="Categoria">
-                <select
-                  required
-                  value={svcForm.Category}
-                  onChange={(e) => setSvcForm((f) => ({ ...f, Category: e.target.value }))}
-                  className={inputCls}
-                >
-                  <option value="">Selecione...</option>
-                  {categories.map((c) => (
-                    <option key={c.UUID} value={c.UUID}>{c.Name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    title="Nova categoria"
+                    onClick={() => { setCatDrawer('create'); setCatForm(EMPTY_CATEGORY) }}
+                    className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-md border border-line bg-surface text-ink-3 hover:text-brand hover:border-brand transition-colors cursor-pointer"
+                  >
+                    <Icon name="plus" size={16} />
+                  </button>
+                  <SearchableSelect
+                    required
+                    value={svcForm.Category}
+                    onChange={(val) => setSvcForm((f) => ({ ...f, Category: val }))}
+                    options={categories.map(c => ({ value: c.UUID, label: c.Name }))}
+                    placeholder="Selecione..."
+                  />
+                </div>
               </Field>
               <Field label="Duração (HH:MM)">
                 <input
@@ -578,18 +585,14 @@ export default function AdminServicos() {
             <div className="border-t border-line pt-5 flex flex-col gap-3">
               <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Vincular profissional</div>
               <Field label="Profissional">
-                <select
+                <SearchableSelect
                   value={selectedProfId}
-                  onChange={(e) => setSelectedProfId(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="">Selecione...</option>
-                  {allProfessionals
+                  onChange={setSelectedProfId}
+                  options={allProfessionals
                     .filter((p) => !linkedProfs.some((l) => l.professional_id === p.UUID))
-                    .map((p) => (
-                      <option key={p.UUID} value={p.UUID}>{p.Name}</option>
-                    ))}
-                </select>
+                    .map((p) => ({ value: p.UUID, label: p.Name }))}
+                  placeholder="Selecione..."
+                />
               </Field>
               <Button variant="primary" className="w-full justify-center" onClick={handleLinkProf} disabled={linkingProf}>
                 <Icon name="plus" size={14} />

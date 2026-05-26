@@ -6,6 +6,7 @@ import Avatar from '@/components/ui/Avatar'
 import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -208,6 +209,27 @@ function spanBreak(wh) {
   return Math.max(1, Math.ceil((toMinutes(wh.Break_end.slice(0, 5)) - toMinutes(wh.Break_start.slice(0, 5))) / 30))
 }
 
+// Helpers para folgas
+function leaveCoversSlot(leaves, slot) {
+  if (!leaves?.length) return false
+  return leaves.some(l => {
+    if (l.All_day) return true
+    if (!l.Start_time || !l.End_time) return false
+    const s = toMinutes(slot)
+    return s >= toMinutes(l.Start_time.slice(0, 5)) && s < toMinutes(l.End_time.slice(0, 5))
+  })
+}
+function leaveStartsAt(leaves, slot) {
+  if (!leaves?.length) return null
+  if (leaves.some(l => l.All_day) && slot === TIME_SLOTS[0]) return leaves.find(l => l.All_day)
+  return leaves.find(l => !l.All_day && l.Start_time?.slice(0, 5) === slot) ?? null
+}
+function leaveSpans(leave) {
+  if (leave.All_day) return TIME_SLOTS.length
+  if (!leave.Start_time || !leave.End_time) return 1
+  return Math.max(1, Math.ceil((toMinutes(leave.End_time.slice(0, 5)) - toMinutes(leave.Start_time.slice(0, 5))) / 30))
+}
+
 // Calcula coluna e total de colunas para agendamentos sobrepostos de um profissional
 function computeColumns(appts) {
   const sorted = [...appts].sort((a, b) =>
@@ -273,7 +295,7 @@ function ModalNovaCategoria({ onClose, onCreated }) {
   }
 
   return (
-    <div className={MODAL_CLS}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className={`relative ${MODAL_INNER_CLS}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-line">
@@ -368,27 +390,25 @@ function ModalNovoServico({ onClose, onCreated }) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[12px] font-medium text-ink-2">Categoria</label>
+              <label className="text-[12px] font-medium text-ink-2">Categoria</label>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  title="Nova categoria"
                   onClick={() => setModalCat(true)}
-                  className="flex items-center gap-1 text-[11px] text-brand hover:text-brand/70 transition-colors cursor-pointer"
+                  className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-md border border-line bg-surface text-ink-3 hover:text-brand hover:border-brand transition-colors cursor-pointer"
                 >
-                  <Icon name="plus" size={11} />
-                  Nova
+                  <Icon name="plus" size={16} />
                 </button>
+                <SearchableSelect
+                  required
+                  value={form.Category}
+                  onChange={val => setForm(f => ({ ...f, Category: val }))}
+                  options={categories.map(c => ({ value: c.UUID, label: c.Name }))}
+                  placeholder={loadingCats ? 'Carregando…' : 'Selecione…'}
+                  disabled={loadingCats}
+                />
               </div>
-              <select
-                required
-                value={form.Category}
-                onChange={e => setForm(f => ({ ...f, Category: e.target.value }))}
-                className={INPUT_CLS}
-                disabled={loadingCats}
-              >
-                <option value="">{loadingCats ? 'Carregando…' : 'Selecione…'}</option>
-                {categories.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
-              </select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-medium text-ink-2">Duração (HH:MM)</label>
@@ -530,6 +550,134 @@ function ModalNovoCliente({ onClose, onCreated }) {
   )
 }
 
+function FolgaDrawer({ date, professionals, onClose, onSaved }) {
+  const { addToast } = useToast()
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const [form, setForm] = useState({ professional_id: professionals[0]?.UUID ?? '', date: dateStr, all_day: true, start_time: '08:00', end_time: '12:00', reason: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function handleSalvar(e) {
+    e.preventDefault()
+    if (!form.professional_id) return addToast('Selecione um profissional', 'warning')
+    setSaving(true)
+    try {
+      const body = { professional_id: form.professional_id, date: form.date, all_day: form.all_day, reason: form.reason || null }
+      if (!form.all_day) { body.start_time = form.start_time; body.end_time = form.end_time }
+      await api.post('/professional-leave', body)
+      addToast('Folga registrada', 'success')
+      onSaved()
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao registrar folga', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
+        <div className="flex justify-center pt-3 pb-1 md:hidden"><div className="w-10 h-1 rounded-full bg-line-2" /></div>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={18} /></button>
+          <h4 className="font-display font-medium text-[15px] tracking-tight">Registrar folga</h4>
+        </div>
+        <form onSubmit={handleSalvar} className="px-5 py-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Profissional</label>
+            <select
+              required
+              value={form.professional_id}
+              onChange={e => setForm(f => ({ ...f, professional_id: e.target.value }))}
+              className={INPUT_CLS}
+            >
+              <option value="">Selecione…</option>
+              {professionals.map(p => <option key={p.UUID} value={p.UUID}>{p.Name}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Data</label>
+            <input type="date" required value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={INPUT_CLS} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm(f => ({ ...f, all_day: !f.all_day }))}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+              ${form.all_day ? 'bg-brand-soft border-brand/30' : 'bg-surface border-line hover:border-ink-3'}`}
+          >
+            <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+              ${form.all_day ? 'bg-brand border-brand' : 'border-line-2'}`}>
+              {form.all_day && <Icon name="check" size={10} className="text-white" />}
+            </div>
+            <div>
+              <div className={`text-[13px] font-medium ${form.all_day ? 'text-brand' : 'text-ink-2'}`}>Ocupa o dia inteiro</div>
+              <div className="text-[11px] text-ink-3">Bloqueia toda a agenda do dia</div>
+            </div>
+          </button>
+          {!form.all_day && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Início</label>
+                <input type="time" required value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className={INPUT_CLS} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Fim</label>
+                <input type="time" required value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} className={INPUT_CLS} />
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Motivo <span className="text-ink-4 font-normal">(opcional)</span></label>
+            <textarea
+              value={form.reason}
+              onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+              placeholder="Ex: Consulta médica"
+              rows={2}
+              className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" className="flex-1 justify-center" loading={saving}>Registrar</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function LeaveContextMenu({ leave, x, y, onClose, onRemove }) {
+  const menuRef = useRef(null)
+  useEffect(() => {
+    function handle(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) onClose()
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', handle)
+    document.addEventListener('keydown', handle)
+    return () => { document.removeEventListener('mousedown', handle); document.removeEventListener('keydown', handle) }
+  }, [onClose])
+  const menuW = 180, menuH = 80
+  const adjX = x + menuW > window.innerWidth ? x - menuW : x
+  const adjY = y + menuH > window.innerHeight ? y - menuH : y
+  return (
+    <div ref={menuRef} className="fixed z-50 bg-surface border border-line rounded-xl shadow-lg py-1.5 min-w-[180px]" style={{ left: adjX, top: adjY }}>
+      <div className="px-3.5 py-2 border-b border-line mb-1">
+        <div className="font-medium text-[12.5px]">Folga</div>
+        {leave.Reason && <div className="text-[11px] text-ink-3 truncate">{leave.Reason}</div>}
+      </div>
+      <button
+        onClick={() => { onRemove(leave); onClose() }}
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-danger hover:bg-surface-2 transition-colors cursor-pointer"
+      >
+        <Icon name="trash" size={13} />
+        Remover folga
+      </button>
+    </div>
+  )
+}
+
 function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const { addToast } = useToast()
   const [clientes, setClientes] = useState([])
@@ -643,10 +791,13 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
                 >
                   <Icon name="plus" size={16} />
                 </button>
-                <select value={clienteId} onChange={e => setClienteId(e.target.value)} className={`${inputClass} flex-1`}>
-                  <option value="">Selecionar cliente…</option>
-                  {clientes.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
-                </select>
+                <SearchableSelect
+                  value={clienteId}
+                  onChange={setClienteId}
+                  options={clientes.map(c => ({ value: c.UUID, label: c.Name }))}
+                  placeholder="Selecionar cliente…"
+                  className="flex-1"
+                />
               </div>
             </div>
 
@@ -661,22 +812,14 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
                 >
                   <Icon name="plus" size={16} />
                 </button>
-                <select
+                <SearchableSelect
                   value={servicoId}
-                  onChange={e => handleServico(e.target.value)}
+                  onChange={handleServico}
                   disabled={loadingData || servicos.length === 0}
-                  className={`${inputClass} flex-1`}
-                >
-                  {loadingData
-                    ? <option value="">Carregando…</option>
-                    : servicos.length === 0
-                      ? <option value="">Nenhum serviço vinculado a este profissional</option>
-                      : <>
-                        <option value="">Selecionar serviço…</option>
-                        {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
-                      </>
-                  }
-                </select>
+                  options={servicos.map(s => ({ value: s.UUID, label: s.Name }))}
+                  placeholder={loadingData ? 'Carregando…' : servicos.length === 0 ? 'Nenhum serviço vinculado' : 'Selecionar serviço…'}
+                  className="flex-1"
+                />
               </div>
             </div>
 
@@ -851,12 +994,15 @@ export default function AdminAgenda() {
   const [appointments, setAppointments] = useState([])
   const [professionals, setProfessionals] = useState([])
   const [breakByProf, setBreakByProf] = useState({})
+  const [leaveByProf, setLeaveByProf] = useState({})
   const [loading, setLoading] = useState(true)
   useTour('admin', adminSteps, !loading)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
   const [newSlot, setNewSlot] = useState(null)
   const [contextMenu, setContextMenu] = useState(null) // { appt, x, y }
+  const [leaveMenu, setLeaveMenu] = useState(null) // { leave, x, y }
   const [transferAppt, setTransferAppt] = useState(null)
+  const [folgaDrawer, setFolgaDrawer] = useState(false)
   const longPressTimer = useRef(null)
   const dateInputRef = useRef(null)
 
@@ -864,6 +1010,21 @@ export default function AdminAgenda() {
     e.preventDefault()
     e.stopPropagation()
     setContextMenu({ appt, x: e.clientX, y: e.clientY })
+  }
+
+  function openLeaveMenu(e, leave) {
+    e.preventDefault()
+    e.stopPropagation()
+    setLeaveMenu({ leave, x: e.clientX, y: e.clientY })
+  }
+
+  async function handleRemoveLeave(leave) {
+    try {
+      await api.delete(`/professional-leave/${leave.UUID}`)
+      load(true)
+    } catch {
+      // silencioso — o load vai refletir o estado real
+    }
   }
 
   function handleLongPressStart(e, appt) {
@@ -920,15 +1081,23 @@ export default function AdminAgenda() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const { data } = await api.get('/appointment', { params: { date: toDateStr(date) } })
-      const all = data.data ?? []
-      setAppointments(all)
+      const [apptRes, ...leaveResults] = await Promise.all([
+        api.get('/appointment', { params: { date: toDateStr(date) } }),
+        ...professionals.map(p =>
+          api.get(`/professional-leave/professional/${p.UUID}`, { params: { date: toDateStr(date) } })
+            .then(r => ({ uuid: p.UUID, leaves: (r.data.data ?? []).filter(l => l.Date === toDateStr(date)) }))
+            .catch(() => ({ uuid: p.UUID, leaves: [] }))
+        )
+      ])
+      setAppointments(apptRes.data.data ?? [])
+      setLeaveByProf(Object.fromEntries(leaveResults.map(({ uuid, leaves }) => [uuid, leaves])))
     } catch {
       setAppointments([])
+      setLeaveByProf({})
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [date])
+  }, [date, professionals])
 
   useEffect(() => { load() }, [load])
 
@@ -958,6 +1127,15 @@ export default function AdminAgenda() {
 
   return (
     <AppLayout sidebar={sidebar}>
+      {leaveMenu && (
+        <LeaveContextMenu
+          leave={leaveMenu.leave}
+          x={leaveMenu.x}
+          y={leaveMenu.y}
+          onClose={() => setLeaveMenu(null)}
+          onRemove={handleRemoveLeave}
+        />
+      )}
       {contextMenu && (
         <AppointmentContextMenu
           appt={contextMenu.appt}
@@ -984,6 +1162,14 @@ export default function AdminAgenda() {
           date={date}
           onClose={() => setNewSlot(null)}
           onSaved={load}
+        />
+      )}
+      {folgaDrawer && (
+        <FolgaDrawer
+          date={date}
+          professionals={professionals}
+          onClose={() => setFolgaDrawer(false)}
+          onSaved={() => load(true)}
         />
       )}
       <div className="flex justify-between items-end mb-5 md:mb-6">
@@ -1037,6 +1223,12 @@ export default function AdminAgenda() {
           className="px-3 py-1.5 shrink-0 rounded-lg border border-line bg-surface text-[12.5px] text-ink-2 hover:border-ink-3 transition-colors cursor-pointer"
         >
           Hoje
+        </button>
+        <button
+          onClick={() => setFolgaDrawer(true)}
+          className="ml-auto px-3 py-1.5 shrink-0 rounded-lg border border-line bg-surface text-[12.5px] text-ink-2 hover:border-danger hover:text-danger transition-colors cursor-pointer"
+        >
+          + Folga
         </button>
       </div>
 
@@ -1098,19 +1290,23 @@ export default function AdminAgenda() {
                   ...profNames.map((prof, pi) => {
                     const profObj = profObjects[pi]
                     const wh = breakByProf[profObj?.UUID] ?? null
+                    const leaves = leaveByProf[profObj?.UUID] ?? []
                     const appts = appointments.filter((a) => a.Professional === prof && anchoredToSlot(a, slot))
                     const occupied = appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado')
                     const onBreak = coversBreak(wh, slot)
+                    const onLeave = leaveCoversSlot(leaves, slot)
+                    const leaveBlock = leaveStartsAt(leaves, slot)
+                    const lSpans = leaveBlock ? leaveSpans(leaveBlock) : 0
                     const breakStart = isBreakStart(wh, slot)
                     const breakSpans = breakStart ? spanBreak(wh) : 0
                     const past = isSlotPast(date, slot)
-                    const clickable = !occupied && !past && !onBreak
+                    const clickable = !occupied && !past && !onBreak && !onLeave
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
                         onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                          ${past || onBreak ? 'bg-surface-2' : ''}
+                          ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
                           ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                         {(() => {
                           const normalAppts = appts.filter(a => !a.Is_urgent)
@@ -1185,6 +1381,19 @@ export default function AdminAgenda() {
                             </span>
                           </div>
                         )}
+                        {leaveBlock && (
+                          <div
+                            style={{ height: lSpans * 64 - 4 }}
+                            onContextMenu={e => openLeaveMenu(e, leaveBlock)}
+                            className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-danger/30 bg-danger-soft flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-context-menu"
+                          >
+                            <Icon name="x" size={11} className="text-danger" />
+                            <span className="font-mono text-[9.5px] text-danger font-medium">Folga</span>
+                            {leaveBlock.Reason && (
+                              <span className="font-mono text-[9px] text-danger opacity-70 truncate px-1">{leaveBlock.Reason}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   }),
@@ -1199,13 +1408,17 @@ export default function AdminAgenda() {
                 const profObj = profObjects[mobileProfIdx]
                 const wh = breakByProf[profObj?.UUID] ?? null
                 const isHour = slot.endsWith(':00')
+                const leaves = leaveByProf[profObj?.UUID] ?? []
                 const appts = prof ? appointments.filter((a) => a.Professional === prof && anchoredToSlot(a, slot)) : []
                 const occupied = prof ? appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado') : false
                 const onBreak = coversBreak(wh, slot)
+                const onLeave = leaveCoversSlot(leaves, slot)
+                const leaveBlock = leaveStartsAt(leaves, slot)
+                const lSpans = leaveBlock ? leaveSpans(leaveBlock) : 0
                 const breakStart = isBreakStart(wh, slot)
                 const breakSpans = breakStart ? spanBreak(wh) : 0
                 const past = isSlotPast(date, slot)
-                const clickable = !occupied && !past && !onBreak
+                const clickable = !occupied && !past && !onBreak && !onLeave
                 return [
                   <div key={`mt-${slot}`}
                     className={`px-2 py-1.5 text-right font-mono text-[10.5px] border-r border-line
@@ -1217,7 +1430,7 @@ export default function AdminAgenda() {
                     onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                     className={`relative h-14 overflow-visible border-line-2
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                      ${past || onBreak ? 'bg-surface-2' : ''}
+                      ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                     {(() => {
                       const normalAppts = appts.filter(a => !a.Is_urgent)
@@ -1287,6 +1500,15 @@ export default function AdminAgenda() {
                       >
                         <Icon name="clock" size={11} className="text-ink-4" />
                         <span className="font-mono text-[9.5px] text-ink-4">Intervalo</span>
+                      </div>
+                    )}
+                    {leaveBlock && (
+                      <div
+                        style={{ height: lSpans * 56 - 4 }}
+                        className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-danger/30 bg-danger-soft flex flex-col items-center justify-center gap-0.5 pointer-events-none overflow-hidden"
+                      >
+                        <Icon name="x" size={11} className="text-danger" />
+                        <span className="font-mono text-[9.5px] text-danger font-medium">Folga</span>
                       </div>
                     )}
                   </div>,
