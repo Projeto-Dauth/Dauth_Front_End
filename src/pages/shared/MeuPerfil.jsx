@@ -43,6 +43,7 @@ export default function MeuPerfil() {
   const [phone, setPhone] = useState('')
   const [birthday, setBirthday] = useState('')
   const [errors, setErrors] = useState({})
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     api.get('/users/perfil/me')
@@ -89,6 +90,25 @@ export default function MeuPerfil() {
     if (!name.trim()) e.name = 'Nome obrigatório'
     setErrors(e)
     return Object.keys(e).length === 0
+  }
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const { data } = await api.get('/users/perfil/me/export')
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'meus-dados-dauth.json'
+      a.click()
+      URL.revokeObjectURL(url)
+      addToast('Dados exportados com sucesso')
+    } catch {
+      addToast('Erro ao exportar dados', 'error')
+    } finally {
+      setExporting(false)
+    }
   }
 
   async function handleSave(e) {
@@ -201,9 +221,14 @@ export default function MeuPerfil() {
               <InfoRow label="Telefone" value={profile?.phone} />
               <InfoRow label="Data de nascimento" value={formatDate(profile?.birthday)} />
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/trocar-senha')}>
-              <Icon name="lock" size={13} />Trocar senha
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/trocar-senha')}>
+                <Icon name="lock" size={13} />Trocar senha
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleExport} disabled={exporting}>
+                <Icon name="receipt" size={13} />{exporting ? 'Exportando...' : 'Exportar meus dados'}
+              </Button>
+            </div>
           </>
         )}
 

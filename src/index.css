@@ -137,3 +137,15 @@ aside { scrollbar-width: none; }
 .shepherd-modal-overlay-container path { fill: rgba(0,0,0,0.4) !important; }
 .shepherd-cancel-icon { color: #8d7b6f !important; }
 .shepherd-cancel-icon:hover { color: #2a1e18 !important; }
+
+/* ── Prose — páginas de política/termos ── */
+.prose-dauth p { color: #5c4a42; font-size: 14px; line-height: 1.7; }
+.prose-dauth ul { list-style: disc; padding-left: 1.25rem; color: #5c4a42; font-size: 14px; line-height: 1.7; }
+.prose-dauth ul li { margin-bottom: 0.25rem; }
+.prose-dauth strong { color: #2a1e18; font-weight: 600; }
+.prose-dauth em { font-style: italic; }
+.prose-dauth code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #f3ede9; border-radius: 4px; padding: 1px 5px; color: #8b4a2b; }
+.prose-dauth table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0.75rem 0; }
+.prose-dauth th { text-align: left; font-weight: 600; color: #2a1e18; border-bottom: 1px solid #e8ddd8; padding: 6px 10px; }
+.prose-dauth td { color: #5c4a42; border-bottom: 1px solid #f0e8e4; padding: 6px 10px; }
+.prose-dauth a { color: #8b4a2b; text-decoration: underline; text-underline-offset: 2px; }
