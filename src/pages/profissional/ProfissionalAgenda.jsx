@@ -6,6 +6,7 @@ import Avatar from '@/components/ui/Avatar'
 import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -112,6 +113,26 @@ function spanBreak(wh) {
   return Math.max(1, Math.ceil((toMinutes(wh.Break_end.slice(0, 5)) - toMinutes(wh.Break_start.slice(0, 5))) / 30))
 }
 
+function leaveCoversSlot(leaves, slot) {
+  if (!leaves?.length) return false
+  return leaves.some(l => {
+    if (l.All_day) return true
+    if (!l.Start_time || !l.End_time) return false
+    const s = toMinutes(slot)
+    return s >= toMinutes(l.Start_time.slice(0, 5)) && s < toMinutes(l.End_time.slice(0, 5))
+  })
+}
+function leaveStartsAt(leaves, slot) {
+  if (!leaves?.length) return null
+  if (leaves.some(l => l.All_day) && slot === TIME_SLOTS[0]) return leaves.find(l => l.All_day)
+  return leaves.find(l => !l.All_day && l.Start_time?.slice(0, 5) === slot) ?? null
+}
+function leaveSpans(leave) {
+  if (leave.All_day) return TIME_SLOTS.length
+  if (!leave.Start_time || !leave.End_time) return 1
+  return Math.max(1, Math.ceil((toMinutes(leave.End_time.slice(0, 5)) - toMinutes(leave.Start_time.slice(0, 5))) / 30))
+}
+
 function computeColumns(appts) {
   const sorted  = [...appts].sort((a, b) => toMinutes(parseTime(a.Start_time)) - toMinutes(parseTime(b.Start_time)))
   const colEnds = []
@@ -137,6 +158,188 @@ function computeColumns(appts) {
 }
 
 const INPUT_CLS = 'w-full h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors'
+const MODAL_CLS = 'fixed inset-0 z-50 flex items-center justify-center p-4'
+const MODAL_INNER_CLS = 'w-full max-w-[380px] bg-bg border border-line rounded-2xl shadow-xl flex flex-col'
+
+function applyPhoneMask(v) {
+  const d = v.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`
+  if (d.length <= 11) return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
+  return v
+}
+
+function ModalNovaCategoria({ onClose, onCreated }) {
+  const { addToast } = useToast()
+  const [nome, setNome] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave(e) {
+    e.preventDefault()
+    if (!nome.trim()) return
+    setSaving(true)
+    try {
+      const { data } = await api.post('/category', { Name: nome.trim() })
+      addToast('Categoria criada', 'success')
+      onCreated(data.data ?? data)
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao criar categoria', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className={`relative ${MODAL_INNER_CLS}`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h4 className="font-display font-medium text-[15px] tracking-tight">Nova categoria</h4>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={16} /></button>
+        </div>
+        <form onSubmit={handleSave} className="px-5 py-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Nome da categoria</label>
+            <input
+              required
+              autoFocus
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              placeholder="Ex: Cabelo"
+              className={INPUT_CLS}
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" className="flex-1 justify-center" loading={saving}>Criar</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ModalNovoCliente({ onClose, onCreated }) {
+  const { addToast } = useToast()
+  const [form, setForm] = useState({ name: '', phone: '', birthday: '' })
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  function validate() {
+    const errs = {}
+    if (!form.name.trim()) errs.name = 'Nome é obrigatório'
+    if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(form.phone)) errs.phone = 'Ex: (11) 9 9999-9999'
+    return errs
+  }
+
+  async function handleSave(e) {
+    e.preventDefault()
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    setSaving(true)
+    try {
+      const body = { name: form.name.trim(), phone: form.phone }
+      if (form.birthday) body.birthday = form.birthday
+      await api.post('/auth/register-admin', body)
+      addToast(`${form.name} cadastrado com sucesso`, 'success')
+      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', limit: 200 } })
+      const criado = (usersRes.data ?? []).find(u => u.Phone === form.phone)
+      onCreated(criado ?? { Name: form.name.trim(), Phone: form.phone })
+      onClose()
+    } catch (err) {
+      const msg = err.response?.data?.error
+      if (msg?.includes('Telefone') || msg?.includes('telefone')) {
+        setErrors({ phone: 'Telefone já cadastrado' })
+      } else {
+        addToast(msg ?? 'Erro ao cadastrar cliente', 'error')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={MODAL_CLS}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className={`relative ${MODAL_INNER_CLS}`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h4 className="font-display font-medium text-[15px] tracking-tight">Novo cliente</h4>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={16} /></button>
+        </div>
+        <form onSubmit={handleSave} className="px-5 py-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Nome</label>
+            <input
+              required
+              autoFocus
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Nome completo"
+              className={`${INPUT_CLS} ${errors.name ? 'border-danger' : ''}`}
+            />
+            {errors.name && <span className="text-[11px] text-danger">{errors.name}</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Telefone</label>
+            <input
+              required
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: applyPhoneMask(e.target.value) }))}
+              placeholder="(11) 9 9999-9999"
+              className={`${INPUT_CLS} ${errors.phone ? 'border-danger' : ''}`}
+            />
+            {errors.phone && <span className="text-[11px] text-danger">{errors.phone}</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Nascimento <span className="text-ink-4 font-normal">(opcional)</span></label>
+            <input
+              type="date"
+              value={form.birthday}
+              onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
+              className={INPUT_CLS}
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" className="flex-1 justify-center" loading={saving}>Criar</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function LeaveContextMenu({ leave, x, y, onClose, onRemove }) {
+  const menuRef = useRef(null)
+  useEffect(() => {
+    function handle(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) onClose()
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', handle)
+    document.addEventListener('keydown', handle)
+    return () => { document.removeEventListener('mousedown', handle); document.removeEventListener('keydown', handle) }
+  }, [onClose])
+  const menuW = 180, menuH = 80
+  const adjX = x + menuW > window.innerWidth ? x - menuW : x
+  const adjY = y + menuH > window.innerHeight ? y - menuH : y
+  return (
+    <div ref={menuRef} className="fixed z-50 bg-surface border border-line rounded-xl shadow-lg py-1.5 min-w-[180px]" style={{ left: adjX, top: adjY }}>
+      <div className="px-3.5 py-2 border-b border-line mb-1">
+        <div className="font-medium text-[12.5px]">Folga</div>
+        {leave.Reason && <div className="text-[11px] text-ink-3 truncate">{leave.Reason}</div>}
+      </div>
+      <button
+        onClick={() => { onRemove(leave); onClose() }}
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-danger hover:bg-surface-2 transition-colors cursor-pointer"
+      >
+        <Icon name="trash" size={13} />
+        Remover folga
+      </button>
+    </div>
+  )
+}
 
 function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigate, onTransfer, onOpenComanda }) {
   const menuRef = useRef(null)
@@ -212,6 +415,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const [isUrgent, setIsUrgent]     = useState(false)
   const [saving, setSaving]         = useState(false)
   const [loadingData, setLoadingData] = useState(true)
+  const [modalCliente, setModalCliente] = useState(false)
 
   useEffect(() => {
     setLoadingData(true)
@@ -226,9 +430,14 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
       .finally(() => setLoadingData(false))
   }, [professional.UUID])
 
-  function handleServico(id) {
+  function handleClienteCriado(cliente) {
+    setClientes(prev => [...prev, cliente])
+    setClienteId(cliente.UUID)
+  }
+
+  function handleServico(id, lista) {
     setServicoId(id)
-    const svc = servicos.find(s => s.UUID === id)
+    const svc = (lista ?? servicos).find(s => s.UUID === id)
     if (svc?.Duration) {
       const [h, m] = svc.Duration.split(':').map(Number)
       setEndTime(addMinutes(startTime, h * 60 + m))
@@ -260,7 +469,11 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+    <>
+      {modalCliente && (
+        <ModalNovoCliente onClose={() => setModalCliente(false)} onCreated={handleClienteCriado} />
+      )}
+<div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
         {/* Handle mobile */}
@@ -283,31 +496,34 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
           {/* Cliente */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-medium text-ink-2">Cliente</label>
-            <select value={clienteId} onChange={e => setClienteId(e.target.value)} className={INPUT_CLS}>
-              <option value="">Selecionar cliente…</option>
-              {clientes.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
-            </select>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setModalCliente(true)}
+                className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
+              >
+                <Icon name="plus" size={16} />
+              </button>
+              <SearchableSelect
+                value={clienteId}
+                onChange={setClienteId}
+                options={clientes.map(c => ({ value: c.UUID, label: c.Name }))}
+                placeholder="Selecionar cliente…"
+                className="flex-1"
+              />
+            </div>
           </div>
 
           {/* Serviço — filtrado pelo profissional */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-medium text-ink-2">Serviço</label>
-            <select
+            <SearchableSelect
               value={servicoId}
-              onChange={e => handleServico(e.target.value)}
+              onChange={handleServico}
               disabled={loadingData || servicos.length === 0}
-              className={INPUT_CLS}
-            >
-              {loadingData
-                ? <option value="">Carregando…</option>
-                : servicos.length === 0
-                  ? <option value="">Nenhum serviço vinculado a você</option>
-                  : <>
-                    <option value="">Selecionar serviço…</option>
-                    {servicos.map(s => <option key={s.UUID} value={s.UUID}>{s.Name}</option>)}
-                  </>
-              }
-            </select>
+              options={servicos.map(s => ({ value: s.UUID, label: s.Name }))}
+              placeholder={loadingData ? 'Carregando…' : servicos.length === 0 ? 'Nenhum serviço vinculado a você' : 'Selecionar serviço…'}
+            />
           </div>
 
           {/* Horários */}
@@ -352,6 +568,91 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
             Confirmar agendamento
           </Button>
         </div>
+      </div>
+    </div>
+    </>
+  )
+}
+
+function FolgaDrawer({ date, professionalId, onClose, onSaved }) {
+  const { addToast } = useToast()
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const [form, setForm] = useState({ date: dateStr, all_day: true, start_time: '08:00', end_time: '12:00', reason: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function handleSalvar(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const body = { professional_id: professionalId, date: form.date, all_day: form.all_day, reason: form.reason || null }
+      if (!form.all_day) { body.start_time = form.start_time; body.end_time = form.end_time }
+      await api.post('/professional-leave', body)
+      addToast('Folga registrada', 'success')
+      onSaved()
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao registrar folga', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
+        <div className="flex justify-center pt-3 pb-1 md:hidden"><div className="w-10 h-1 rounded-full bg-line-2" /></div>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={18} /></button>
+          <h4 className="font-display font-medium text-[15px] tracking-tight">Registrar folga</h4>
+        </div>
+        <form onSubmit={handleSalvar} className="px-5 py-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Data</label>
+            <input type="date" required value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={INPUT_CLS} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm(f => ({ ...f, all_day: !f.all_day }))}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+              ${form.all_day ? 'bg-brand-soft border-brand/30' : 'bg-surface border-line hover:border-ink-3'}`}
+          >
+            <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+              ${form.all_day ? 'bg-brand border-brand' : 'border-line-2'}`}>
+              {form.all_day && <Icon name="check" size={10} className="text-white" />}
+            </div>
+            <div>
+              <div className={`text-[13px] font-medium ${form.all_day ? 'text-brand' : 'text-ink-2'}`}>Ocupa o dia inteiro</div>
+              <div className="text-[11px] text-ink-3">Bloqueia toda a agenda do dia</div>
+            </div>
+          </button>
+          {!form.all_day && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Início</label>
+                <input type="time" required value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className={INPUT_CLS} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Fim</label>
+                <input type="time" required value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} className={INPUT_CLS} />
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Motivo <span className="text-ink-4 font-normal">(opcional)</span></label>
+            <textarea
+              value={form.reason}
+              onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+              placeholder="Ex: Consulta médica"
+              rows={2}
+              className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" className="flex-1 justify-center" loading={saving}>Registrar</Button>
+          </div>
+        </form>
       </div>
     </div>
   )
@@ -453,11 +754,14 @@ export default function ProfissionalAgenda() {
   })
   const [appointments, setAppointments] = useState([])
   const [workingHour, setWorkingHour]   = useState(null)
+  const [leaves, setLeaves]             = useState([])
   const [loading, setLoading]           = useState(true)
   useTour('profissional', profissionalSteps, !loading)
   const [newSlot, setNewSlot]           = useState(null)
   const [contextMenu, setContextMenu]   = useState(null)
+  const [leaveMenu, setLeaveMenu]       = useState(null)
   const [transferAppt, setTransferAppt] = useState(null)
+  const [folgaDrawer, setFolgaDrawer]   = useState(false)
   const longPressTimer = useRef(null)
   const dateInputRef   = useRef(null)
 
@@ -479,19 +783,39 @@ export default function ProfissionalAgenda() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const { data } = await api.get('/appointment/my', { params: { date: toDateStr(date) } })
-      setAppointments(data.data ?? [])
+      const [apptRes, leaveRes] = await Promise.all([
+        api.get('/appointment/my', { params: { date: toDateStr(date) } }),
+        user?.id ? api.get(`/professional-leave/professional/${user.id}`, { params: { date: toDateStr(date) } })
+          .then(r => (r.data.data ?? []).filter(l => l.Date === toDateStr(date)))
+          .catch(() => []) : Promise.resolve([])
+      ])
+      setAppointments(apptRes.data.data ?? [])
+      setLeaves(leaveRes)
     } catch {
       setAppointments([])
+      setLeaves([])
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [date])
+  }, [date, user?.id])
 
   useEffect(() => { load() }, [load])
 
   function prevDay() { setDate(d => { const n = new Date(d); n.setDate(n.getDate() - 1); return n }) }
   function nextDay() { setDate(d => { const n = new Date(d); n.setDate(n.getDate() + 1); return n }) }
+
+  function openLeaveMenu(e, leave) {
+    e.preventDefault()
+    e.stopPropagation()
+    setLeaveMenu({ leave, x: e.clientX, y: e.clientY })
+  }
+
+  async function handleRemoveLeave(leave) {
+    try {
+      await api.delete(`/professional-leave/${leave.UUID}`)
+      load(true)
+    } catch { }
+  }
 
   function openContextMenu(e, appt) {
     e.preventDefault()
@@ -525,6 +849,15 @@ export default function ProfissionalAgenda() {
 
   return (
     <AppLayout sidebar={sidebar}>
+      {leaveMenu && (
+        <LeaveContextMenu
+          leave={leaveMenu.leave}
+          x={leaveMenu.x}
+          y={leaveMenu.y}
+          onClose={() => setLeaveMenu(null)}
+          onRemove={handleRemoveLeave}
+        />
+      )}
       {contextMenu && (
         <AppointmentContextMenu
           appt={contextMenu.appt}
@@ -551,6 +884,14 @@ export default function ProfissionalAgenda() {
           date={date}
           onClose={() => setNewSlot(null)}
           onSaved={load}
+        />
+      )}
+      {folgaDrawer && (
+        <FolgaDrawer
+          date={date}
+          professionalId={user.id}
+          onClose={() => setFolgaDrawer(false)}
+          onSaved={() => load(true)}
         />
       )}
 
@@ -607,6 +948,12 @@ export default function ProfissionalAgenda() {
         >
           Hoje
         </button>
+        <button
+          onClick={() => setFolgaDrawer(true)}
+          className="ml-auto px-3 py-1.5 shrink-0 rounded-lg border border-line bg-surface text-[12.5px] text-ink-2 hover:border-danger hover:text-danger transition-colors cursor-pointer"
+        >
+          + Folga
+        </button>
       </div>
 
       {loading ? <PageSpinner /> : (
@@ -627,10 +974,13 @@ export default function ProfissionalAgenda() {
                 const appts     = appointments.filter(a => anchoredToSlot(a, slot))
                 const occupied  = appointments.some(a => coversSlot(a, slot) && a.Status !== 'cancelado')
                 const onBreak   = coversBreak(workingHour, slot)
+                const onLeave   = leaveCoversSlot(leaves, slot)
+                const leaveBlock = leaveStartsAt(leaves, slot)
+                const lSpans    = leaveBlock ? leaveSpans(leaveBlock) : 0
                 const breakStart = isBreakStart(workingHour, slot)
                 const breakSpans = breakStart ? spanBreak(workingHour) : 0
                 const past      = isSlotPast(date, slot)
-                const clickable = !occupied && !past && !onBreak
+                const clickable = !occupied && !past && !onBreak && !onLeave
 
                 return [
                   // Coluna de hora
@@ -645,7 +995,7 @@ export default function ProfissionalAgenda() {
                     onClick={clickable ? () => setNewSlot({ slot, professional }) : undefined}
                     className={`relative h-16 border-line-2 overflow-visible
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                      ${past || onBreak ? 'bg-surface-2' : ''}
+                      ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                     {(() => {
                       const normalAppts  = appts.filter(a => !a.Is_urgent)
@@ -714,6 +1064,19 @@ export default function ProfissionalAgenda() {
                         <span className="font-mono text-[9px] text-ink-4 opacity-70">
                           {workingHour.Break_start.slice(0, 5)} – {workingHour.Break_end.slice(0, 5)}
                         </span>
+                      </div>
+                    )}
+                    {leaveBlock && (
+                      <div
+                        style={{ height: lSpans * 64 - 4 }}
+                        onContextMenu={e => openLeaveMenu(e, leaveBlock)}
+                        className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-danger/30 bg-danger-soft flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-context-menu"
+                      >
+                        <Icon name="x" size={11} className="text-danger" />
+                        <span className="font-mono text-[9.5px] text-danger font-medium">Folga</span>
+                        {leaveBlock.Reason && (
+                          <span className="font-mono text-[9px] text-danger opacity-70 truncate px-1">{leaveBlock.Reason}</span>
+                        )}
                       </div>
                     )}
                   </div>,
