@@ -726,7 +726,8 @@ export default function PortalPage() {
             <ul className="flex flex-col gap-2 text-[13px] md:text-[14px] text-ink-2">
               <li><a href="mailto:contato@dauth.com.br" className="hover:text-brand transition-colors">Contato</a></li>
               <li><a href="mailto:contato@dauth.com.br" className="hover:text-brand transition-colors">Para salões</a></li>
-              <li><span className="text-ink-4">Termos &amp; privacidade</span></li>
+              <li><Link to="/privacidade" className="hover:text-brand transition-colors">Política de Privacidade</Link></li>
+              <li><Link to="/termos" className="hover:text-brand transition-colors">Termos de Uso</Link></li>
             </ul>
           </div>
         </div>

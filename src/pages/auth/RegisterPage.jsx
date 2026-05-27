@@ -188,6 +188,14 @@ export default function RegisterPage() {
             >
               {isSubmitting ? 'Criando conta…' : 'Criar conta'}
             </Button>
+
+            <p className="text-[11.5px] text-ink-4 text-center mt-4 leading-relaxed">
+              Ao criar sua conta, você concorda com os{' '}
+              <Link to="/termos" className="hover:text-ink-2 underline underline-offset-2 transition-colors">Termos de Uso</Link>
+              {' '}e a{' '}
+              <Link to="/privacidade" className="hover:text-ink-2 underline underline-offset-2 transition-colors">Política de Privacidade</Link>
+              .
+            </p>
           </form>
         </div>
 

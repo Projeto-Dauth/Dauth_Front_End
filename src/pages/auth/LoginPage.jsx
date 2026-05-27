@@ -185,6 +185,15 @@ export default function LoginPage() {
             </Link>
           </div>
 
+          <div className="flex justify-center gap-4 mt-5 px-1">
+            <Link to="/privacidade" className="text-[11.5px] text-ink-4 hover:text-ink-2 transition-colors">
+              Privacidade
+            </Link>
+            <Link to="/termos" className="text-[11.5px] text-ink-4 hover:text-ink-2 transition-colors">
+              Termos de Uso
+            </Link>
+          </div>
+
         </div>
       </div>
     </div>
