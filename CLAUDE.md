@@ -127,7 +127,7 @@ src/
       EsqueciSenhaPage.jsx      ← POST /auth/forgot-password { phone } → tela de sucesso "Verifique seu WhatsApp"; resposta sempre neutra
       RedefinirSenhaPage.jsx    ← lê ?token= da URL; POST /auth/reset-password { token, password } → toast sucesso → redirect /login; tela de erro se token ausente na URL
     shared/
-      MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row)
+      MeuPerfil.jsx             ← GET/PATCH /users/perfil/me — sidebar role-aware via navItemsByRole[user.role], rota /perfil; InfoRow empilha em mobile (flex-col sm:flex-row); botão "Exportar meus dados" chama GET /users/perfil/me/export e dispara download via createObjectURL
       TrocarSenha.jsx           ← PATCH /users/perfil/me/password — rota /trocar-senha
       DetalhesAgendamento.jsx   ← GET /appointment/:id + PATCH Status — rota /agendamento/:id; para Admin/Profissional: card "Últimas visitas" com GET /appointment/my?client_name=X&limit=6 (filtro no backend)
     cliente/
@@ -216,6 +216,7 @@ O backend usa **httpOnly cookies** para sessão. Os tokens nunca aparecem no cor
 - O estado da aplicação (`useAuthStore`) só guarda dados do usuário, nunca tokens
 - Nenhum token é persistido no localStorage
 - **Exceção intencional:** `auth_public_id` é salvo no localStorage — é o UUID do Supabase Auth (`res.user.id`), necessário para `POST /appointment { Client }`. Não é dado sensível (é só um identificador), mas não existe no retorno de `GET /users/perfil/me`, então precisa sobreviver a reloads
+- **`dauth_cookies_accepted`** — salvo no localStorage com timestamp ISO 8601 (`new Date().toISOString()`) ao aceitar o banner de cookies. Antes armazenava a string `'true'`; a mudança para timestamp permite auditoria da data/hora do consentimento (LGPD). `CookieBanner.jsx` verifica a existência da chave com `localStorage.getItem(KEY)` — qualquer valor truthy é tratado como aceito
 
 ### Fluxo de login
 ```js
@@ -409,6 +410,19 @@ O backend precisa ter `CORS_ORIGIN=http://localhost:5173` (ou a URL exata do fro
 ```json
 { "UUID", "Name", "Email", "Role", "Phone", "Birthday", "active", "created_at" }
 ```
+
+### GET /users/perfil/me/export
+```json
+{
+  "exported_at": "ISO8601",
+  "profile": { "UUID", "Name", "Phone", "Birthday", "Role", "created_at" },
+  "appointments": [{ "UUID", "Date", "Start_time", "End_time", "Status", "Service": { "Name" }, "Professional": { "Name" }, "created_at" }]
+}
+```
+- Disponível para todos os roles (Admin, Profissional, Usuario)
+- Responde com header `Content-Disposition: attachment; filename="meus-dados-dauth.json"` — browser baixa automaticamente
+- No frontend, `MeuPerfil.jsx` usa `URL.createObjectURL` para disparar o download via elemento `<a>` temporário
+- Transações não incluídas — sem FK direta de `Transaction` para `Client`
 Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 - `created_at` em lowercase — usar `new Date(created_at).getFullYear()` para exibir ano de cadastro
 
@@ -602,7 +616,7 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 - Logout (`POST /auth/logout` via `authStore.logout()` async)
 - Session restore (`GET /users/perfil/me` no bootstrap — sem verificação de localStorage)
 - Auth guard ativo (`DEV_BYPASS = false`)
-- Meu Perfil (`GET/PATCH /users/perfil/me`)
+- Meu Perfil (`GET/PATCH /users/perfil/me`) + botão "Exportar meus dados" (`GET /users/perfil/me/export` → download JSON)
 - Trocar Senha (`PATCH /users/perfil/me/password`)
 - Meus Agendamentos — cliente (`GET /appointment/client/:id`)
 - Minha Agenda — profissional (`GET /appointment/my`)

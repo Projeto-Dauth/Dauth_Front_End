@@ -4,6 +4,8 @@ import ProtectedRoute from './ProtectedRoute'
 // Páginas públicas
 import PortalPage from '@/pages/public/PortalPage'
 import AgendarPage from '@/pages/public/AgendarPage'
+import PrivacidadePage from '@/pages/public/PrivacidadePage'
+import TermosPage from '@/pages/public/TermosPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import AcceptInvitePage from '@/pages/auth/AcceptInvitePage'
@@ -54,6 +56,8 @@ const router = createBrowserRouter([
   // ── Rotas públicas ───────────────────────────────────────
   { path: '/', element: <PortalPage /> },
   { path: '/agendar', element: <AgendarPage /> },
+  { path: '/privacidade', element: <PrivacidadePage /> },
+  { path: '/termos', element: <TermosPage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/auth/accept-invite', element: <AcceptInvitePage /> },

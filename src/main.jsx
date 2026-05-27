@@ -6,6 +6,7 @@ import router from './router'
 import useAuthStore from './store/authStore'
 import api from './lib/api'
 import { ToastProvider } from './context/ToastContext'
+import CookieBanner from './components/ui/CookieBanner'
 
 async function bootstrap() {
   try {
@@ -38,6 +39,7 @@ async function bootstrap() {
     <StrictMode>
       <ToastProvider>
         <RouterProvider router={router} />
+        <CookieBanner />
       </ToastProvider>
     </StrictMode>
   )
