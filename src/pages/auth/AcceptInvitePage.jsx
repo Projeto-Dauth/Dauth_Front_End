@@ -102,7 +102,7 @@ export default function AcceptInvitePage() {
         <div className="flex flex-col items-center mb-8">
           <Brand />
           <h1 className="font-display font-medium text-[28px] tracking-tight mt-4">Dauth Agendamentos</h1>
-          <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
+          <p className="text-ink-3 text-[13px] mt-1">Salão da Candi</p>
         </div>
 
         <div className="bg-surface border border-line rounded-[14px] p-5 md:p-8">
@@ -195,8 +195,8 @@ export default function AcceptInvitePage() {
               {errors.confirmPassword && <span className="text-[11px] text-danger">{errors.confirmPassword}</span>}
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full justify-center">
-              {loading ? 'Ativando conta...' : 'Ativar minha conta'}
+            <Button type="submit" loading={loading} className="w-full justify-center">
+              Ativar minha conta
             </Button>
           </form>
         </div>

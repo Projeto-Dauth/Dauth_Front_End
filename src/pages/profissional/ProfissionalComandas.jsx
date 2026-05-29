@@ -248,9 +248,9 @@ function TabPedidosProdutos() {
                         </button>
                       ))}
                     </div>
-                    <Button variant="primary" className="w-full justify-center mb-2" onClick={handlePay} disabled={paying}>
+                    <Button variant="primary" className="w-full justify-center mb-2" onClick={handlePay} loading={paying}>
                       <Icon name="check" size={14} />
-                      {paying ? 'Registrando...' : 'Registrar pagamento'}
+                      Registrar pagamento
                     </Button>
                     <Button variant="ghost" className="w-full justify-center text-danger hover:text-danger" onClick={() => setCancelModal(selected)}>
                       Cancelar pedido
@@ -314,8 +314,8 @@ function TabPedidosProdutos() {
               </FieldProd>
               <div className="flex gap-2 mt-auto pt-4">
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setNewDrawer(false)}>Cancelar</Button>
-                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingOrder}>
-                  {savingOrder ? 'Salvando...' : 'Criar pedido'}
+                <Button type="submit" variant="primary" className="flex-1 justify-center" loading={savingOrder}>
+                  Criar pedido
                 </Button>
               </div>
             </form>
@@ -366,7 +366,7 @@ export default function ProfissionalComandas() {
 
   const [tabs, setTabs] = useState([])
   const [loading, setLoading] = useState(true)
-  useTour('profissional_comandas', profissionalComandasSteps, !loading)
+  const { restartTour } = useTour('profissional_comandas', profissionalComandasSteps, !loading)
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [selectedId, setSelectedId] = useState(null)
   const [payMethod, setPayMethod] = useState('pix')
@@ -495,7 +495,13 @@ export default function ProfissionalComandas() {
   return (
     <AppLayout sidebar={sidebar}>
       <div className="mb-5 md:mb-6">
-        <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight mb-4">Comandas</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Comandas</h3>
+          <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors" title="Repetir tour guiado">
+            <Icon name="helpCircle" size={12} />
+            Ver tour
+          </button>
+        </div>
         <div data-tour="sub-abas" className="flex gap-1 border-b border-line">
           {[['servicos', 'Serviços', 'scissors'], ['produtos', 'Produtos', 'package']].map(([id, label, icon]) => (
             <button key={id} onClick={() => setSubTab(id)}
@@ -723,9 +729,9 @@ export default function ProfissionalComandas() {
                         </button>
                       ))}
                     </div>
-                    <Button variant="primary" className="w-full justify-center" onClick={handlePagar} disabled={paying}>
+                    <Button variant="primary" className="w-full justify-center" onClick={handlePagar} loading={paying}>
                       <Icon name="check" size={14} />
-                      {paying ? 'Registrando...' : 'Registrar pagamento'}
+                      Registrar pagamento
                     </Button>
                   </>
                 ) : (

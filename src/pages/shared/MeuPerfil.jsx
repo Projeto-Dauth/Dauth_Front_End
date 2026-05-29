@@ -225,8 +225,8 @@ export default function MeuPerfil() {
               <Button variant="ghost" size="sm" onClick={() => navigate('/trocar-senha')}>
                 <Icon name="lock" size={13} />Trocar senha
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleExport} disabled={exporting}>
-                <Icon name="receipt" size={13} />{exporting ? 'Exportando...' : 'Exportar meus dados'}
+              <Button variant="ghost" size="sm" onClick={handleExport} loading={exporting}>
+                <Icon name="receipt" size={13} />Exportar meus dados
               </Button>
             </div>
           </>
@@ -256,12 +256,10 @@ export default function MeuPerfil() {
             />
             <p className="text-[12px] text-ink-3 mb-4">E-mail não pode ser alterado por aqui.</p>
             <div className="flex gap-2.5">
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Salvando...' : 'Salvar alterações'}
+              <Button type="submit" loading={saving}>
+                Salvar alterações
               </Button>
-              <Button type="button" variant="ghost" onClick={cancelEdit} disabled={saving}>
-                Cancelar
-              </Button>
+              <Button type="button" variant="ghost" onClick={cancelEdit} disabled={saving}>Cancelar</Button>
             </div>
           </form>
         )}

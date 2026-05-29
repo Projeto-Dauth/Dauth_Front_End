@@ -132,8 +132,8 @@ export default function TrocarSenha() {
             placeholder="Repita a nova senha"
           />
           <div className="flex gap-2.5 mt-2">
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Salvando...' : isFirstAccess ? 'Definir senha e entrar' : 'Atualizar senha'}
+            <Button type="submit" loading={saving}>
+              {isFirstAccess ? 'Definir senha e entrar' : 'Atualizar senha'}
             </Button>
             {!isFirstAccess && (
               <NavLink to="/perfil">

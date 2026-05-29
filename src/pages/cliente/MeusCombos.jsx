@@ -234,7 +234,7 @@ export default function MeusCombos() {
 
   const [combos, setCombos] = useState([])
   const [loadingCombos, setLoadingCombos] = useState(true)
-  useTour('cliente_combos', clienteCombosSteps, !loadingCombos)
+  const { restartTour } = useTour('cliente_combos', clienteCombosSteps, !loadingCombos)
 
   const [catalog, setCatalog] = useState([])
   const [loadingCatalog, setLoadingCatalog] = useState(false)
@@ -273,6 +273,10 @@ export default function MeusCombos() {
         <div>
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Combos</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Seus pacotes e o catálogo disponível</p>
+          <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors mt-1.5" title="Repetir tour guiado">
+            <Icon name="helpCircle" size={12} />
+            Ver tour
+          </button>
         </div>
       </div>
 
