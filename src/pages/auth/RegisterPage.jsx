@@ -56,7 +56,7 @@ export default function RegisterPage() {
           <div className="flex flex-col items-center mb-8">
             <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
             <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
-            <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
+            <p className="text-ink-3 text-[13px] mt-1">Salão da Candi</p>
           </div>
           <div className="bg-surface border border-line rounded-[14px] p-8 text-center">
             <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-5">
@@ -97,7 +97,7 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center mb-8">
           <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
           <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
-          <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
+          <p className="text-ink-3 text-[13px] mt-1">Salão da Candi</p>
         </div>
 
         {/* Card */}
@@ -184,9 +184,9 @@ export default function RegisterPage() {
               type="submit"
               variant="primary"
               className="w-full justify-center mt-2"
-              disabled={isSubmitting}
+              loading={isSubmitting}
             >
-              {isSubmitting ? 'Criando conta…' : 'Criar conta'}
+              Criar conta
             </Button>
 
             <p className="text-[11.5px] text-ink-4 text-center mt-4 leading-relaxed">

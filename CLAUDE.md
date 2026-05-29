@@ -6,7 +6,7 @@ Briefing técnico completo para sessões com Claude Code.
 
 ## Visão Geral
 
-Frontend do **Dauth Agendamentos**, sistema de gerenciamento para o Salão Bela Arte.
+Frontend do **Dauth Agendamentos**, sistema de gerenciamento para o **Salão da Candi**.
 SPA React com 3 perfis de usuário: `Admin`, `Profissional`, `Usuario`.
 
 - **Backend:** Express.js + Supabase
@@ -102,7 +102,7 @@ src/
     ProtectedRoute.jsx          ← Guard por role (DEV_BYPASS = false — auth real ativa)
   components/
     ui/
-      Button.jsx                ← variants: primary/ghost/outline · sizes: sm/md
+      Button.jsx                ← variants: primary/ghost/outline · sizes: sm/md · prop `loading` (spinner inline + disabled automático) · prop `disabled` (sem spinner, só bloqueia)
       Avatar.jsx                ← gradientes por índice · sizes: sm/md/lg/xl
       Chip.jsx                  ← variants: default/brand/success/warning/danger/ghost + prop status
       Card.jsx                  ← prop elevated para shadow-sm
@@ -174,6 +174,27 @@ addToast('Mensagem', 'success' | 'error' | 'warning')
 ```
 
 Provider já está em `main.jsx` — não precisa adicionar em cada página.
+
+---
+
+## Button
+
+```jsx
+import Button from '@/components/ui/Button'
+
+// Padrão — use loading= para ações assíncronas
+<Button loading={saving}>Salvar</Button>
+
+// Com ícone — spinner aparece antes do ícone
+<Button loading={paying}><Icon name="check" size={14} />Registrar pagamento</Button>
+
+// Só desabilitar (sem spinner) — use disabled= para estados de bloqueio não-async
+<Button disabled={!canContinue}>Continuar</Button>
+```
+
+**Regra crítica:** use sempre `loading={estadoBooleano}` em botões que aguardam API. Nunca use `disabled={x} + {x ? 'Carregando...' : 'Texto'}` — o padrão `loading=` já aplica `disabled`, `opacity-60`, `cursor-not-allowed` e um spinner circular animado automaticamente. O texto dos filhos permanece visível ao lado do spinner.
+
+**`disabled=` puro** é reservado para bloqueios não-async: botão fora de condição de uso (ex: `disabled={!canContinue}`, `disabled={mobileProfIdx === 0}`).
 
 ---
 
@@ -701,12 +722,26 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 
 **Biblioteca:** `shepherd.js` importado direto (dependência transitiva de `react-shepherd`) — sem `ShepherdTour` provider, sem wrapping de rotas.
 
-**Hook:** `src/hooks/useTour.js` — `useTour(role, steps, ready)`
+**Hook:** `src/hooks/useTour.js` — `const { restartTour } = useTour(role, steps, ready)`
 - `role`: chave string que identifica o tour (ver KEYS abaixo)
 - `steps`: array de steps Shepherd importado de `src/tours/`
 - `ready`: boolean — espera página carregar antes de iniciar (usar `!loading`)
 - Verifica `localStorage.getItem(key) === 'done'` antes de iniciar — não mostra se já visto
 - No complete/cancel: grava `localStorage` e faz `PATCH /users/perfil/me { Tours_completed: { [role]: true } }` silenciosamente (`.catch(() => {})`)
+- Retorna `{ restartTour }` — função que limpa localStorage, envia `PATCH { Tours_completed: { [role]: false } }` ao banco, cancela o tour ativo (se houver) e reinicia o tour do zero
+
+**Botão "Ver tour":** todas as 10 páginas com tour têm um botão discreto para o usuário repetir o onboarding. Estilo padrão:
+```jsx
+<button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors mt-1.5" title="Repetir tour guiado">
+  <Icon name="helpCircle" size={12} />
+  Ver tour
+</button>
+```
+Posicionamento: abaixo da descrição do header em páginas com h3+p padrão; inline com o título em `ProfissionalComandas`; lado direito do header de status em `TabComandas`; dentro do flex de selects em `TabComissoes`. `helpCircle` é ícone adicionado em `Icons.jsx`.
+
+**`restartTour` — limpeza dupla (localStorage + banco):** o merge do backend (`{ ...current, ...novo }`) seta o campo do role para `false`. O bootstrap em `main.jsx` só restaura `localStorage` quando o valor é `true` (`if (done)`), então `false` no banco equivale a "não completado" na próxima sessão.
+
+**Mobile:** o tour funciona apenas no desktop. Tentativas de adaptar para mobile (detecção de visibilidade de elementos, redirecionamento de `attachTo`, CSS responsivo) foram revertidas por causar duplicação do tour. Não tentar adaptar o Shepherd para mobile sem resolver a causa raiz: a sidebar é renderizada duas vezes via `cloneElement` no `AppLayout` (desktop + drawer mobile com `-translate-x-full`), o que faz `querySelectorAll` retornar elementos off-screen que parecem visíveis para o Shepherd.
 
 **Persistência dual:**
 - `localStorage` — cache local instantâneo, sem round-trip
@@ -758,7 +793,7 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 
 **Último botão dos steps:** usar `action() { this.complete() }` (method shorthand) — Shepherd vincula `this` ao tour, arrow functions quebram o binding e `this.complete()` vira `undefined()`.
 
-**Reset para testar:** `localStorage.removeItem('dauth_tour_admin')` no console do browser.
+**Reset para testar:** `localStorage.removeItem('dauth_tour_admin')` no console do browser. Ou usar o botão "Ver tour" na própria página (limpa localStorage + banco automaticamente).
 
 **Backend:** coluna `Tours_completed JSONB DEFAULT '{}'` na tabela `Users`. `PATCH /users/perfil/me` aceita `{ Tours_completed: { chave: true } }` — controller faz merge (`{ ...current, ...novo }`), nunca sobrescreve. `USER_FIELDS` em `userModels.js` inclui `Tours_completed`.
 

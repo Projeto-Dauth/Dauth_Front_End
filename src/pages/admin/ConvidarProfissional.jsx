@@ -126,8 +126,8 @@ export default function ConvidarProfissional() {
               </p>
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full justify-center">
-              {loading ? 'Enviando...' : 'Enviar convite'}
+            <Button type="submit" loading={loading} className="w-full justify-center">
+              Enviar convite
             </Button>
           </form>
         )}

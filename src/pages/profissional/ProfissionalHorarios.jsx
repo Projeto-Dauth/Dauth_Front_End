@@ -341,8 +341,8 @@ export default function ProfissionalHorarios() {
             </div>
 
             <div className="px-5 md:px-6 py-5 border-t border-line flex gap-2.5">
-              <Button onClick={handleSaveDispatch} disabled={saving} className="flex-1">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={handleSaveDispatch} loading={saving} className="flex-1">
+                Salvar
               </Button>
               <Button variant="ghost" onClick={() => setDrawer(null)} disabled={saving}>
                 Cancelar

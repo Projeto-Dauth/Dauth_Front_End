@@ -55,7 +55,7 @@ export default function AdminUsuarios() {
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  useTour('admin_usuarios', adminUsuariosSteps, !loading)
+  const { restartTour } = useTour('admin_usuarios', adminUsuariosSteps, !loading)
   const [roleFilter, setRoleFilter] = useState('Todos')
   const [toggleTarget, setToggleTarget] = useState(null)
   const [toggling, setToggling] = useState(false)
@@ -145,6 +145,10 @@ export default function AdminUsuarios() {
         <div>
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Clientes</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie clientes, profissionais e administradores</p>
+          <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors mt-1.5" title="Repetir tour guiado">
+            <Icon name="helpCircle" size={12} />
+            Ver tour
+          </button>
         </div>
         <Button data-tour="usuarios-novo" variant="primary" size="sm" onClick={() => { setForm(EMPTY_FORM); setFormErrors({}); setDrawerOpen(true) }}>
           <Icon name="plus" size={14} />

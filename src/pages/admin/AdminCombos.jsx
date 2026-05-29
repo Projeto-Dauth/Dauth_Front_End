@@ -365,8 +365,8 @@ export default function AdminCombos() {
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setPkgDrawer(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingPkg}>
-                  {savingPkg ? 'Salvando...' : 'Salvar'}
+                <Button type="submit" variant="primary" className="flex-1 justify-center" loading={savingPkg}>
+                  Salvar
                 </Button>
               </div>
             </form>
@@ -426,9 +426,9 @@ export default function AdminCombos() {
                     onChange={(e) => setNewItem((f) => ({ ...f, quantity: e.target.value }))}
                     className={inputCls} />
                 </DrawerField>
-                <Button type="submit" variant="primary" className="w-full justify-center" disabled={addingItem}>
+                <Button type="submit" variant="primary" className="w-full justify-center" loading={addingItem}>
                   <Icon name="plus" size={14} />
-                  {addingItem ? 'Adicionando...' : 'Adicionar'}
+                  Adicionar
                 </Button>
               </form>
             </div>
@@ -467,8 +467,8 @@ export default function AdminCombos() {
               <Button variant="ghost" className="flex-1 justify-center" onClick={() => setSellPkg(null)}>
                 Cancelar
               </Button>
-              <Button variant="primary" className="flex-1 justify-center" onClick={handleSell} disabled={selling}>
-                {selling ? 'Vendendo...' : 'Confirmar venda'}
+              <Button variant="primary" className="flex-1 justify-center" onClick={handleSell} loading={selling}>
+                Confirmar venda
               </Button>
             </div>
           </div>

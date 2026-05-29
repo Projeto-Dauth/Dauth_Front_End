@@ -32,6 +32,7 @@ export default function AdminProdutos() {
   const [saving, setSaving] = useState(false)
   const [deleteItem, setDeleteItem] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [toggling, setToggling] = useState(null) // UUID do produto sendo alternado
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -89,12 +90,16 @@ export default function AdminProdutos() {
   }
 
   async function handleToggleActive(p) {
+    if (toggling) return
+    setToggling(p.UUID)
     try {
       await api.patch(`/product/${p.UUID}`, { Active: !p.Active })
       addToast(p.Active ? 'Produto desativado' : 'Produto ativado', 'success')
       load()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao atualizar produto', 'error')
+    } finally {
+      setToggling(null)
     }
   }
 
@@ -166,10 +171,12 @@ export default function AdminProdutos() {
                     <td className="px-3.5 py-3 border-b border-line-2">
                       <button
                         onClick={() => handleToggleActive(p)}
-                        className={`font-mono text-[10.5px] uppercase tracking-widest px-2 py-0.5 rounded cursor-pointer transition-colors
+                        disabled={toggling === p.UUID}
+                        className={`font-mono text-[10.5px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors
+                          ${toggling === p.UUID ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                           ${p.Active ? 'bg-success-soft text-success hover:bg-success/20' : 'bg-surface-2 text-ink-3 hover:bg-surface-3'}`}
                       >
-                        {p.Active ? 'Ativo' : 'Inativo'}
+                        {toggling === p.UUID ? '...' : p.Active ? 'Ativo' : 'Inativo'}
                       </button>
                     </td>
                     <td className="px-3.5 py-3 text-right border-b border-line-2">
@@ -200,10 +207,12 @@ export default function AdminProdutos() {
                   <span>·</span>
                   <button
                     onClick={() => handleToggleActive(p)}
-                    className={`font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded cursor-pointer
+                    disabled={toggling === p.UUID}
+                    className={`font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors
+                      ${toggling === p.UUID ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                       ${p.Active ? 'bg-success-soft text-success' : 'bg-surface-2 text-ink-3'}`}
                   >
-                    {p.Active ? 'Ativo' : 'Inativo'}
+                    {toggling === p.UUID ? '...' : p.Active ? 'Ativo' : 'Inativo'}
                   </button>
                 </div>
                 <div className="flex gap-2 pt-3 border-t border-line-2">
@@ -281,8 +290,8 @@ export default function AdminProdutos() {
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setDrawer(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar'}
+                <Button type="submit" variant="primary" className="flex-1 justify-center" loading={saving}>
+                  Salvar
                 </Button>
               </div>
             </form>
