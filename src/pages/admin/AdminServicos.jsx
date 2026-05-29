@@ -501,8 +501,8 @@ export default function AdminServicos() {
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setSvcDrawer(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingSvc}>
-                  {savingSvc ? 'Salvando...' : 'Salvar'}
+                <Button type="submit" variant="primary" className="flex-1 justify-center" loading={savingSvc}>
+                  Salvar
                 </Button>
               </div>
             </form>
@@ -537,8 +537,8 @@ export default function AdminServicos() {
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setCatDrawer(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingCat}>
-                  {savingCat ? 'Salvando...' : 'Salvar'}
+                <Button type="submit" variant="primary" className="flex-1 justify-center" loading={savingCat}>
+                  Salvar
                 </Button>
               </div>
             </form>
@@ -594,9 +594,9 @@ export default function AdminServicos() {
                   placeholder="Selecione..."
                 />
               </Field>
-              <Button variant="primary" className="w-full justify-center" onClick={handleLinkProf} disabled={linkingProf}>
+              <Button variant="primary" className="w-full justify-center" onClick={handleLinkProf} loading={linkingProf}>
                 <Icon name="plus" size={14} />
-                {linkingProf ? 'Vinculando...' : 'Vincular'}
+                Vincular
               </Button>
             </div>
           </div>

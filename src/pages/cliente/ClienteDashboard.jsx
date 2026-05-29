@@ -213,7 +213,7 @@ export default function ClienteDashboard() {
   const { user } = useAuthStore()
 
   const [loading, setLoading] = useState(true)
-  useTour('cliente', clienteSteps, !loading)
+  const { restartTour } = useTour('cliente', clienteSteps, !loading)
   const [appointments, setAppointments] = useState([])
   const [sinceYear, setSinceYear] = useState(null)
   const [combos, setCombos] = useState([])
@@ -285,6 +285,10 @@ export default function ClienteDashboard() {
                   ? `Seu próximo atendimento é ${diffLabel}`
                   : 'Nenhum atendimento agendado'}
               </div>
+              <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors mt-1.5" title="Repetir tour guiado">
+                <Icon name="helpCircle" size={12} />
+                Ver tour
+              </button>
             </div>
           </div>
 

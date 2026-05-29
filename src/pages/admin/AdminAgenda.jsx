@@ -996,7 +996,7 @@ export default function AdminAgenda() {
   const [breakByProf, setBreakByProf] = useState({})
   const [leaveByProf, setLeaveByProf] = useState({})
   const [loading, setLoading] = useState(true)
-  useTour('admin', adminSteps, !loading)
+  const { restartTour } = useTour('admin', adminSteps, !loading)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
   const [newSlot, setNewSlot] = useState(null)
   const [contextMenu, setContextMenu] = useState(null) // { appt, x, y }
@@ -1021,9 +1021,10 @@ export default function AdminAgenda() {
   async function handleRemoveLeave(leave) {
     try {
       await api.delete(`/professional-leave/${leave.UUID}`)
+      addToast('Folga removida', 'success')
       load(true)
-    } catch {
-      // silencioso — o load vai refletir o estado real
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao remover folga', 'error')
     }
   }
 
@@ -1178,6 +1179,10 @@ export default function AdminAgenda() {
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">
             {appointments.length} atendimento{appointments.length !== 1 ? 's' : ''} · {formatHeader(date)}
           </p>
+          <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors mt-1.5" title="Repetir tour guiado">
+            <Icon name="helpCircle" size={12} />
+            Ver tour
+          </button>
         </div>
         <Button size="sm" onClick={() => navigate('/admin/agendamentos')}>
           <Icon name="receipt" size={14} /><span className="hidden sm:inline">Ver todos</span>

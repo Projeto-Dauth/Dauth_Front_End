@@ -14,15 +14,24 @@ export default function Button({
   variant = 'primary',
   size = 'md',
   className = '',
+  loading = false,
+  disabled,
   ...props
 }) {
   return (
     <button
+      disabled={loading || disabled}
       className={`inline-flex items-center gap-2 font-body font-medium border cursor-pointer transition-all duration-150
-        ${variants[variant]} ${sizes[size]} ${className}`}
+        ${variants[variant]} ${sizes[size]} ${className}
+        ${loading || disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
       {...props}
     >
-      {children}
+      {loading ? (
+        <>
+          <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          {children}
+        </>
+      ) : children}
     </button>
   )
 }

@@ -35,7 +35,7 @@ export default function AdminAgendamentos() {
 
   const [allItems, setAllItems] = useState([])
   const [loading, setLoading]   = useState(true)
-  useTour('admin_agendamentos', adminAgendamentosSteps, !loading)
+  const { restartTour } = useTour('admin_agendamentos', adminAgendamentosSteps, !loading)
   const [date, setDate]         = useState('')
   const [tab, setTab]           = useState('ativos')
 
@@ -72,6 +72,10 @@ export default function AdminAgendamentos() {
         <div>
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agendamentos</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie todos os agendamentos do salão</p>
+          <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors mt-1.5" title="Repetir tour guiado">
+            <Icon name="helpCircle" size={12} />
+            Ver tour
+          </button>
         </div>
         <Button data-tour="agendamentos-novo" size="sm" onClick={() => navigate('/agendar')}>
           <Icon name="plus" size={14} />Novo agendamento

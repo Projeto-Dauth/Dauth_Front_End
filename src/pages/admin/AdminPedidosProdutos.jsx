@@ -367,8 +367,8 @@ export default function AdminPedidosProdutos() {
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setNewDrawer(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingOrder}>
-                  {savingOrder ? 'Salvando...' : 'Criar pedido'}
+                <Button type="submit" variant="primary" className="flex-1 justify-center" loading={savingOrder}>
+                  Criar pedido
                 </Button>
               </div>
             </form>

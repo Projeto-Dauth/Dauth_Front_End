@@ -95,7 +95,7 @@ function TabComandas({ user, initialAppointmentId }) {
 
   const [tabs, setTabs] = useState([])
   const [loading, setLoading] = useState(true)
-  useTour('admin_caixa_comandas', adminCaixaComandasSteps, !loading)
+  const { restartTour } = useTour('admin_caixa_comandas', adminCaixaComandasSteps, !loading)
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [selectedId, setSelectedId] = useState(null)
   const [payMethod, setPayMethod] = useState('pix')
@@ -220,6 +220,10 @@ function TabComandas({ user, initialAppointmentId }) {
         <p className="text-[12px] md:text-[13px] text-ink-3">
           {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
         </p>
+        <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors" title="Repetir tour guiado">
+          <Icon name="helpCircle" size={12} />
+          Ver tour
+        </button>
       </div>
 
       {/* Contas a fechar */}
@@ -428,9 +432,9 @@ function TabComandas({ user, initialAppointmentId }) {
                         </button>
                       ))}
                     </div>
-                    <Button variant="primary" className="w-full justify-center" onClick={handlePagar} disabled={paying}>
+                    <Button variant="primary" className="w-full justify-center" onClick={handlePagar} loading={paying}>
                       <Icon name="check" size={14} />
-                      {paying ? 'Registrando...' : 'Registrar pagamento'}
+                      Registrar pagamento
                     </Button>
                   </>
                 ) : (
@@ -649,9 +653,9 @@ function TabPedidosProdutos() {
                         </button>
                       ))}
                     </div>
-                    <Button variant="primary" className="w-full justify-center mb-2" onClick={handlePay} disabled={paying}>
+                    <Button variant="primary" className="w-full justify-center mb-2" onClick={handlePay} loading={paying}>
                       <Icon name="check" size={14} />
-                      {paying ? 'Registrando...' : 'Registrar pagamento'}
+                      Registrar pagamento
                     </Button>
                     <Button variant="ghost" className="w-full justify-center text-danger hover:text-danger" onClick={() => setCancelModal(selected)}>
                       Cancelar pedido
@@ -715,8 +719,8 @@ function TabPedidosProdutos() {
               </FieldProd>
               <div className="flex gap-2 mt-auto pt-4">
                 <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={() => setNewDrawer(false)}>Cancelar</Button>
-                <Button type="submit" variant="primary" className="flex-1 justify-center" disabled={savingOrder}>
-                  {savingOrder ? 'Salvando...' : 'Criar pedido'}
+                <Button type="submit" variant="primary" className="flex-1 justify-center" loading={savingOrder}>
+                  Criar pedido
                 </Button>
               </div>
             </form>
@@ -751,7 +755,7 @@ function TabComissoes() {
   const [selYear, setSelYear] = useState(now.getFullYear())
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
-  useTour('admin_caixa_comissoes', adminCaixaComissoesSteps, !loading)
+  const { restartTour: restartTourComissoes } = useTour('admin_caixa_comissoes', adminCaixaComissoesSteps, !loading)
   const [markingPaid, setMarkingPaid] = useState(null)
 
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
@@ -806,6 +810,10 @@ function TabComissoes() {
             className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer">
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
+          <button onClick={restartTourComissoes} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors" title="Repetir tour guiado">
+            <Icon name="helpCircle" size={12} />
+            Ver tour
+          </button>
         </div>
       </div>
 
@@ -989,9 +997,9 @@ function TabRelatorio() {
             className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
           />
         </div>
-        <Button variant="primary" onClick={handleBuscar} disabled={loading} className="sm:mb-0 self-end">
+        <Button variant="primary" onClick={handleBuscar} loading={loading} className="sm:mb-0 self-end">
           <Icon name="search" size={14} />
-          {loading ? 'Buscando...' : 'Buscar'}
+          Buscar
         </Button>
       </div>
 

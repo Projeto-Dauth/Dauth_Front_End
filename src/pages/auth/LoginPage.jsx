@@ -71,10 +71,10 @@ export default function LoginPage() {
             Beleza com<br />excelência.
           </p>
           <p className="text-[13.5px] text-white/60 leading-relaxed max-w-[280px]">
-            Gerencie agendamentos, profissionais e caixa do Salão Bela Arte em um só lugar.
+            Gerencie agendamentos, profissionais e caixa do Salão da Candi em um só lugar.
           </p>
         </div>
-        <p className="text-[11px] text-white/30 font-mono tracking-widest uppercase">Salão Bela Arte</p>
+        <p className="text-[11px] text-white/30 font-mono tracking-widest uppercase">Salão da Candi</p>
       </div>
 
       {/* Form side */}
@@ -85,7 +85,7 @@ export default function LoginPage() {
           <div className="flex flex-col items-center mb-8 md:hidden">
             <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
             <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
-            <p className="text-ink-3 text-[13px] mt-1">Salão Bela Arte</p>
+            <p className="text-ink-3 text-[13px] mt-1">Salão da Candi</p>
           </div>
 
           {/* Card */}
@@ -162,9 +162,9 @@ export default function LoginPage() {
                 type="submit"
                 variant="primary"
                 className="w-full justify-center"
-                disabled={isSubmitting}
+                loading={isSubmitting}
               >
-                {isSubmitting ? 'Entrando…' : 'Entrar'}
+                Entrar
               </Button>
             </form>
           </div>
