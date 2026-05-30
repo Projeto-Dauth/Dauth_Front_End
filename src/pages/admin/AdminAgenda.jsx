@@ -13,10 +13,11 @@ import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminSteps } from '@/tours/adminTour'
+import ModalFecharConta from '@/components/ui/ModalFecharConta'
 
 // Tinha algum const bugado
 
-function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenComanda, onNavigate, onTransfer }) {
+function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenComanda, onFecharConta, onNavigate, onTransfer }) {
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -85,13 +86,22 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
       )}
 
       {appt.Status !== 'cancelado' && (
-        <button
-          onClick={() => { onOpenComanda(appt); onClose() }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer"
-        >
-          <Icon name="receipt" size={13} />
-          Abrir comanda
-        </button>
+        <>
+          <button
+            onClick={() => { onOpenComanda(appt); onClose() }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer"
+          >
+            <Icon name="receipt" size={13} />
+            Abrir comanda
+          </button>
+          <button
+            onClick={() => { onFecharConta(appt); onClose() }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-success hover:bg-surface-2 transition-colors cursor-pointer"
+          >
+            <Icon name="cash" size={13} />
+            Fechar comanda
+          </button>
+        </>
       )}
 
       <button
@@ -1003,6 +1013,11 @@ export default function AdminAgenda() {
   const [leaveMenu, setLeaveMenu] = useState(null) // { leave, x, y }
   const [transferAppt, setTransferAppt] = useState(null)
   const [folgaDrawer, setFolgaDrawer] = useState(false)
+  const [fecharContaClient, setFecharContaClient] = useState(null)
+  const [fecharContaMethod, setFecharContaMethod] = useState('pix')
+  const [fecharContaPaying, setFecharContaPaying] = useState(false)
+  const [fecharContaOrders, setFecharContaOrders] = useState([])
+  const [fecharContaOrdersLoading, setFecharContaOrdersLoading] = useState(false)
   const longPressTimer = useRef(null)
   const dateInputRef = useRef(null)
 
@@ -1037,6 +1052,51 @@ export default function AdminAgenda() {
 
   function handleLongPressEnd() {
     clearTimeout(longPressTimer.current)
+  }
+
+  async function handleAbrirFecharConta(appt) {
+    setFecharContaOrdersLoading(true)
+    setFecharContaMethod('pix')
+    setFecharContaOrders([])
+    try {
+      const { data } = await api.get('/tab')
+      const allTabs = data.data ?? []
+      const openTabs = allTabs.filter(t => t.Status === 'Em aberto' && t.Appointment?.Client === appt.Client)
+      if (openTabs.length === 0) {
+        addToast('Nenhuma comanda em aberto para este cliente', 'warning')
+        setFecharContaOrdersLoading(false)
+        return
+      }
+      const clientId = openTabs[0].Appointment?.ClientId
+      setFecharContaClient({ name: appt.Client, clientId, tabs: openTabs })
+      const { data: ordersData } = await api.get(`/product-order?client_id=${clientId}&status=encomendado`)
+      setFecharContaOrders(ordersData.data ?? [])
+    } catch {
+      setFecharContaOrders([])
+    } finally {
+      setFecharContaOrdersLoading(false)
+    }
+  }
+
+  async function handleFecharConta() {
+    if (!fecharContaClient) return
+    setFecharContaPaying(true)
+    try {
+      await api.post('/tab/batch-pay', {
+        tab_ids: fecharContaClient.tabs.map(t => t.UUID),
+        Method: fecharContaMethod,
+        Payment_date: new Date().toISOString(),
+        client_id: fecharContaClient.clientId,
+      })
+      addToast(`Conta de ${fecharContaClient.name} fechada com sucesso`, 'success')
+      setFecharContaClient(null)
+      setFecharContaOrders([])
+      load(true)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
+    } finally {
+      setFecharContaPaying(false)
+    }
   }
 
   async function handleStatusChange(appt, status) {
@@ -1145,8 +1205,21 @@ export default function AdminAgenda() {
           onClose={() => setContextMenu(null)}
           onStatusChange={handleStatusChange}
           onOpenComanda={(appt) => navigate(`/admin/caixa?appointment=${appt.UUID}`)}
+          onFecharConta={handleAbrirFecharConta}
           onNavigate={(appt) => navigate(`/agendamento/${appt.UUID}`)}
           onTransfer={(appt) => setTransferAppt(appt)}
+        />
+      )}
+      {fecharContaClient && (
+        <ModalFecharConta
+          client={fecharContaClient}
+          orders={fecharContaOrders}
+          ordersLoading={fecharContaOrdersLoading}
+          method={fecharContaMethod}
+          onMethodChange={setFecharContaMethod}
+          paying={fecharContaPaying}
+          onClose={() => { setFecharContaClient(null); setFecharContaOrders([]) }}
+          onConfirm={handleFecharConta}
         />
       )}
       {transferAppt && (
