@@ -8,7 +8,9 @@ import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import useAuthStore from '@/store/authStore'
+import { useToast } from '@/context/ToastContext'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 
@@ -30,12 +32,19 @@ function todayStr() {
 export default function MinhaAgenda() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const { addToast } = useToast()
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [dateFilter, setDateFilter] = useState('')
   const [periodo, setPeriodo] = useState('proximos')
+
+  const [fecharContaClient, setFecharContaClient] = useState(null)
+  const [fecharContaMethod, setFecharContaMethod] = useState('pix')
+  const [fecharContaPaying, setFecharContaPaying] = useState(false)
+  const [fecharContaOrders, setFecharContaOrders] = useState([])
+  const [fecharContaOrdersLoading, setFecharContaOrdersLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -58,12 +67,69 @@ export default function MinhaAgenda() {
 
   useEffect(() => { load() }, [load])
 
+  async function handleAbrirFecharConta(row) {
+    setFecharContaOrdersLoading(true)
+    setFecharContaMethod('pix')
+    setFecharContaOrders([])
+    try {
+      const { data } = await api.get('/tab')
+      const allTabs = data.data ?? []
+      const openTabs = allTabs.filter(t => t.Status === 'Em aberto' && t.Appointment?.Client === row.Client)
+      if (openTabs.length === 0) {
+        addToast('Nenhuma comanda em aberto para este cliente', 'warning')
+        setFecharContaOrdersLoading(false)
+        return
+      }
+      const clientId = openTabs[0].Appointment?.ClientId
+      setFecharContaClient({ name: row.Client, clientId, tabs: openTabs })
+      const { data: ordersData } = await api.get(`/product-order?client_id=${clientId}&status=encomendado`)
+      setFecharContaOrders(ordersData.data ?? [])
+    } catch {
+      setFecharContaOrders([])
+    } finally {
+      setFecharContaOrdersLoading(false)
+    }
+  }
+
+  async function handleFecharConta() {
+    if (!fecharContaClient) return
+    setFecharContaPaying(true)
+    try {
+      await api.post('/tab/batch-pay', {
+        tab_ids: fecharContaClient.tabs.map(t => t.UUID),
+        Method: fecharContaMethod,
+        Payment_date: new Date().toISOString(),
+        client_id: fecharContaClient.clientId,
+      })
+      addToast(`Conta de ${fecharContaClient.name} fechada com sucesso`, 'success')
+      setFecharContaClient(null)
+      setFecharContaOrders([])
+      load()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
+    } finally {
+      setFecharContaPaying(false)
+    }
+  }
+
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Profissional">Profissional</Sidebar>
   )
 
   return (
     <AppLayout sidebar={sidebar}>
+      {fecharContaClient && (
+        <ModalFecharConta
+          client={fecharContaClient}
+          orders={fecharContaOrders}
+          ordersLoading={fecharContaOrdersLoading}
+          method={fecharContaMethod}
+          onMethodChange={setFecharContaMethod}
+          paying={fecharContaPaying}
+          onClose={() => { setFecharContaClient(null); setFecharContaOrders([]) }}
+          onConfirm={handleFecharConta}
+        />
+      )}
       <div className="flex justify-between items-end mb-6">
         <div>
           <h3 className="font-display font-medium text-[26px] tracking-tight">Minha agenda</h3>
@@ -138,23 +204,35 @@ export default function MinhaAgenda() {
           {visibleItems.map(row => (
             <div
               key={row.UUID}
-              onClick={() => navigate(`/agendamento/${row.UUID}`)}
-              className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3.5 hover:border-line-3 transition-colors cursor-pointer"
+              className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3.5 hover:border-line-3 transition-colors"
             >
-              <Avatar name={row.Client ?? '?'} index={0} size="md" />
-              <div className="flex-1 min-w-0">
+              <Avatar name={row.Client ?? '?'} index={0} size="md" className="shrink-0" />
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => navigate(`/agendamento/${row.UUID}`)}
+              >
                 <div className="font-medium text-[13.5px] truncate">{row.Client ?? '—'}</div>
                 <div className="text-[12.5px] text-ink-3 mt-0.5 truncate">{row.Service ?? '—'}</div>
                 <div className="font-mono text-[11.5px] text-ink-3 mt-1 md:hidden">
                   {formatDate(row.Date)} · {row.Start_time?.slice(0,5)} → {row.End_time?.slice(0,5)}
                 </div>
               </div>
-              <div className="text-right shrink-0 hidden md:block">
+              <div className="text-right shrink-0 hidden md:block cursor-pointer" onClick={() => navigate(`/agendamento/${row.UUID}`)}>
                 <div className="font-mono text-[12.5px] font-medium">{row.Start_time?.slice(0,5)} → {row.End_time?.slice(0,5)}</div>
                 <div className="font-mono text-[11px] text-ink-3 mt-0.5">{formatDate(row.Date)}</div>
               </div>
               <Chip status={row.Status} dot className="shrink-0">{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
-              <Icon name="chevronRight" size={14} className="text-ink-3 shrink-0" />
+              {row.Status !== 'cancelado' && (
+                <button
+                  onClick={e => { e.stopPropagation(); handleAbrirFecharConta(row) }}
+                  title="Fechar comanda"
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-line bg-surface text-[12px] text-success hover:bg-success-soft hover:border-success/30 transition-colors cursor-pointer"
+                >
+                  <Icon name="cash" size={13} />
+                  <span className="hidden sm:inline">Fechar</span>
+                </button>
+              )}
+              <Icon name="chevronRight" size={14} className="text-ink-3 shrink-0 cursor-pointer" onClick={() => navigate(`/agendamento/${row.UUID}`)} />
             </div>
           ))}
         </div>
