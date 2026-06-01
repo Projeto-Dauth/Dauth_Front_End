@@ -77,8 +77,8 @@ export default function AdminCombos() {
   useEffect(() => { loadAll() }, [loadAll])
 
   useEffect(() => {
-    api.get('/service').then(({ data }) => setServices(data.data ?? [])).catch(() => {})
-    api.get('/users', { params: { Role: 'Usuario' } }).then(({ data }) => setClients(data.data ?? [])).catch(() => {})
+    api.get('/service', { params: { limit: 100 } }).then(({ data }) => setServices(data.data ?? [])).catch(() => {})
+    api.get('/users', { params: { Role: 'Usuario', limit: 100 } }).then(({ data }) => setClients(data.data ?? [])).catch(() => {})
   }, [])
 
   // ── Pacote handlers ──────────────────────────────────────────────────────

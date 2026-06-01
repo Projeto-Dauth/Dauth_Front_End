@@ -30,21 +30,8 @@ export default function ProfissionalServicos() {
   async function load() {
     setLoading(true)
     try {
-      const { data: svcRes } = await api.get('/service', { params: { limit: 100 } })
-      const allServices = svcRes.data ?? []
-
-      const profsPerService = await Promise.all(
-        allServices.map((s) =>
-          api.get(`/service/${s.UUID}/professionals`)
-            .then(({ data }) => data.data ?? [])
-            .catch(() => [])
-        )
-      )
-
-      const linked = allServices
-        .filter((s, i) => profsPerService[i].some((p) => p.professional_id === user.id))
-
-      setServices(linked)
+      const { data } = await api.get('/service', { params: { professional: user.id, limit: 100 } })
+      setServices(data.data ?? [])
     } catch {
       addToast('Erro ao carregar serviços', 'error')
     } finally {

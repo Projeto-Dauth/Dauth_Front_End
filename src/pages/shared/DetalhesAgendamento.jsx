@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Avatar from '@/components/ui/Avatar'
 import Modal from '@/components/ui/Modal'
+import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { useToast } from '@/context/ToastContext'
@@ -48,6 +49,11 @@ export default function DetalhesAgendamento() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState({ open: false, status: '' })
   const [saving, setSaving] = useState(false)
+  const [fecharConta, setFecharConta] = useState(null) // { name, clientId, tabs }
+  const [fecharMethod, setFecharMethod] = useState('Pix')
+  const [fecharPaying, setFecharPaying] = useState(false)
+  const [fecharOrders, setFecharOrders] = useState([])
+  const [fecharOrdersLoading, setFecharOrdersLoading] = useState(false)
 
   useEffect(() => {
     api.get(`/appointment/${id}`)
@@ -94,6 +100,49 @@ export default function DetalhesAgendamento() {
       addToast(err.response?.data?.error ?? 'Erro ao remover', 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleFecharConta() {
+    try {
+      const { data: tabData } = await api.get('/tab')
+      const tabs = (tabData.data ?? tabData).filter(
+        t => t.Status === 'Em aberto' && t.Appointment?.Client === item.Client
+      )
+      if (!tabs.length) {
+        addToast('Nenhuma comanda em aberto para este cliente', 'warning')
+        return
+      }
+      const clientId = tabs[0].Appointment?.ClientId
+      setFecharConta({ name: item.Client, clientId, tabs })
+      setFecharMethod('Pix')
+      setFecharOrdersLoading(true)
+      setFecharOrders([])
+      api.get('/product-order', { params: { client_id: clientId, status: 'encomendado' } })
+        .then(({ data }) => setFecharOrders(data.data ?? []))
+        .catch(() => setFecharOrders([]))
+        .finally(() => setFecharOrdersLoading(false))
+    } catch {
+      addToast('Erro ao buscar comandas', 'error')
+    }
+  }
+
+  async function handleConfirmFechar() {
+    setFecharPaying(true)
+    try {
+      await api.post('/tab/batch-pay', {
+        tab_ids: fecharConta.tabs.map(t => t.UUID),
+        Method: fecharMethod,
+        Payment_date: new Date().toISOString(),
+        client_id: fecharConta.clientId,
+      })
+      addToast('Conta fechada com sucesso')
+      setFecharConta(null)
+      setItem(prev => ({ ...prev, Status: 'concluido' }))
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao fechar conta', 'error')
+    } finally {
+      setFecharPaying(false)
     }
   }
 
@@ -212,6 +261,11 @@ export default function DetalhesAgendamento() {
               Marcar como {STATUS_LABELS[s]}
             </Button>
           ))}
+          {item.Status === 'concluido' && (
+            <Button variant="ghost" size="sm" onClick={handleFecharConta}>
+              <Icon name="receipt" size={13} />Fechar comanda
+            </Button>
+          )}
           {item.Status !== 'concluido' && item.Status !== 'cancelado' && (
             <Button variant="ghost" size="sm" onClick={() => setModal({ open: true, status: '__delete__' })}>
               <Icon name="trash" size={13} />Excluir
@@ -235,6 +289,19 @@ export default function DetalhesAgendamento() {
         confirmVariant={modal.status === 'cancelado' ? 'ghost' : 'primary'}
         loading={saving}
       />
+
+      {fecharConta && (
+        <ModalFecharConta
+          client={fecharConta}
+          orders={fecharOrders}
+          ordersLoading={fecharOrdersLoading}
+          method={fecharMethod}
+          onMethodChange={setFecharMethod}
+          paying={fecharPaying}
+          onClose={() => setFecharConta(null)}
+          onConfirm={handleConfirmFechar}
+        />
+      )}
 
       <Modal
         isOpen={modal.open && modal.status === '__delete__'}

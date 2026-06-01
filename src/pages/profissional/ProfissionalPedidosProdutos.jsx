@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
@@ -6,10 +6,12 @@ import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const navItems = navItemsByRole['Profissional']
 
@@ -39,43 +41,31 @@ export default function ProfissionalPedidosProdutos() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
 
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('')
-
   const [products, setProducts] = useState([])
   const [clients, setClients] = useState([])
-
   const [newDrawer, setNewDrawer] = useState(false)
   const [orderForm, setOrderForm] = useState(EMPTY_ORDER)
   const [savingOrder, setSavingOrder] = useState(false)
-
   const [detailDrawer, setDetailDrawer] = useState(null)
   const [payModal, setPayModal] = useState(null)
   const [paying, setPaying] = useState(false)
   const [cancelModal, setCancelModal] = useState(null)
   const [canceling, setCanceling] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = {}
+  const { items: orders, loading, loadingMore, hasMore, reload, loadMore } = usePaginatedList(
+    (page, limit) => {
+      const params = { page, limit }
       if (filterStatus) params.status = filterStatus
-      const { data } = await api.get('/product-order', { params })
-      setOrders(data.data ?? [])
-    } catch {
-      setOrders([])
-    } finally {
-      setLoading(false)
-    }
-  }, [filterStatus])
-
-  useEffect(() => { load() }, [load])
+      return api.get('/product-order', { params }).then((r) => r.data)
+    },
+    [filterStatus]
+  )
 
   useEffect(() => {
     Promise.all([
-      api.get('/product'),
-      api.get('/users', { params: { Role: 'Usuario' } }),
+      api.get('/product', { params: { limit: 100 } }),
+      api.get('/users', { params: { Role: 'Usuario', limit: 100 } }),
     ])
       .then(([prodRes, clientRes]) => {
         setProducts((prodRes.data.data ?? []).filter(p => p.Active))
@@ -100,7 +90,7 @@ export default function ProfissionalPedidosProdutos() {
       addToast('Pedido criado com sucesso', 'success')
       setNewDrawer(false)
       setOrderForm(EMPTY_ORDER)
-      load()
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao criar pedido', 'error')
     } finally {
@@ -116,7 +106,7 @@ export default function ProfissionalPedidosProdutos() {
       addToast('Pedido marcado como pago', 'success')
       setPayModal(null)
       if (detailDrawer?.UUID === payModal.UUID) setDetailDrawer(null)
-      load()
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao atualizar pedido', 'error')
     } finally {
@@ -132,7 +122,7 @@ export default function ProfissionalPedidosProdutos() {
       addToast('Pedido cancelado', 'success')
       setCancelModal(null)
       if (detailDrawer?.UUID === cancelModal.UUID) setDetailDrawer(null)
-      load()
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao cancelar pedido', 'error')
     } finally {
@@ -242,6 +232,8 @@ export default function ProfissionalPedidosProdutos() {
               </div>
             ))}
           </div>
+
+          {hasMore && <LoadMoreButton onClick={loadMore} loading={loadingMore} />}
         </>
       )}
 

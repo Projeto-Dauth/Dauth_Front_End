@@ -49,7 +49,7 @@ export default function MinhaAgenda() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params = {}
+      const params = { limit: 100 }
       if (dateFilter) params.date = dateFilter
       if (statusFilter) params.status = statusFilter
       const { data } = await api.get('/appointment/my', { params })

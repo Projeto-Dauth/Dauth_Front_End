@@ -85,7 +85,7 @@ function TabPedidosProdutos() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    Promise.all([api.get('/product'), api.get('/users', { params: { Role: 'Usuario' } })])
+    Promise.all([api.get('/product', { params: { limit: 100 } }), api.get('/users', { params: { Role: 'Usuario', limit: 100 } })])
       .then(([pRes, cRes]) => {
         setProducts((pRes.data.data ?? []).filter(p => p.Active))
         setClients(cRes.data.data ?? [])
