@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
@@ -32,8 +33,13 @@ const EMPTY_CATEGORY = { Name: '' }
 export default function AdminServicos() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
 
-  const [tab, setTab] = useState('servicos') // 'servicos' | 'categorias'
+  const tab = searchParams.get('tab') ?? 'servicos'
+  function setTab(t) {
+    navigate(t === 'servicos' ? '/admin/servicos' : `/admin/servicos?tab=${t}`, { replace: true })
+  }
 
   // ── Serviços
   const [services, setServices] = useState([])
@@ -70,7 +76,7 @@ export default function AdminServicos() {
   const loadServices = useCallback(async () => {
     setLoadingServices(true)
     try {
-      const { data } = await api.get('/service')
+      const { data } = await api.get('/service', { params: { limit: 100 } })
       setServices(data.data ?? [])
     } catch {
       setServices([])
@@ -82,7 +88,7 @@ export default function AdminServicos() {
   const loadCategories = useCallback(async () => {
     setLoadingCats(true)
     try {
-      const { data } = await api.get('/category')
+      const { data } = await api.get('/category', { params: { limit: 50 } })
       setCategories(data.data ?? [])
     } catch {
       setCategories([])

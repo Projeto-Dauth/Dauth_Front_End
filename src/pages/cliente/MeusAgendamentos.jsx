@@ -108,7 +108,7 @@ export default function MeusAgendamentos() {
 
   useEffect(() => {
     if (!user?.id) return
-    api.get(`/appointment/client/${user.id}`)
+    api.get(`/appointment/client/${user.id}`, { params: { limit: 100 } })
       .then(({ data }) => setItems(data.data ?? []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false))

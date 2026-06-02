@@ -243,7 +243,7 @@ function ModalNovoCliente({ onClose, onCreated }) {
       if (form.birthday) body.birthday = form.birthday
       await api.post('/auth/register-admin', body)
       addToast(`${form.name} cadastrado com sucesso`, 'success')
-      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', limit: 200 } })
+      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', limit: 100 } })
       const criado = (usersRes.data ?? []).find(u => u.Phone === form.phone)
       onCreated(criado ?? { Name: form.name.trim(), Phone: form.phone })
       onClose()
@@ -406,6 +406,7 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigat
 
 function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const { addToast } = useToast()
+  const { user: authUser } = useAuthStore()
   const [clientes, setClientes]     = useState([])
   const [servicos, setServicos]     = useState([])
   const [clienteId, setClienteId]   = useState('')
@@ -418,17 +419,17 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const [modalCliente, setModalCliente] = useState(false)
 
   useEffect(() => {
+    if (!authUser?.id) return
     setLoadingData(true)
     Promise.all([
-      api.get('/users', { params: { Role: 'Usuario', limit: 200 } }),
-      // Somente serviços vinculados ao profissional logado
-      api.get('/service', { params: { professional: professional.UUID, limit: 200 } }),
+      api.get('/users', { params: { Role: 'Usuario', limit: 100 } }),
+      api.get('/service', { params: { professional: authUser.id, limit: 100 } }),
     ]).then(([cRes, sRes]) => {
       setClientes(cRes.data.data ?? [])
       setServicos(sRes.data.data ?? [])
     }).catch(() => {})
       .finally(() => setLoadingData(false))
-  }, [professional.UUID])
+  }, [authUser?.id])
 
   function handleClienteCriado(cliente) {
     setClientes(prev => [...prev, cliente])

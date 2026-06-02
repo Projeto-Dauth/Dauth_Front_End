@@ -4,6 +4,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Button from '@/components/ui/Button'
+import Avatar from '@/components/ui/Avatar'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import logo from '@/logo-dauth-agendamentos.png'
@@ -61,6 +62,11 @@ function ClienteSidebar({ user, onClose }) {
             <Icon name="x" size={16} />
           </button>
         )}
+      </div>
+      <div className="text-center py-3 pb-[18px] border-b border-line mb-3">
+        <Avatar name={user?.name ?? ''} index={2} size="xl" className="mx-auto mb-2" />
+        <div className="font-display font-medium text-[15px]">{user?.name}</div>
+        <div className="font-mono text-[11px] text-ink-3">cliente</div>
       </div>
       {navItems.map((item) => (
         <NavLink

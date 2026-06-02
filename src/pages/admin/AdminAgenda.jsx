@@ -343,7 +343,7 @@ function ModalNovoServico({ onClose, onCreated }) {
   const [modalCat, setModalCat] = useState(false)
 
   useEffect(() => {
-    api.get('/category')
+    api.get('/category', { params: { limit: 50 } })
       .then(({ data }) => setCategories(data.data ?? []))
       .catch(() => { })
       .finally(() => setLoadingCats(false))
@@ -493,7 +493,7 @@ function ModalNovoCliente({ onClose, onCreated }) {
       await api.post('/auth/register-admin', body)
       addToast(`${form.name} cadastrado com sucesso`, 'success')
       // Busca o usuário criado para obter o UUID
-      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', limit: 200 } })
+      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', limit: 100 } })
       const criado = (usersRes.data ?? []).find(u => u.Phone === form.phone)
       onCreated(criado ?? { Name: form.name.trim(), Phone: form.phone })
       onClose()
@@ -705,8 +705,8 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   useEffect(() => {
     setLoadingData(true)
     Promise.all([
-      api.get('/users', { params: { Role: 'Usuario', limit: 200 } }),
-      api.get('/service', { params: { professional: professional.UUID, limit: 200 } }),
+      api.get('/users', { params: { Role: 'Usuario', limit: 100 } }),
+      api.get('/service', { params: { professional: professional.UUID, limit: 100 } }),
     ]).then(([cRes, sRes]) => {
       setClientes(cRes.data.data ?? [])
       setServicos(sRes.data.data ?? [])

@@ -37,7 +37,7 @@ export default function AdminProdutos() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const { data } = await api.get('/product')
+      const { data } = await api.get('/product', { params: { limit: 100 } })
       setProducts(data.data ?? [])
     } catch {
       setProducts([])

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
@@ -7,14 +7,15 @@ import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
-import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminUsuariosSteps } from '@/tours/adminUsuariosTour'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const navItems = navItemsByRole['Admin']
 
@@ -33,6 +34,13 @@ const ROLE_LABEL = {
   Usuario: 'Cliente',
 }
 
+const CLIENT_EXTRA_FILTERS = [
+  { key: 'comanda_aberta', label: 'Comanda aberta' },
+  { key: 'aniversariante', label: 'Aniversariante do mês' },
+  { key: 'ativo', label: 'Ativos' },
+  { key: 'inativo', label: 'Inativos' },
+]
+
 function formatBirthday(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -47,16 +55,62 @@ function applyPhoneMask(value) {
   return value
 }
 
+function isBirthdayThisMonth(iso) {
+  if (!iso) return false
+  const d = new Date(iso)
+  return d.getUTCMonth() === new Date().getMonth()
+}
+
+function SkeletonRow() {
+  return (
+    <tr className="animate-pulse">
+      <td className="px-3.5 py-3 border-b border-line-2">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-line-2 shrink-0" />
+          <div className="flex flex-col gap-1.5">
+            <div className="h-3 w-28 rounded bg-line-2" />
+            <div className="h-2.5 w-20 rounded bg-line-2" />
+          </div>
+        </div>
+      </td>
+      <td className="px-3.5 py-3 border-b border-line-2"><div className="h-5 w-16 rounded-full bg-line-2" /></td>
+      <td className="px-3.5 py-3 border-b border-line-2"><div className="h-3 w-28 rounded bg-line-2" /></td>
+      <td className="px-3.5 py-3 border-b border-line-2"><div className="h-3 w-20 rounded bg-line-2" /></td>
+      <td className="px-3.5 py-3 border-b border-line-2"><div className="h-5 w-12 rounded-full bg-line-2" /></td>
+      <td className="px-3.5 py-3 border-b border-line-2" />
+    </tr>
+  )
+}
+
+function SkeletonCard() {
+  return (
+    <div className="bg-surface border border-line rounded-xl p-4 animate-pulse">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-9 h-9 rounded-full bg-line-2 shrink-0" />
+        <div className="flex-1 flex flex-col gap-1.5">
+          <div className="h-3 w-32 rounded bg-line-2" />
+          <div className="h-2.5 w-24 rounded bg-line-2" />
+        </div>
+        <div className="h-5 w-12 rounded-full bg-line-2" />
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="h-5 w-16 rounded-full bg-line-2" />
+        <div className="h-7 w-20 rounded bg-line-2" />
+      </div>
+    </div>
+  )
+}
+
 const EMPTY_FORM = { name: '', phone: '', birthday: '' }
 
 export default function AdminUsuarios() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
 
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const { restartTour } = useTour('admin_usuarios', adminUsuariosSteps, !loading)
   const [roleFilter, setRoleFilter] = useState('Todos')
+  const [extraFilter, setExtraFilter] = useState(null)
+  const [search, setSearch] = useState('')
+  const [openTabClientIds, setOpenTabClientIds] = useState(new Set())
   const [toggleTarget, setToggleTarget] = useState(null)
   const [toggling, setToggling] = useState(false)
 
@@ -65,21 +119,48 @@ export default function AdminUsuarios() {
   const [formErrors, setFormErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = {}
+  const { items, loading, loadingMore, hasMore, reload, loadMore } = usePaginatedList(
+    (page, limit) => {
+      const params = { page, limit }
       if (roleFilter !== 'Todos') params.Role = ROLE_FILTER_API[roleFilter] ?? roleFilter
-      const { data } = await api.get('/users', { params })
-      setItems(data.data ?? [])
-    } catch {
-      setItems([])
-    } finally {
-      setLoading(false)
-    }
-  }, [roleFilter])
+      return api.get('/users', { params }).then((r) => r.data)
+    },
+    [roleFilter]
+  )
 
-  useEffect(() => { load() }, [load])
+  const { restartTour } = useTour('admin_usuarios', adminUsuariosSteps, !loading)
+
+  // tabs: busca única, independente da paginação de usuários
+  useEffect(() => {
+    api.get('/tab')
+      .then(({ data }) => {
+        const tabs = data.data ?? []
+        setOpenTabClientIds(new Set(
+          tabs
+            .filter((t) => t.Status === 'Em aberto' && t.Appointment?.ClientId)
+            .map((t) => t.Appointment.ClientId)
+        ))
+      })
+      .catch(() => {})
+  }, [])
+
+  // limpa filtros ao mudar aba de role
+  useEffect(() => { setExtraFilter(null); setSearch('') }, [roleFilter])
+
+  const q = search.trim().toLowerCase()
+  const qDigits = q.replace(/\D/g, '')
+  let filtered = items
+  if (q) {
+    filtered = filtered.filter(
+      (u) =>
+        u.Name?.toLowerCase().includes(q) ||
+        (qDigits && u.Phone?.replace(/\D/g, '').includes(qDigits))
+    )
+  }
+  if (extraFilter === 'comanda_aberta') filtered = filtered.filter((u) => openTabClientIds.has(u.UUID))
+  else if (extraFilter === 'aniversariante') filtered = filtered.filter((u) => isBirthdayThisMonth(u.Birthday))
+  else if (extraFilter === 'ativo') filtered = filtered.filter((u) => u.active)
+  else if (extraFilter === 'inativo') filtered = filtered.filter((u) => !u.active)
 
   async function handleToggleActive() {
     if (!toggleTarget) return
@@ -91,7 +172,7 @@ export default function AdminUsuarios() {
         'success'
       )
       setToggleTarget(null)
-      load()
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao atualizar cliente', 'error')
     } finally {
@@ -118,7 +199,7 @@ export default function AdminUsuarios() {
       setDrawerOpen(false)
       setForm(EMPTY_FORM)
       setFormErrors({})
-      load()
+      reload()
     } catch (err) {
       const msg = err.response?.data?.error
       if (msg?.includes('Telefone')) {
@@ -157,7 +238,7 @@ export default function AdminUsuarios() {
       </div>
 
       {/* Filtro de role */}
-      <div data-tour="usuarios-filtro" className="flex gap-1.5 mb-5 flex-wrap">
+      <div data-tour="usuarios-filtro" className="flex gap-1.5 mb-3 flex-wrap">
         {ROLE_FILTERS.map((r) => (
           <button
             key={r}
@@ -170,9 +251,65 @@ export default function AdminUsuarios() {
         ))}
       </div>
 
+      {/* Busca — sempre visível */}
+      <div className="relative mb-3">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none">
+          <Icon name="search" size={14} />
+        </span>
+        <input
+          type="text"
+          placeholder="Buscar por nome ou telefone…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full h-[38px] pl-8 pr-3 rounded-md border border-line bg-surface text-ink-2 font-body text-[13px]
+                     placeholder:text-ink-4 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/12 transition-colors"
+        />
+      </div>
+
+      {/* Filtros extras */}
+      <div className="flex gap-1.5 flex-wrap mb-5">
+        {CLIENT_EXTRA_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setExtraFilter((prev) => (prev === f.key ? null : f.key))}
+            className={`inline-flex items-center px-2.5 py-[4px] rounded-full text-xs font-medium border cursor-pointer transition-colors
+              ${extraFilter === f.key ? 'bg-brand text-bg border-brand' : 'bg-surface-2 text-ink-2 border-line hover:border-ink-3'}`}
+          >
+            {f.label}
+            {f.key === 'comanda_aberta' && openTabClientIds.size > 0 && (
+              <span className={`ml-1.5 text-[10px] font-mono ${extraFilter === f.key ? 'text-bg/70' : 'text-ink-4'}`}>
+                {openTabClientIds.size}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
-        <PageSpinner />
-      ) : items.length === 0 ? (
+        <>
+          {/* Desktop skeleton */}
+          <div className="hidden md:block bg-surface border border-line rounded-lg overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  {['Cliente', 'Role', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
+                    <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
+              </tbody>
+            </table>
+          </div>
+          {/* Mobile skeleton */}
+          <div className="flex flex-col gap-2 md:hidden">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        </>
+      ) : filtered.length === 0 ? (
         <EmptyState icon="users" title="Nenhum resultado" description="Nenhum usuário encontrado com os filtros selecionados." />
       ) : (
         <>
@@ -189,13 +326,23 @@ export default function AdminUsuarios() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((u, idx) => (
+                {filtered.map((u, idx) => (
                   <tr key={u.UUID} className="hover:bg-surface-2 transition-colors">
                     <td className="px-3.5 py-3 border-b border-line-2">
                       <div className="flex items-center gap-3">
                         <Avatar name={u.Name} index={idx} size="sm" />
                         <div>
-                          <div className="text-[13px] font-medium">{u.Name}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[13px] font-medium">{u.Name}</span>
+                            {openTabClientIds.has(u.UUID) && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning-soft text-warning border border-warning/20">
+                                Comanda aberta
+                              </span>
+                            )}
+                            {isBirthdayThisMonth(u.Birthday) && (
+                              <span className="text-[12px]" title="Aniversariante do mês">🎂</span>
+                            )}
+                          </div>
                           <div className="font-mono text-[11px] text-ink-3">{u.Phone ?? '—'}</div>
                         </div>
                       </div>
@@ -222,19 +369,29 @@ export default function AdminUsuarios() {
 
           {/* Mobile cards */}
           <div className="flex flex-col gap-2 md:hidden">
-            {items.map((u, idx) => (
+            {filtered.map((u, idx) => (
               <div key={u.UUID} className="bg-surface border border-line rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar name={u.Name} index={idx} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-[14px] truncate">{u.Name}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-medium text-[14px] truncate">{u.Name}</span>
+                      {openTabClientIds.has(u.UUID) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning-soft text-warning border border-warning/20 shrink-0">
+                          Comanda aberta
+                        </span>
+                      )}
+                      {isBirthdayThisMonth(u.Birthday) && (
+                        <span className="text-[12px] shrink-0" title="Aniversariante do mês">🎂</span>
+                      )}
+                    </div>
                     <div className="font-mono text-[11px] text-ink-3 truncate">{u.Phone ?? '—'}</div>
                   </div>
                   <Chip variant={u.active ? 'success' : 'danger'}>{u.active ? 'Ativo' : 'Inativo'}</Chip>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{u.Role}</Chip>
+                    <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{ROLE_LABEL[u.Role] ?? u.Role}</Chip>
                     {u.Phone && <span className="font-mono text-[11px] text-ink-3">{u.Phone}</span>}
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setToggleTarget(u)}>
@@ -245,6 +402,8 @@ export default function AdminUsuarios() {
               </div>
             ))}
           </div>
+
+          {hasMore && <LoadMoreButton onClick={loadMore} loading={loadingMore} />}
         </>
       )}
 

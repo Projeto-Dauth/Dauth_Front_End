@@ -23,7 +23,7 @@ export default function ProfissionalProdutos() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const { data } = await api.get('/product')
+      const { data } = await api.get('/product', { params: { limit: 100 } })
       setProducts((data.data ?? []).filter(p => p.Active))
     } catch {
       setProducts([])

@@ -1,10 +1,57 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import logo from '@/logo-dauth-agendamentos.png'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
 import useNotificationStore from '@/store/notificationStore'
+
+function NavGroup({ item, onClose }) {
+  const location = useLocation()
+  const isActive = location.pathname === item.to || item.children.some(c => {
+    const [cPath, cQuery] = c.to.split('?')
+    if (location.pathname !== cPath) return false
+    if (!cQuery) return !location.search
+    return location.search === '?' + cQuery
+  })
+  const [open, setOpen] = useState(isActive)
+
+  useEffect(() => { if (isActive) setOpen(true) }, [isActive])
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`w-full flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] transition-colors cursor-pointer
+          ${isActive ? 'bg-brand-soft text-brand border border-brand/20 font-medium' : 'text-ink-2 hover:bg-surface-3 hover:text-ink'}`}
+      >
+        {item.icon && <Icon name={item.icon} size={16} />}
+        <span className="flex-1 text-left">{item.label}</span>
+        <Icon name="chevronRight" size={12} className={`transition-transform shrink-0 ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="ml-[22px] mt-0.5 flex flex-col gap-0.5 border-l border-line-2 pl-3">
+          {item.children.map((child, i) => {
+            const [cPath, cQuery] = child.to.split('?')
+            const childActive = location.pathname === cPath && (cQuery ? location.search === '?' + cQuery : !location.search || location.search.startsWith('?appointment'))
+            return (
+              <NavLink
+                key={i}
+                to={child.to}
+                onClick={onClose}
+                className={`text-[13px] px-2 py-1.5 rounded-md transition-colors
+                  ${childActive ? 'text-brand font-medium' : 'text-ink-3 hover:text-ink hover:bg-surface-3'}`}
+              >
+                {child.label}
+              </NavLink>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Sidebar({ navItems, footerUser, footerRole, width = '240px', children, onClose }) {
   const navigate = useNavigate()
@@ -50,20 +97,8 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
             </div>
           )
         }
-        if (item.type === 'sub') {
-          return (
-            <NavLink
-              key={i}
-              to={item.to}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 pl-9 pr-2.5 py-2 rounded-lg text-[13px] text-ink-3 hover:bg-surface-3 hover:text-ink transition-colors
-                ${isActive ? 'text-ink' : ''}`
-              }
-            >
-              {item.label}
-            </NavLink>
-          )
+        if (item.children) {
+          return <NavGroup key={i} item={item} onClose={onClose} />
         }
         return (
           <NavLink
