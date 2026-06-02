@@ -6,10 +6,12 @@ import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const navItems = navItemsByRole['Admin']
 
@@ -48,50 +50,31 @@ export default function AdminPedidosProdutos() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
 
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('')
-
-  // Dados para o formulário de novo pedido
   const [products, setProducts] = useState([])
   const [clients, setClients] = useState([])
-
-  // Drawer novo pedido
   const [newDrawer, setNewDrawer] = useState(false)
   const [orderForm, setOrderForm] = useState(EMPTY_ORDER)
   const [savingOrder, setSavingOrder] = useState(false)
-
-  // Drawer detalhes
   const [detailDrawer, setDetailDrawer] = useState(null)
-
-  // Modal confirmar pagamento
   const [payModal, setPayModal] = useState(null)
   const [paying, setPaying] = useState(false)
-
-  // Modal cancelar
   const [cancelModal, setCancelModal] = useState(null)
   const [canceling, setCanceling] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = {}
+  const { items: orders, loading, loadingMore, hasMore, reload, loadMore } = usePaginatedList(
+    (page, limit) => {
+      const params = { page, limit }
       if (filterStatus) params.status = filterStatus
-      const { data } = await api.get('/product-order', { params })
-      setOrders(data.data ?? [])
-    } catch {
-      setOrders([])
-    } finally {
-      setLoading(false)
-    }
-  }, [filterStatus])
-
-  useEffect(() => { load() }, [load])
+      return api.get('/product-order', { params }).then((r) => r.data)
+    },
+    [filterStatus]
+  )
 
   useEffect(() => {
     Promise.all([
-      api.get('/product'),
-      api.get('/users', { params: { Role: 'Usuario' } }),
+      api.get('/product', { params: { limit: 100 } }),
+      api.get('/users', { params: { Role: 'Usuario', limit: 100 } }),
     ])
       .then(([prodRes, clientRes]) => {
         setProducts((prodRes.data.data ?? []).filter((p) => p.Active))
@@ -120,7 +103,7 @@ export default function AdminPedidosProdutos() {
       })
       addToast('Pedido criado com sucesso', 'success')
       setNewDrawer(false)
-      load()
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao criar pedido', 'error')
     } finally {
@@ -136,7 +119,7 @@ export default function AdminPedidosProdutos() {
       addToast('Pedido marcado como pago', 'success')
       setPayModal(null)
       if (detailDrawer?.UUID === payModal.UUID) setDetailDrawer(null)
-      load()
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao atualizar pedido', 'error')
     } finally {
@@ -152,7 +135,7 @@ export default function AdminPedidosProdutos() {
       addToast('Pedido cancelado', 'success')
       setCancelModal(null)
       if (detailDrawer?.UUID === cancelModal.UUID) setDetailDrawer(null)
-      load()
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao cancelar pedido', 'error')
     } finally {
@@ -282,6 +265,8 @@ export default function AdminPedidosProdutos() {
               </div>
             ))}
           </div>
+
+          {hasMore && <LoadMoreButton onClick={loadMore} loading={loadingMore} />}
         </>
       )}
 

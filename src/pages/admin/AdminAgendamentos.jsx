@@ -42,7 +42,7 @@ export default function AdminAgendamentos() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params = {}
+      const params = { limit: 100 }
       if (date) params.date = date
       const { data } = await api.get('/appointment', { params })
       setAllItems(data.data ?? [])
