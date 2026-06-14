@@ -105,21 +105,33 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
       <div className="space-y-5">
         {groups.map((g, gi) => (
           <div key={g.professional_id} className="bg-surface border border-line rounded-[14px] overflow-hidden">
-            <div className="flex items-center gap-2.5 px-5 py-3 bg-surface-2 border-b border-line">
-              <Avatar name={g.name} index={gi} size="sm" />
-              <span className="font-medium text-[13.5px] text-ink">{g.name}</span>
-              <span className="ml-auto font-mono text-[11px] text-ink-4">{g.rows.length} atendimento{g.rows.length !== 1 ? 's' : ''}</span>
-              <span className={`font-mono text-[13px] font-semibold ${paid ? 'text-ink-3' : 'text-brand'}`}>
-                {formatCurrency(g.rows.reduce((s, r) => s + r.commission_amount, 0))}
-              </span>
-              {!paid && (
-                <button
-                  onClick={() => onPagarTodas(g)}
-                  className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors">
-                  Pagar todas
-                  <Icon name="arrowRight" size={11} />
-                </button>
-              )}
+            <div className="px-5 py-3 bg-surface-2 border-b border-line">
+              <div className="flex items-center gap-2.5">
+                <Avatar name={g.name} index={gi} size="sm" />
+                <span className="font-medium text-[13.5px] text-ink flex-1 min-w-0 truncate">{g.name}</span>
+                <span className={`font-mono text-[13px] font-semibold shrink-0 ${paid ? 'text-ink-3' : 'text-brand'}`}>
+                  {formatCurrency(g.rows.reduce((s, r) => s + r.commission_amount, 0))}
+                </span>
+                {!paid && (
+                  <button
+                    onClick={() => onPagarTodas(g)}
+                    className="shrink-0 hidden md:inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors">
+                    Pagar todas
+                    <Icon name="arrowRight" size={11} />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-2 pl-[38px]">
+                <span className="font-mono text-[11px] text-ink-4">{g.rows.length} atendimento{g.rows.length !== 1 ? 's' : ''}</span>
+                {!paid && (
+                  <button
+                    onClick={() => onPagarTodas(g)}
+                    className="md:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors">
+                    Pagar todas
+                    <Icon name="arrowRight" size={11} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <table className="w-full text-sm hidden md:table">
@@ -160,40 +172,43 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
               </tbody>
             </table>
 
-            <div className="md:hidden divide-y divide-line-2 px-4 py-1">
+            <div className="md:hidden divide-y divide-line-2">
               {g.rows.map(tx => (
-                <div key={tx.uuid} className="py-3">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[13px] font-medium text-ink truncate">{tx.cliente}</span>
-                    {paid
-                      ? <Chip variant="success">Repassado</Chip>
-                      : <button
-                          onClick={() => onMarcarRepassado(tx.uuid)}
-                          disabled={markingPaid === tx.uuid}
-                          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-warning-soft text-warning border border-warning/30 cursor-pointer transition-colors disabled:opacity-60">
-                          {markingPaid === tx.uuid ? '...' : 'Repassar'}
-                        </button>
-                    }
+                <div key={tx.uuid} className="px-4 py-3.5">
+                  {/* Linha 1: cliente + serviço */}
+                  <div className="mb-2.5">
+                    <div className="text-[13.5px] font-medium text-ink leading-tight">{tx.cliente}</div>
+                    <div className="text-[12px] text-ink-3 mt-0.5">{tx.servico}</div>
                   </div>
-                  <div className="text-[12px] text-ink-3 mb-2">{tx.servico}</div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {/* Linha 2: datas + valores */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3">
                     <div>
-                      <div className="font-mono text-[9.5px] uppercase tracking-widest text-ink-4">Data agend.</div>
-                      <div className="font-mono text-[11.5px] text-ink-3">{formatDate(tx.appointment_date)}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-ink-4 mb-0.5">Agendamento</div>
+                      <div className="font-mono text-[12px] text-ink-3">{formatDate(tx.appointment_date)}</div>
                     </div>
                     <div>
-                      <div className="font-mono text-[9.5px] uppercase tracking-widest text-ink-4">Data pgto.</div>
-                      <div className="font-mono text-[11.5px] text-ink-3">{formatDate(tx.data)}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-ink-4 mb-0.5">Pagamento</div>
+                      <div className="font-mono text-[12px] text-ink-3">{formatDate(tx.data)}</div>
                     </div>
                     <div>
-                      <div className="font-mono text-[9.5px] uppercase tracking-widest text-ink-4">Valor serviço</div>
-                      <div className="font-mono text-[11.5px] text-ink-2">{formatCurrency(tx.gross_amount)}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-ink-4 mb-0.5">Valor serviço</div>
+                      <div className="font-mono text-[12px] text-ink-2">{formatCurrency(tx.gross_amount)}</div>
                     </div>
                     <div>
-                      <div className="font-mono text-[9.5px] uppercase tracking-widest text-ink-4">Comissão</div>
-                      <div className="font-mono text-[12px] font-semibold text-brand">{formatCurrency(tx.commission_amount)}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-ink-4 mb-0.5">Comissão</div>
+                      <div className="font-mono text-[13px] font-semibold text-brand">{formatCurrency(tx.commission_amount)}</div>
                     </div>
                   </div>
+                  {/* Linha 3: ação */}
+                  {paid
+                    ? <Chip variant="success">Repassado</Chip>
+                    : <button
+                        onClick={() => onMarcarRepassado(tx.uuid)}
+                        disabled={markingPaid === tx.uuid}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium bg-warning-soft text-warning border border-warning/30 cursor-pointer transition-colors disabled:opacity-60">
+                        {markingPaid === tx.uuid ? 'Salvando...' : 'Marcar como repassado'}
+                      </button>
+                  }
                 </div>
               ))}
             </div>
@@ -383,21 +398,25 @@ function HistoricoRepasses({ profFilter }) {
         <div key={h.UUID} className="bg-surface border border-line rounded-[14px] overflow-hidden">
           <button
             onClick={() => setExpanded(expanded === h.UUID ? null : h.UUID)}
-            className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-surface-2 transition-colors cursor-pointer text-left">
-            <Avatar name={h.professional_name} index={hi} size="sm" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-medium text-ink">{h.professional_name}</div>
-              <div className="text-[11px] text-ink-4 mt-0.5">
-                {formatDateTime(h.paid_at)} · por {h.paid_by_name}
+            className="w-full px-5 py-3.5 hover:bg-surface-2 transition-colors cursor-pointer text-left">
+            <div className="flex items-center gap-3">
+              <Avatar name={h.professional_name} index={hi} size="sm" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13.5px] font-medium text-ink">{h.professional_name}</div>
+                <div className="text-[11px] text-ink-4 mt-0.5 truncate">
+                  {formatDateTime(h.paid_at)} · por {h.paid_by_name}
+                </div>
               </div>
+              <span className="font-mono text-[13px] font-semibold text-ink shrink-0">{formatCurrency(h.total_amount)}</span>
+              <Icon
+                name="chevronRight"
+                size={14}
+                className={`text-ink-4 shrink-0 transition-transform ${expanded === h.UUID ? 'rotate-90' : ''}`}
+              />
             </div>
-            <Chip variant="ghost">{METHOD_LABELS[h.method] ?? h.method}</Chip>
-            <span className="font-mono text-[13px] font-semibold text-ink shrink-0">{formatCurrency(h.total_amount)}</span>
-            <Icon
-              name="chevronRight"
-              size={14}
-              className={`text-ink-4 shrink-0 transition-transform ${expanded === h.UUID ? 'rotate-90' : ''}`}
-            />
+            <div className="mt-2 pl-[38px]">
+              <Chip variant="ghost">{METHOD_LABELS[h.method] ?? h.method}</Chip>
+            </div>
           </button>
 
           {expanded === h.UUID && (
@@ -522,12 +541,12 @@ export default function AdminComissoes() {
         </div>
 
         {view === 'comissoes' && (
-          <div className="flex items-center gap-1 p-1 bg-surface-2 border border-line rounded-xl shrink-0">
+          <div className="flex items-center gap-1 p-1 bg-surface-2 border border-line rounded-xl shrink-0 overflow-x-auto">
             {PRESETS.map(p => (
               <button
                 key={p.key}
                 onClick={() => setPreset(p.key)}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
                   preset === p.key
                     ? 'bg-surface text-ink shadow-sm border border-line'
                     : 'text-ink-3 hover:text-ink'
