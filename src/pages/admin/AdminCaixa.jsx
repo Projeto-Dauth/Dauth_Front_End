@@ -27,7 +27,7 @@ const PAY_METHODS = [
   { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
 ]
 
-const PAY_METHODS_FIADO = { id: 'fiado', icon: 'clock', label: 'Fiado — cobrar depois' }
+const PAY_METHODS_FIADO = { id: 'fiado', icon: 'clock', label: 'Mensalista — cobrar depois' }
 
 const PROD_STATUS_LABELS = { encomendado: 'Encomendado', pago: 'Pago', cancelado: 'Cancelado' }
 const PROD_STATUS_COLORS = {
@@ -359,7 +359,7 @@ function TabComandas({ user, initialAppointmentId }) {
               </button>
               <Button variant="primary" className="w-full justify-center" onClick={handleFecharConta} disabled={batchPaying || batchOrdersLoading}>
                 <Icon name="check" size={14} />
-                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : batchMethod === 'fiado' ? `Registrar no fiado · ${formatCurrency(
+                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : batchMethod === 'fiado' ? `Registrar mensalidade · ${formatCurrency(
                   batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
                   batchOrders.reduce((s, o) => s + o.Total_price, 0)
                 )}` : `Fechar conta · ${formatCurrency(
@@ -457,7 +457,7 @@ function TabComandas({ user, initialAppointmentId }) {
                     </button>
                     <Button variant="primary" className="w-full justify-center" onClick={handlePagar} loading={paying}>
                       <Icon name="check" size={14} />
-                      {payMethod === 'fiado' ? 'Registrar no fiado' : 'Registrar pagamento'}
+                      {payMethod === 'fiado' ? 'Registrar mensalidade' : 'Registrar pagamento'}
                     </Button>
                   </>
                 ) : (
@@ -533,7 +533,7 @@ function TabPedidosProdutos() {
     setPaying(true)
     try {
       await api.patch(`/product-order/${selected.UUID}`, { Status: 'pago', Payment_method: payMethod, Payment: payMethod !== 'fiado' })
-      addToast(payMethod === 'fiado' ? 'Registrado no fiado' : 'Pagamento registrado', 'success')
+      addToast(payMethod === 'fiado' ? 'Registrado como mensalidade' : 'Pagamento registrado', 'success')
       load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao registrar pagamento', 'error')
@@ -686,7 +686,7 @@ function TabPedidosProdutos() {
                     </button>
                     <Button variant="primary" className="w-full justify-center mb-2" onClick={handlePay} loading={paying}>
                       <Icon name="check" size={14} />
-                      {payMethod === 'fiado' ? 'Registrar no fiado' : 'Registrar pagamento'}
+                      {payMethod === 'fiado' ? 'Registrar mensalidade' : 'Registrar pagamento'}
                     </Button>
                     <Button variant="ghost" className="w-full justify-center text-danger hover:text-danger" onClick={() => setCancelModal(selected)}>
                       Cancelar pedido
@@ -758,177 +758,6 @@ function TabPedidosProdutos() {
   )
 }
 
-// ─── Aba Mensalista (Fiado) ───────────────────────────────────────────────────
-
-const SETTLE_METHODS = [
-  { id: 'pix', icon: 'qr', label: 'Pix' },
-  { id: 'dinheiro', icon: 'cash', label: 'Dinheiro' },
-  { id: 'cartao_debito', icon: 'card', label: 'Débito' },
-  { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
-]
-
-function TabMensalista() {
-  const { addToast } = useToast()
-  const [clients, setClients] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(null)
-  const [settleMethod, setSettleMethod] = useState(null)
-  const [settling, setSettling] = useState(false)
-  const [search, setSearch] = useState('')
-
-  async function load() {
-    setLoading(true)
-    try {
-      const { data } = await api.get('/transaction/fiado-pending')
-      setClients(data.data ?? [])
-    } catch {
-      setClients([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [])
-
-  async function handleSettle(client) {
-    if (!settleMethod) return
-    setSettling(true)
-    try {
-      await api.post('/transaction/fiado-settle', {
-        client_id: client.client_id,
-        client_name: client.client_name,
-        transaction_ids: client.items.map(i => i.uuid),
-        settlement_method: settleMethod,
-        total_amount: client.total,
-      })
-      addToast(`Fiado de ${client.client_name} quitado com sucesso!`, 'success')
-      setExpanded(null)
-      setSettleMethod(null)
-      load()
-    } catch {
-      addToast('Erro ao quitar fiado. Tente novamente.', 'error')
-    } finally {
-      setSettling(false)
-    }
-  }
-
-  const filtered = search.trim()
-    ? clients.filter(c => c.client_name.toLowerCase().includes(search.trim().toLowerCase()))
-    : clients
-
-  if (loading) return <div className="py-8"><PageSpinner /></div>
-
-  return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Mensalistas com fiado pendente</span>
-          {clients.length > 0 && (
-            <span className="ml-2 font-mono text-[11px] text-warning">{clients.length} cliente{clients.length !== 1 ? 's' : ''}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Filtro por cliente */}
-      {clients.length > 0 && (
-        <div className="relative mb-4">
-          <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Filtrar por nome do cliente..."
-            className="w-full h-[38px] pl-8 pr-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand"
-          />
-        </div>
-      )}
-
-      {clients.length === 0 ? (
-        <p className="text-[13px] text-ink-3 py-4">Nenhum cliente com fiado pendente.</p>
-      ) : filtered.length === 0 ? (
-        <p className="text-[13px] text-ink-3 py-4">Nenhum cliente encontrado com esse nome.</p>
-      ) : (
-      <div className="space-y-3">
-      {filtered.map(c => {
-        const isOpen = expanded === c.client_id
-        return (
-          <div key={c.client_id} className="bg-surface border border-line rounded-[14px] overflow-hidden">
-            {/* Cabeçalho do cliente */}
-            <button
-              onClick={() => { setExpanded(isOpen ? null : c.client_id); setSettleMethod(null) }}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors cursor-pointer text-left"
-            >
-              <div className="flex items-center gap-3">
-                <Avatar name={c.client_name} index={0} size="sm" />
-                <div>
-                  <div className="font-medium text-[14px] text-ink">{c.client_name}</div>
-                  <div className="font-mono text-[11px] text-ink-4 mt-0.5">{c.items.length} item{c.items.length !== 1 ? 's' : ''} em fiado</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[15px] font-semibold text-warning">{formatCurrency(c.total)}</span>
-                <Icon name={isOpen ? 'arrowLeft' : 'chevronRight'} size={14} />
-              </div>
-            </button>
-
-            {/* Painel de detalhes + quitação */}
-            {isOpen && (
-              <div className="border-t border-line px-5 py-4">
-                {/* Lista de itens */}
-                <div className="space-y-2 mb-4">
-                  {c.items.map(item => (
-                    <div key={item.uuid} className="flex items-center justify-between text-[13px]">
-                      <div>
-                        <span className="text-ink-2">{item.servico}</span>
-                        <span className="font-mono text-[11px] text-ink-4 ml-2">
-                          {item.appointment_date ? new Date(item.appointment_date).toLocaleDateString('pt-BR') : item.payment_date ? new Date(item.payment_date).toLocaleDateString('pt-BR') : '—'}
-                        </span>
-                      </div>
-                      <span className="font-mono font-medium text-ink">{formatCurrency(item.gross_amount)}</span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
-                    <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total a quitar</span>
-                    <span className="font-display text-[18px] font-medium text-warning">{formatCurrency(c.total)}</span>
-                  </div>
-                </div>
-
-                {/* Seletor de método */}
-                <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Forma de pagamento</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-                  {SETTLE_METHODS.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => setSettleMethod(m.id)}
-                      className={`px-3 py-2.5 rounded-[10px] border flex flex-col items-center gap-1 text-[12px] cursor-pointer transition-colors
-                        ${settleMethod === m.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink-3'}`}
-                    >
-                      <Icon name={m.icon} size={16} />
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-
-                <Button
-                  variant="primary"
-                  className="w-full justify-center"
-                  disabled={!settleMethod}
-                  loading={settling}
-                  onClick={() => handleSettle(c)}
-                >
-                  <Icon name="check" size={14} />
-                  Quitar fiado · {formatCurrency(c.total)}
-                </Button>
-              </div>
-            )}
-          </div>
-        )
-      })}
-      </div>
-      )}
-    </div>
-  )
-}
-
 // ─── Aba Relatório de Pagamentos ─────────────────────────────────────────────
 
 const METHOD_LABELS = {
@@ -949,8 +778,6 @@ function TabRelatorio() {
   const [totais, setTotais] = useState(null)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [showMensalista, setShowMensalista] = useState(false)
-
   async function handleBuscar() {
     setLoading(true)
     setSearched(true)
@@ -968,9 +795,8 @@ function TabRelatorio() {
 
   return (
     <>
-      {/* Header: filtro de período + botão mensalista */}
+      {/* Header: filtro de período */}
       <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-1">
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">De</label>
           <input
@@ -991,23 +817,13 @@ function TabRelatorio() {
             className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
           />
         </div>
-          <Button variant="primary" onClick={handleBuscar} loading={loading} className="sm:mb-0 self-end">
-            <Icon name="search" size={14} />
-            Buscar
-          </Button>
-        </div>
-        <button
-          onClick={() => setShowMensalista(v => !v)}
-          className={`h-[38px] px-4 rounded-lg border text-[13px] font-medium flex items-center gap-2 self-end cursor-pointer transition-colors whitespace-nowrap
-            ${showMensalista ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line text-ink-2 hover:border-warning/50'}`}
-        >
-          <Icon name="clock" size={14} />
-          Mensalistas
-        </button>
+        <Button variant="primary" onClick={handleBuscar} loading={loading} className="self-end">
+          <Icon name="search" size={14} />
+          Buscar
+        </Button>
       </div>
 
-      {/* Painel mensalista ou relatório */}
-      {showMensalista ? <TabMensalista /> : loading ? <PageSpinner /> : !searched ? (
+      {loading ? <PageSpinner /> : !searched ? (
         <EmptyState icon="receipt" title="Selecione um período" description="Escolha as datas e clique em Buscar para gerar o relatório." />
       ) : payments.length === 0 ? (
         <EmptyState icon="cash" title="Nenhum pagamento" description="Nenhum pagamento encontrado neste período." />

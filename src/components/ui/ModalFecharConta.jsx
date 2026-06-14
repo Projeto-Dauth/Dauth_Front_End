@@ -6,7 +6,7 @@ const PAY_METHODS = [
   { id: 'dinheiro', icon: 'cash', label: 'Dinheiro' },
   { id: 'cartao_debito', icon: 'card', label: 'Débito' },
   { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
-  { id: 'fiado', icon: 'clock', label: 'Fiado' },
+  { id: 'fiado', icon: 'clock', label: 'Mensalista' },
 ]
 
 function formatCurrency(v) {
@@ -105,7 +105,7 @@ export default function ModalFecharConta({ client, orders, ordersLoading, method
               ${method === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
           >
             <Icon name="clock" size={16} />
-            Fiado — cobrar depois
+            Mensalista — cobrar depois
           </button>
           <Button
             variant="primary"
@@ -115,7 +115,7 @@ export default function ModalFecharConta({ client, orders, ordersLoading, method
             loading={paying}
           >
             <Icon name="check" size={14} />
-            {ordersLoading ? 'Carregando...' : method === 'fiado' ? `Registrar no fiado · ${formatCurrency(total)}` : `Fechar conta · ${formatCurrency(total)}`}
+            {ordersLoading ? 'Carregando...' : method === 'fiado' ? `Registrar mensalidade · ${formatCurrency(total)}` : `Fechar conta · ${formatCurrency(total)}`}
           </Button>
         </div>
       </div>
