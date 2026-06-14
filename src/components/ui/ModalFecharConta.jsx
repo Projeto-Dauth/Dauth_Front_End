@@ -6,6 +6,7 @@ const PAY_METHODS = [
   { id: 'dinheiro', icon: 'cash', label: 'Dinheiro' },
   { id: 'cartao_debito', icon: 'card', label: 'Débito' },
   { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
+  { id: 'fiado', icon: 'clock', label: 'Fiado' },
 ]
 
 function formatCurrency(v) {
@@ -85,8 +86,8 @@ export default function ModalFecharConta({ client, orders, ordersLoading, method
             </div>
           )}
           <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">Método de pagamento</div>
-          <div className="grid grid-cols-2 gap-2 mb-5">
-            {PAY_METHODS.map(m => (
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {PAY_METHODS.filter(m => m.id !== 'fiado').map(m => (
               <button
                 key={m.id}
                 onClick={() => onMethodChange(m.id)}
@@ -98,6 +99,14 @@ export default function ModalFecharConta({ client, orders, ordersLoading, method
               </button>
             ))}
           </div>
+          <button
+            onClick={() => onMethodChange('fiado')}
+            className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-5
+              ${method === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
+          >
+            <Icon name="clock" size={16} />
+            Fiado — cobrar depois
+          </button>
           <Button
             variant="primary"
             className="w-full justify-center"
@@ -106,7 +115,7 @@ export default function ModalFecharConta({ client, orders, ordersLoading, method
             loading={paying}
           >
             <Icon name="check" size={14} />
-            {ordersLoading ? 'Carregando...' : `Fechar conta · ${formatCurrency(total)}`}
+            {ordersLoading ? 'Carregando...' : method === 'fiado' ? `Registrar no fiado · ${formatCurrency(total)}` : `Fechar conta · ${formatCurrency(total)}`}
           </Button>
         </div>
       </div>
