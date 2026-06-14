@@ -36,7 +36,7 @@ const PAY_METHODS_PROD = [
   { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
 ]
 
-const PAY_METHODS_FIADO = { id: 'fiado', icon: 'clock', label: 'Fiado — cobrar depois' }
+const PAY_METHODS_FIADO = { id: 'fiado', icon: 'clock', label: 'Mensalista — cobrar depois' }
 
 function FieldProd({ label, children }) {
   return (
@@ -108,7 +108,7 @@ function TabPedidosProdutos() {
     setPaying(true)
     try {
       await api.patch(`/product-order/${selected.UUID}`, { Status: 'pago', Payment_method: payMethod, Payment: payMethod !== 'fiado' })
-      addToast(payMethod === 'fiado' ? 'Registrado no fiado' : 'Pagamento registrado', 'success')
+      addToast(payMethod === 'fiado' ? 'Registrado como mensalidade' : 'Pagamento registrado', 'success')
       load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao registrar pagamento', 'error')
@@ -260,7 +260,7 @@ function TabPedidosProdutos() {
                     </button>
                     <Button variant="primary" className="w-full justify-center mb-2" onClick={handlePay} loading={paying}>
                       <Icon name="check" size={14} />
-                      {payMethod === 'fiado' ? 'Registrar no fiado' : 'Registrar pagamento'}
+                      {payMethod === 'fiado' ? 'Registrar mensalidade' : 'Registrar pagamento'}
                     </Button>
                     <Button variant="ghost" className="w-full justify-center text-danger hover:text-danger" onClick={() => setCancelModal(selected)}>
                       Cancelar pedido
@@ -653,7 +653,7 @@ export default function ProfissionalComandas() {
               </button>
               <Button variant="primary" className="w-full justify-center" onClick={handleFecharConta} disabled={batchPaying || batchOrdersLoading}>
                 <Icon name="check" size={14} />
-                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : batchMethod === 'fiado' ? `Registrar no fiado · ${formatCurrency(
+                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : batchMethod === 'fiado' ? `Registrar mensalidade · ${formatCurrency(
                   batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
                   batchOrders.reduce((s, o) => s + o.Total_price, 0)
                 )}` : `Fechar conta · ${formatCurrency(
@@ -751,7 +751,7 @@ export default function ProfissionalComandas() {
                     </button>
                     <Button variant="primary" className="w-full justify-center" onClick={handlePagar} loading={paying}>
                       <Icon name="check" size={14} />
-                      {payMethod === 'fiado' ? 'Registrar no fiado' : 'Registrar pagamento'}
+                      {payMethod === 'fiado' ? 'Registrar mensalidade' : 'Registrar pagamento'}
                     </Button>
                   </>
                 ) : (
