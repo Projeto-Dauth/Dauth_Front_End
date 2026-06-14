@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
+import ClienteSidebar from '@/components/layout/ClienteSidebar'
 import Button from '@/components/ui/Button'
+import Chip from '@/components/ui/Chip'
 import Input from '@/components/ui/Input'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
@@ -12,6 +14,8 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
+
+const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 
 function formatDate(str) {
   if (!str) return '—'
@@ -44,6 +48,8 @@ export default function MeuPerfil() {
   const [birthday, setBirthday] = useState('')
   const [errors, setErrors] = useState({})
   const [exporting, setExporting] = useState(false)
+  const [appointments, setAppointments] = useState([])
+  const [apptLoading, setApptLoading] = useState(false)
 
   useEffect(() => {
     api.get('/users/perfil/me')
@@ -70,6 +76,15 @@ export default function MeuPerfil() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (user?.role !== 'Usuario' || !user?.id) return
+    setApptLoading(true)
+    api.get(`/appointment/client/${user.id}`, { params: { limit: 20 } })
+      .then(({ data }) => setAppointments(data.data ?? []))
+      .catch(() => setAppointments([]))
+      .finally(() => setApptLoading(false))
+  }, [user?.id, user?.role])
 
   function startEdit() {
     // Garante que os campos refletem o estado atual antes de abrir o form
@@ -133,16 +148,14 @@ export default function MeuPerfil() {
   }
 
   const navItems = navItemsByRole[user?.role] ?? []
-  const sidebar = (
-    <Sidebar navItems={navItems} footerUser={user?.name} footerRole={user?.role}>
-      {user?.role}
-    </Sidebar>
-  )
+  const sidebar = user?.role === 'Usuario'
+    ? <ClienteSidebar user={user} />
+    : <Sidebar navItems={navItems} footerUser={user?.name} footerRole={user?.role}>{user?.role}</Sidebar>
 
   if (loading) {
     return (
       <AppLayout sidebar={sidebar}>
-        <div className="max-w-lg">
+        <div className="max-w-2xl">
           <div className="flex justify-between items-start mb-7">
             <div className="flex flex-col gap-2">
               <div className="h-7 w-32 bg-surface-2 rounded-lg animate-pulse" />
@@ -174,7 +187,7 @@ export default function MeuPerfil() {
   if (loadError) {
     return (
       <AppLayout sidebar={sidebar}>
-        <div className="max-w-lg">
+        <div className="max-w-2xl">
           <h3 className="font-display font-medium text-[26px] tracking-tight mb-7">Meu perfil</h3>
           <div className="bg-danger-soft border border-danger/20 rounded-xl p-5">
             <p className="text-[13.5px] text-danger font-medium mb-1">Não foi possível carregar o perfil</p>
@@ -188,7 +201,7 @@ export default function MeuPerfil() {
 
   return (
     <AppLayout sidebar={sidebar}>
-      <div className="max-w-lg">
+      <div className="max-w-2xl">
         {/* Header */}
         <div className="flex justify-between items-start mb-5 md:mb-7">
           <div>
@@ -207,7 +220,7 @@ export default function MeuPerfil() {
           <Avatar name={profile?.name ?? ''} index={0} size="lg" />
           <div>
             <div className="font-display font-medium text-[18px]">{profile?.name}</div>
-            <div className="text-[13px] text-ink-3 mt-0.5">{profile?.email}</div>
+            {profile?.phone && <div className="text-[13px] text-ink-3 mt-0.5">{profile.phone}</div>}
             <div className="font-mono text-[10.5px] text-ink-4 mt-1.5 uppercase tracking-widest">{profile?.role}</div>
           </div>
         </div>
@@ -217,7 +230,6 @@ export default function MeuPerfil() {
           <>
             <div className="bg-surface border border-line rounded-xl px-5 mb-4">
               <InfoRow label="Nome completo" value={profile?.name} />
-              <InfoRow label="E-mail" value={profile?.email} />
               <InfoRow label="Telefone" value={profile?.phone} />
               <InfoRow label="Data de nascimento" value={formatDate(profile?.birthday)} />
             </div>
@@ -230,6 +242,90 @@ export default function MeuPerfil() {
               </Button>
             </div>
           </>
+        )}
+
+        {/* Histórico de agendamentos — apenas para clientes */}
+        {!editing && user?.role === 'Usuario' && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-display font-medium text-[17px] tracking-tight">Histórico de agendamentos</h4>
+              <button
+                onClick={() => navigate('/cliente/agendamentos')}
+                className="text-[12px] text-brand hover:underline flex items-center gap-1"
+              >
+                Ver todos <Icon name="chevronRight" size={12} />
+              </button>
+            </div>
+
+            {apptLoading ? (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-surface border border-line rounded-xl p-4 flex items-center gap-4">
+                    <div className="h-3.5 w-20 bg-surface-2 rounded animate-pulse shrink-0" />
+                    <div className="h-3.5 flex-1 bg-surface-2 rounded animate-pulse" />
+                    <div className="h-5 w-20 bg-surface-2 rounded-full animate-pulse shrink-0" />
+                  </div>
+                ))}
+              </div>
+            ) : appointments.length === 0 ? (
+              <div className="bg-surface border border-line rounded-xl p-6 text-center">
+                <p className="text-[13px] text-ink-3">Nenhum agendamento encontrado.</p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop table */}
+                <div className="hidden md:block bg-surface border border-line rounded-xl overflow-hidden">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        {['Data', 'Serviço', 'Profissional', 'Status'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {appointments.map(row => (
+                        <tr
+                          key={row.UUID}
+                          className="hover:bg-surface-2 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/agendamento/${row.UUID}`)}
+                        >
+                          <td className="px-4 py-3 font-mono text-[12px] text-ink-3 border-b border-line-2 whitespace-nowrap">{formatDate(row.Date)}</td>
+                          <td className="px-4 py-3 text-[13px] border-b border-line-2">{row.Service ?? '—'}</td>
+                          <td className="px-4 py-3 text-[13px] text-ink-3 border-b border-line-2">{row.Professional ?? '—'}</td>
+                          <td className="px-4 py-3 border-b border-line-2">
+                            <Chip status={row.Status} dot>{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="flex flex-col gap-2 md:hidden">
+                  {appointments.map(row => (
+                    <div
+                      key={row.UUID}
+                      className="bg-surface border border-line rounded-xl p-4 cursor-pointer"
+                      onClick={() => navigate(`/agendamento/${row.UUID}`)}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="font-medium text-[13.5px] flex-1 min-w-0 truncate">{row.Service ?? '—'}</div>
+                        <Chip status={row.Status} dot className="shrink-0">{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
+                      </div>
+                      <div className="flex items-center gap-2 text-[12px] text-ink-3">
+                        <span>{formatDate(row.Date)}</span>
+                        {row.Professional && <><span>·</span><span>com {row.Professional}</span></>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         )}
 
         {/* Edit mode */}
@@ -254,7 +350,6 @@ export default function MeuPerfil() {
               onChange={e => setBirthday(e.target.value)}
               type="date"
             />
-            <p className="text-[12px] text-ink-3 mb-4">E-mail não pode ser alterado por aqui.</p>
             <div className="flex gap-2.5">
               <Button type="submit" loading={saving}>
                 Salvar alterações
