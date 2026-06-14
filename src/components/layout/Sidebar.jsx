@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import logo from '@/logo-dauth-agendamentos.png'
 import Avatar from '@/components/ui/Avatar'
@@ -53,10 +53,23 @@ function NavGroup({ item, onClose }) {
   )
 }
 
-export default function Sidebar({ navItems, footerUser, footerRole, width = '240px', children, onClose }) {
+const SCROLL_KEY = 'dauth_sidebar_scroll'
+
+export default function Sidebar({ navItems, footerUser, footerRole, width = '240px', onClose }) {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { unreadCount, openDrawer } = useNotificationStore()
+  const navScrollRef = useRef(null)
+
+  useEffect(() => {
+    const el = navScrollRef.current
+    if (!el) return
+    const saved = sessionStorage.getItem(SCROLL_KEY)
+    if (saved) el.scrollTop = parseInt(saved, 10)
+    const onScroll = () => sessionStorage.setItem(SCROLL_KEY, el.scrollTop)
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
 
   async function handleLogout() {
     try { await api.post('/auth/logout') } catch {}
@@ -75,7 +88,6 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
         <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="font-display font-semibold text-[13.5px] leading-none truncate">Dauth Agendamentos</div>
-          {children && <div className="font-mono text-[10px] text-ink-3 mt-0.5">{children}</div>}
         </div>
         {onClose && (
           <button
@@ -88,7 +100,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
       </div>
 
       {/* Nav items */}
-      <div className="nav-scroll flex-1 overflow-y-auto flex flex-col gap-0.5 min-h-0">
+      <div ref={navScrollRef} className="nav-scroll flex-1 overflow-y-auto flex flex-col gap-0.5 min-h-0">
       {navItems.map((item, i) => {
         if (item.type === 'label') {
           return (

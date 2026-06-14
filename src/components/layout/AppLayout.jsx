@@ -19,10 +19,10 @@ export default function AppLayout({ sidebar, children }) {
     navigate('/login', { replace: true })
   }
 
-  // polling de contagem a cada 30s
+  // polling de contagem a cada 120s
   useEffect(() => {
     fetchUnreadCount()
-    const id = setInterval(fetchUnreadCount, 30000)
+    const id = setInterval(fetchUnreadCount, 120000)
     return () => clearInterval(id)
   }, [])
 

@@ -61,12 +61,7 @@ export default function AdminCombos() {
     try {
       const { data: pkgData } = await api.get('/package')
       const pkgs = pkgData.data ?? []
-
-      const itemResults = await Promise.all(
-        pkgs.map((p) => api.get(`/package/${p.UUID}/items`).then((r) => r.data.data ?? []).catch(() => []))
-      )
-
-      setPackages(pkgs.map((p, i) => ({ ...p, items: itemResults[i] })))
+      setPackages(pkgs.map((p) => ({ ...p, items: p.Service_package_items ?? [] })))
     } catch {
       setPackages([])
     } finally {

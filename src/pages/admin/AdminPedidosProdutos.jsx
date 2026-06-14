@@ -326,19 +326,6 @@ export default function AdminPedidosProdutos() {
                   <span className="font-display font-medium text-[16px] text-brand">{estimatedTotal}</span>
                 </div>
               )}
-              <Field label="Método de pagamento (opcional)">
-                <select
-                  value={orderForm.Payment_method}
-                  onChange={(e) => setOrderForm((f) => ({ ...f, Payment_method: e.target.value }))}
-                  className={inputCls}
-                >
-                  <option value="">A definir</option>
-                  <option value="dinheiro">Dinheiro</option>
-                  <option value="pix">Pix</option>
-                  <option value="cartao_credito">Cartão de crédito</option>
-                  <option value="cartao_debito">Cartão de débito</option>
-                </select>
-              </Field>
               <Field label="Observações (opcional)">
                 <textarea
                   value={orderForm.Notes}

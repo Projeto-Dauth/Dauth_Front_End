@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import EmptyState from '@/components/ui/EmptyState'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
+import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -103,6 +104,212 @@ function SkeletonCard() {
 
 const EMPTY_FORM = { name: '', phone: '', birthday: '' }
 
+function formatDate(str) {
+  if (!str) return '—'
+  const [y, m, d] = str.slice(0, 10).split('-')
+  return `${d}/${m}/${y}`
+}
+
+const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
+
+function formatCurrency(v) {
+  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function ClientePanel({ client, onClose, onReload }) {
+  const { addToast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [appointments, setAppointments] = useState([])
+  const [tabs, setTabs] = useState([])
+
+  const [fecharOpen, setFecharOpen] = useState(false)
+  const [fecharMethod, setFecharMethod] = useState('pix')
+  const [fecharOrders, setFecharOrders] = useState([])
+  const [fecharOrdersLoading, setFecharOrdersLoading] = useState(false)
+  const [fecharPaying, setFecharPaying] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    Promise.all([
+      api.get(`/appointment/client/${client.UUID}`, { params: { limit: 100 } }),
+      api.get(`/tab/client/${client.UUID}`),
+    ])
+      .then(([apptRes, tabRes]) => {
+        setAppointments(apptRes.data.data ?? [])
+        setTabs(tabRes.data.data ?? [])
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [client.UUID])
+
+  const openTabs = tabs.filter(t => t.Status === 'Em aberto')
+  const paidTabs = tabs.filter(t => (t.Status === 'Paga' || t.Status === 'Pago') && t.Value > 0)
+  const totalGasto = paidTabs.reduce((s, t) => s + t.Value, 0)
+  const concludedCount = appointments.filter(a => a.Status === 'concluido').length
+  const ticketMedio = concludedCount > 0 ? totalGasto / concludedCount : 0
+
+  async function handleOpenFecharConta() {
+    setFecharOpen(true)
+    setFecharOrdersLoading(true)
+    try {
+      const { data } = await api.get('/product-order', { params: { client_id: client.UUID, status: 'encomendado' } })
+      setFecharOrders(data.data ?? [])
+    } catch {
+      setFecharOrders([])
+    } finally {
+      setFecharOrdersLoading(false)
+    }
+  }
+
+  async function handleFecharConta() {
+    setFecharPaying(true)
+    try {
+      await api.post('/tab/batch-pay', {
+        tab_ids: openTabs.map(t => t.UUID),
+        Method: fecharMethod,
+        Payment_date: new Date().toISOString(),
+        client_id: client.UUID,
+      })
+      addToast('Conta fechada com sucesso', 'success')
+      setFecharOpen(false)
+      onReload()
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao fechar conta', 'error')
+    } finally {
+      setFecharPaying(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+        <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+        <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[460px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
+
+          {/* Alça mobile */}
+          <div className="flex justify-center pt-3 pb-1 md:hidden">
+            <div className="w-10 h-1 rounded-full bg-line-2" />
+          </div>
+
+          {/* Header */}
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
+            <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
+              <Icon name="x" size={18} />
+            </button>
+            <Avatar name={client.Name} index={0} size="sm" />
+            <div className="flex-1 min-w-0">
+              <h4 className="font-display font-medium text-[15px] tracking-tight truncate">{client.Name}</h4>
+              <p className="font-mono text-[11px] text-ink-3">{client.Phone ?? '—'}</p>
+            </div>
+            <Chip variant={client.active ? 'success' : 'danger'}>{client.active ? 'Ativo' : 'Inativo'}</Chip>
+          </div>
+
+          {loading ? (
+            <div className="px-5 py-5 flex flex-col gap-6 animate-pulse">
+              {/* KPI skeleton */}
+              <div className="grid grid-cols-3 gap-3">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="bg-surface border border-line rounded-xl p-3 flex flex-col items-center gap-2">
+                    <div className="h-6 w-14 bg-line-2 rounded" />
+                    <div className="h-2.5 w-16 bg-line-2 rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Rows skeleton */}
+              <div className="space-y-3">
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} className="flex justify-between items-center py-2.5 border-b border-line-2">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="h-3 w-32 bg-line-2 rounded" />
+                      <div className="h-2.5 w-24 bg-line-2 rounded" />
+                    </div>
+                    <div className="h-5 w-16 bg-line-2 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="px-5 py-5 flex flex-col gap-6">
+
+              {/* KPIs */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-surface border border-line rounded-xl p-3 text-center">
+                  <div className="font-serif text-[24px] font-light leading-none text-ink">{concludedCount}</div>
+                  <div className="text-[11px] text-ink-3 mt-1.5">Atendimentos</div>
+                </div>
+                <div className="bg-surface border border-line rounded-xl p-3 text-center">
+                  <div className="font-serif text-[20px] font-light leading-none text-brand truncate px-1">{formatCurrency(totalGasto)}</div>
+                  <div className="text-[11px] text-ink-3 mt-1.5">Total gasto</div>
+                </div>
+                <div className="bg-surface border border-line rounded-xl p-3 text-center">
+                  <div className="font-serif text-[20px] font-light leading-none text-ink truncate px-1">{formatCurrency(ticketMedio)}</div>
+                  <div className="text-[11px] text-ink-3 mt-1.5">Ticket médio</div>
+                </div>
+              </div>
+
+              {/* Comandas em aberto */}
+              {openTabs.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-medium text-[13.5px]">Comandas em aberto</h5>
+                    <span className="text-[11px] font-mono text-warning">{openTabs.length} aberta{openTabs.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="space-y-2 mb-3">
+                    {openTabs.map(t => (
+                      <div key={t.UUID} className="flex items-center justify-between bg-warning-soft border border-warning/20 rounded-lg px-3 py-2.5 text-[13px]">
+                        <span className="text-ink-2">{t.Appointment?.Service ?? '—'} · {t.Appointment?.Start_time?.slice(0, 5) ?? '—'}</span>
+                        <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Button variant="primary" size="sm" className="w-full justify-center" onClick={handleOpenFecharConta}>
+                    <Icon name="cash" size={13} />Fechar conta
+                  </Button>
+                </div>
+              )}
+
+              {/* Últimos agendamentos */}
+              <div>
+                <h5 className="font-medium text-[13.5px] mb-3">Últimos agendamentos</h5>
+                {appointments.length === 0 ? (
+                  <p className="text-[13px] text-ink-3">Nenhum agendamento registrado.</p>
+                ) : (
+                  <div>
+                    {appointments.slice(0, 10).map(row => (
+                      <div key={row.UUID} className="flex items-center justify-between py-2.5 border-b border-line-2 last:border-0">
+                        <div>
+                          <div className="text-[13px] font-medium">{row.Service ?? '—'}</div>
+                          <div className="text-[11.5px] text-ink-3">{formatDate(row.Date)} · {row.Professional ?? '—'}</div>
+                        </div>
+                        <Chip status={row.Status} dot>{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+        </div>
+      </div>
+
+      {fecharOpen && (
+        <ModalFecharConta
+          client={{ name: client.Name, clientId: client.UUID, tabs: openTabs }}
+          orders={fecharOrders}
+          ordersLoading={fecharOrdersLoading}
+          method={fecharMethod}
+          onMethodChange={setFecharMethod}
+          paying={fecharPaying}
+          onClose={() => setFecharOpen(false)}
+          onConfirm={handleFecharConta}
+        />
+      )}
+    </>
+  )
+}
+
 export default function AdminUsuarios() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
@@ -114,6 +321,7 @@ export default function AdminUsuarios() {
   const [toggleTarget, setToggleTarget] = useState(null)
   const [toggling, setToggling] = useState(false)
 
+  const [selectedClient, setSelectedClient] = useState(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState({})
@@ -132,7 +340,7 @@ export default function AdminUsuarios() {
 
   // tabs: busca única, independente da paginação de usuários
   useEffect(() => {
-    api.get('/tab')
+    api.get('/tab', { params: { limit: 100 } })
       .then(({ data }) => {
         const tabs = data.data ?? []
         setOpenTabClientIds(new Set(
@@ -327,18 +535,17 @@ export default function AdminUsuarios() {
               </thead>
               <tbody>
                 {filtered.map((u, idx) => (
-                  <tr key={u.UUID} className="hover:bg-surface-2 transition-colors">
+                  <tr
+                    key={u.UUID}
+                    onClick={() => setSelectedClient(u)}
+                    className="hover:bg-surface-2 transition-colors cursor-pointer"
+                  >
                     <td className="px-3.5 py-3 border-b border-line-2">
                       <div className="flex items-center gap-3">
                         <Avatar name={u.Name} index={idx} size="sm" />
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-[13px] font-medium">{u.Name}</span>
-                            {openTabClientIds.has(u.UUID) && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning-soft text-warning border border-warning/20">
-                                Comanda aberta
-                              </span>
-                            )}
                             {isBirthdayThisMonth(u.Birthday) && (
                               <span className="text-[12px]" title="Aniversariante do mês">🎂</span>
                             )}
@@ -356,7 +563,7 @@ export default function AdminUsuarios() {
                       <Chip variant={u.active ? 'success' : 'danger'}>{u.active ? 'Ativo' : 'Inativo'}</Chip>
                     </td>
                     <td className="px-3.5 py-3 text-right border-b border-line-2">
-                      <Button variant="ghost" size="sm" onClick={() => setToggleTarget(u)}>
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setToggleTarget(u) }}>
                         <Icon name={u.active ? 'lock' : 'check'} size={13} />
                         {u.active ? 'Desativar' : 'Ativar'}
                       </Button>
@@ -370,17 +577,16 @@ export default function AdminUsuarios() {
           {/* Mobile cards */}
           <div className="flex flex-col gap-2 md:hidden">
             {filtered.map((u, idx) => (
-              <div key={u.UUID} className="bg-surface border border-line rounded-xl p-4">
+              <div
+                key={u.UUID}
+                onClick={() => setSelectedClient(u)}
+                className="bg-surface border border-line rounded-xl p-4 cursor-pointer"
+              >
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar name={u.Name} index={idx} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium text-[14px] truncate">{u.Name}</span>
-                      {openTabClientIds.has(u.UUID) && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning-soft text-warning border border-warning/20 shrink-0">
-                          Comanda aberta
-                        </span>
-                      )}
                       {isBirthdayThisMonth(u.Birthday) && (
                         <span className="text-[12px] shrink-0" title="Aniversariante do mês">🎂</span>
                       )}
@@ -394,7 +600,7 @@ export default function AdminUsuarios() {
                     <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{ROLE_LABEL[u.Role] ?? u.Role}</Chip>
                     {u.Phone && <span className="font-mono text-[11px] text-ink-3">{u.Phone}</span>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setToggleTarget(u)}>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setToggleTarget(u) }}>
                     <Icon name={u.active ? 'lock' : 'check'} size={13} />
                     {u.active ? 'Desativar' : 'Ativar'}
                   </Button>
@@ -405,6 +611,15 @@ export default function AdminUsuarios() {
 
           {hasMore && <LoadMoreButton onClick={loadMore} loading={loadingMore} />}
         </>
+      )}
+
+      {/* Painel de detalhes do cliente */}
+      {selectedClient && (
+        <ClientePanel
+          client={selectedClient}
+          onClose={() => setSelectedClient(null)}
+          onReload={reload}
+        />
       )}
 
       {/* Modal ativar/desativar */}

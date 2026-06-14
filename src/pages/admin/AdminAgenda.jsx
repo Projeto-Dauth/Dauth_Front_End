@@ -85,7 +85,7 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
         </button>
       )}
 
-      {appt.Status !== 'cancelado' && (
+      {appt.Status === 'concluido' && (
         <>
           <button
             onClick={() => { onOpenComanda(appt); onClose() }}
@@ -1003,6 +1003,7 @@ export default function AdminAgenda() {
   })
   const [appointments, setAppointments] = useState([])
   const [professionals, setProfessionals] = useState([])
+  const professionalsRef = useRef([])
   const [breakByProf, setBreakByProf] = useState({})
   const [leaveByProf, setLeaveByProf] = useState({})
   const [loading, setLoading] = useState(true)
@@ -1116,7 +1117,9 @@ export default function AdminAgenda() {
       api.get('/users', { params: { Role: 'Admin' } }),
     ])
       .then(([profRes, adminRes]) => {
-        setProfessionals([...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])])
+        const list = [...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])]
+        professionalsRef.current = list
+        setProfessionals(list)
       })
       .catch(() => setProfessionals([]))
   }, [])
@@ -1142,9 +1145,10 @@ export default function AdminAgenda() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
+      const profs = professionalsRef.current
       const [apptRes, ...leaveResults] = await Promise.all([
         api.get('/appointment', { params: { date: toDateStr(date) } }),
-        ...professionals.map(p =>
+        ...profs.map(p =>
           api.get(`/professional-leave/professional/${p.UUID}`, { params: { date: toDateStr(date) } })
             .then(r => ({ uuid: p.UUID, leaves: (r.data.data ?? []).filter(l => l.Date === toDateStr(date)) }))
             .catch(() => ({ uuid: p.UUID, leaves: [] }))
@@ -1158,9 +1162,11 @@ export default function AdminAgenda() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [date, professionals])
+  }, [date])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (professionals.length > 0) load()
+  }, [load, professionals.length])
 
   function prevDay() {
     setDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n })

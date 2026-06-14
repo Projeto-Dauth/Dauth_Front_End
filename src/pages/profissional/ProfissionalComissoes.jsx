@@ -113,7 +113,8 @@ export default function ProfissionalComissoes() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-line bg-surface-2">
-                      <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Data</th>
+                      <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Data agend.</th>
+                      <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Data pgto.</th>
                       <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Cliente</th>
                       <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Serviço</th>
                       <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Valor do serviço</th>
@@ -124,7 +125,8 @@ export default function ProfissionalComissoes() {
                   <tbody>
                     {data.map(row => (
                       <tr key={row.uuid} className="border-b border-line-2 last:border-0 hover:bg-surface-2 transition-colors">
-                        <td className="px-5 py-4 font-mono text-[12px] text-ink-3">{formatDate(row.data)}</td>
+                        <td className="px-5 py-4 font-mono text-[12px] text-ink-3">{formatDate(row.appointment_date)}</td>
+                        <td className="px-5 py-4 font-mono text-[12px] text-ink-4">{formatDate(row.data)}</td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2">
                             <Avatar name={row.cliente} index={0} size="sm" />
@@ -146,7 +148,7 @@ export default function ProfissionalComissoes() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-line bg-surface-2">
-                      <td colSpan={3} className="px-5 py-3.5 font-mono text-[11px] uppercase tracking-widest text-ink-3">
+                      <td colSpan={4} className="px-5 py-3.5 font-mono text-[11px] uppercase tracking-widest text-ink-3">
                         Total · {totais?.atendimentos} atendimento{totais?.atendimentos !== 1 ? 's' : ''}
                       </td>
                       <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink">{formatCurrency(totais?.gross_amount)}</td>
@@ -167,7 +169,10 @@ export default function ProfissionalComissoes() {
                         <span className="font-medium text-[14px] text-ink">{row.cliente}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] text-ink-4">{formatDate(row.data)}</span>
+                        <div className="text-right">
+                          <div className="font-mono text-[11px] text-ink-3">Agend. {formatDate(row.appointment_date)}</div>
+                          <div className="font-mono text-[10px] text-ink-4">Pgto. {formatDate(row.data)}</div>
+                        </div>
                         <Chip variant={row.commission_paid ? 'success' : 'warning'}>
                           {row.commission_paid ? 'Repassado' : 'A repassar'}
                         </Chip>
