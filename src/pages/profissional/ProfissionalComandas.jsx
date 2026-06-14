@@ -36,6 +36,8 @@ const PAY_METHODS_PROD = [
   { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
 ]
 
+const PAY_METHODS_FIADO = { id: 'fiado', icon: 'clock', label: 'Fiado — cobrar depois' }
+
 function FieldProd({ label, children }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -105,8 +107,8 @@ function TabPedidosProdutos() {
     if (!selected) return
     setPaying(true)
     try {
-      await api.patch(`/product-order/${selected.UUID}`, { Status: 'pago', Payment_method: payMethod })
-      addToast('Pagamento registrado', 'success')
+      await api.patch(`/product-order/${selected.UUID}`, { Status: 'pago', Payment_method: payMethod, Payment: payMethod !== 'fiado' })
+      addToast(payMethod === 'fiado' ? 'Registrado no fiado' : 'Pagamento registrado', 'success')
       load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao registrar pagamento', 'error')
@@ -238,7 +240,7 @@ function TabPedidosProdutos() {
                     <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">
                       Método de pagamento
                     </div>
-                    <div className="grid grid-cols-2 gap-2 mb-5">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
                       {PAY_METHODS_PROD.map((m) => (
                         <button key={m.id} onClick={() => setPayMethod(m.id)}
                           className={`px-3 py-3.5 rounded-[10px] border flex flex-col items-center gap-1.5 text-[13px] cursor-pointer transition-colors
@@ -248,9 +250,17 @@ function TabPedidosProdutos() {
                         </button>
                       ))}
                     </div>
+                    <button
+                      onClick={() => setPayMethod(PAY_METHODS_FIADO.id)}
+                      className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-5
+                        ${payMethod === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
+                    >
+                      <Icon name={PAY_METHODS_FIADO.icon} size={16} />
+                      {PAY_METHODS_FIADO.label}
+                    </button>
                     <Button variant="primary" className="w-full justify-center mb-2" onClick={handlePay} loading={paying}>
                       <Icon name="check" size={14} />
-                      Registrar pagamento
+                      {payMethod === 'fiado' ? 'Registrar no fiado' : 'Registrar pagamento'}
                     </Button>
                     <Button variant="ghost" className="w-full justify-center text-danger hover:text-danger" onClick={() => setCancelModal(selected)}>
                       Cancelar pedido
@@ -298,15 +308,6 @@ function TabPedidosProdutos() {
                   <span className="font-display font-medium text-[16px] text-brand">{estTotal}</span>
                 </div>
               )}
-              <FieldProd label="Método de pagamento (opcional)">
-                <select value={orderForm.Payment_method} onChange={e => setOrderForm(f => ({ ...f, Payment_method: e.target.value }))} className={inputClsProd}>
-                  <option value="">A definir</option>
-                  <option value="dinheiro">Dinheiro</option>
-                  <option value="pix">Pix</option>
-                  <option value="cartao_credito">Cartão de crédito</option>
-                  <option value="cartao_debito">Cartão de débito</option>
-                </select>
-              </FieldProd>
               <FieldProd label="Observações (opcional)">
                 <textarea value={orderForm.Notes} onChange={e => setOrderForm(f => ({ ...f, Notes: e.target.value }))}
                   placeholder="Alguma observação sobre o pedido..." rows={3}
@@ -383,7 +384,7 @@ export default function ProfissionalComandas() {
     try {
       const [apptRes, tabRes] = await Promise.all([
         api.get('/appointment/my', { params: { limit: 500 } }),
-        api.get('/tab'),
+        api.get('/tab', { params: { limit: 1000 } }),
       ])
       const apptUUIDs = new Set((apptRes.data.data ?? []).map(a => a.UUID))
       const myTabs = (tabRes.data.data ?? []).filter(t => t.Appointment && apptUUIDs.has(t.Appointment.UUID))
@@ -438,7 +439,7 @@ export default function ProfissionalComandas() {
           Method: payMethod,
           Net_amount: selected.Value,
           Gross_amount: selected.Value,
-          Payment: true,
+          Payment: payMethod !== 'fiado',
           Payment_date: new Date().toISOString(),
         })
       }
@@ -632,7 +633,7 @@ export default function ProfissionalComandas() {
                 </div>
               )}
               <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">Método de pagamento</div>
-              <div className="grid grid-cols-2 gap-2 mb-5">
+              <div className="grid grid-cols-2 gap-2 mb-2">
                 {PAY_METHODS_PROD.map(m => (
                   <button key={m.id} onClick={() => setBatchMethod(m.id)}
                     className={`px-3 py-3 rounded-[10px] border flex flex-col items-center gap-1.5 text-[13px] cursor-pointer transition-colors
@@ -642,9 +643,20 @@ export default function ProfissionalComandas() {
                   </button>
                 ))}
               </div>
+              <button
+                onClick={() => setBatchMethod(PAY_METHODS_FIADO.id)}
+                className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-5
+                  ${batchMethod === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
+              >
+                <Icon name={PAY_METHODS_FIADO.icon} size={16} />
+                {PAY_METHODS_FIADO.label}
+              </button>
               <Button variant="primary" className="w-full justify-center" onClick={handleFecharConta} disabled={batchPaying || batchOrdersLoading}>
                 <Icon name="check" size={14} />
-                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : `Fechar conta · ${formatCurrency(
+                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : batchMethod === 'fiado' ? `Registrar no fiado · ${formatCurrency(
+                  batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
+                  batchOrders.reduce((s, o) => s + o.Total_price, 0)
+                )}` : `Fechar conta · ${formatCurrency(
                   batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
                   batchOrders.reduce((s, o) => s + o.Total_price, 0)
                 )}`}
@@ -719,7 +731,7 @@ export default function ProfissionalComandas() {
                     <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">
                       Método de pagamento
                     </div>
-                    <div className="grid grid-cols-2 gap-2 mb-5">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
                       {PAY_METHODS_PROD.map(m => (
                         <button key={m.id} onClick={() => setPayMethod(m.id)}
                           className={`px-3 py-3.5 rounded-[10px] border flex flex-col items-center gap-1.5 text-[13px] cursor-pointer transition-colors
@@ -729,9 +741,17 @@ export default function ProfissionalComandas() {
                         </button>
                       ))}
                     </div>
+                    <button
+                      onClick={() => setPayMethod(PAY_METHODS_FIADO.id)}
+                      className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-5
+                        ${payMethod === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
+                    >
+                      <Icon name={PAY_METHODS_FIADO.icon} size={16} />
+                      {PAY_METHODS_FIADO.label}
+                    </button>
                     <Button variant="primary" className="w-full justify-center" onClick={handlePagar} loading={paying}>
                       <Icon name="check" size={14} />
-                      Registrar pagamento
+                      {payMethod === 'fiado' ? 'Registrar no fiado' : 'Registrar pagamento'}
                     </Button>
                   </>
                 ) : (
