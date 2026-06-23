@@ -693,9 +693,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const [clientes, setClientes] = useState([])
   const [servicos, setServicos] = useState([])
   const [clienteId, setClienteId] = useState('')
-  const [servicoId, setServicoId] = useState('')
-  const [startTime, setStartTime] = useState(slot)
-  const [endTime, setEndTime] = useState(addMinutes(slot, 60))
+  const [itens, setItens] = useState([{ servicoId: '', startTime: slot, endTime: addMinutes(slot, 60) }])
   const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
@@ -721,36 +719,72 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
 
   function handleServicoCriado(servico) {
     setServicos(prev => [...prev, servico])
-    handleServico(servico.UUID, [...servicos, servico])
+    handleServico(itens.length - 1, servico.UUID, [...servicos, servico])
     // Vincula automaticamente o serviço criado ao profissional da agenda
     api.post(`/service/${servico.UUID}/professionals`, { professional_id: professional.UUID }).catch(() => { })
   }
 
-  // Quando serviço muda, ajusta end_time pela duração
-  function handleServico(id, lista) {
-    setServicoId(id)
-    const svc = (lista ?? servicos).find(s => s.UUID === id)
-    if (svc?.Duration) {
-      const [h, m] = svc.Duration.split(':').map(Number)
-      setEndTime(addMinutes(startTime, h * 60 + m))
-    }
+  // Quando serviço muda, ajusta end_time pela duração e encadeia o início do próximo item
+  function handleServico(index, id, lista) {
+    setItens(prev => {
+      const next = [...prev]
+      const item = { ...next[index], servicoId: id }
+      const svc = (lista ?? servicos).find(s => s.UUID === id)
+      if (svc?.Duration) {
+        const [h, m] = svc.Duration.split(':').map(Number)
+        item.endTime = addMinutes(item.startTime, h * 60 + m)
+      }
+      next[index] = item
+      if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: item.endTime }
+      return next
+    })
+  }
+
+  function handleItemStartTime(index, value) {
+    setItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], startTime: value }
+      return next
+    })
+  }
+
+  function handleItemEndTime(index, value) {
+    setItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], endTime: value }
+      if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: value }
+      return next
+    })
+  }
+
+  function addItem() {
+    setItens(prev => {
+      const last = prev[prev.length - 1]
+      return [...prev, { servicoId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
+    })
+  }
+
+  function removeItem(index) {
+    setItens(prev => prev.filter((_, i) => i !== index))
   }
 
   async function handleSalvar() {
-    if (!clienteId || !servicoId) return addToast('Preencha cliente e serviço', 'warning')
+    if (!clienteId || itens.some(it => !it.servicoId)) return addToast('Preencha cliente e todos os serviços', 'warning')
     setSaving(true)
     try {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-      await api.post('/appointment', {
-        Client: clienteId,
-        Professional: professional.UUID,
-        Service: servicoId,
-        Date: dateStr,
-        Start_time: startTime,
-        End_time: endTime,
-        Is_urgent: isUrgent,
-      })
-      addToast('Agendamento criado!')
+      for (const item of itens) {
+        await api.post('/appointment', {
+          Client: clienteId,
+          Professional: professional.UUID,
+          Service: item.servicoId,
+          Date: dateStr,
+          Start_time: item.startTime,
+          End_time: item.endTime,
+          Is_urgent: isUrgent,
+        })
+      }
+      addToast(itens.length > 1 ? `${itens.length} agendamentos criados!` : 'Agendamento criado!')
       onSaved()
       onClose()
     } catch (err) {
@@ -811,39 +845,67 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
               </div>
             </div>
 
-            {/* Serviço */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-medium text-ink-2">Serviço</label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalServico(true)}
-                  className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
-                >
-                  <Icon name="plus" size={16} />
-                </button>
-                <SearchableSelect
-                  value={servicoId}
-                  onChange={handleServico}
-                  disabled={loadingData || servicos.length === 0}
-                  options={servicos.map(s => ({ value: s.UUID, label: s.Name }))}
-                  placeholder={loadingData ? 'Carregando…' : servicos.length === 0 ? 'Nenhum serviço vinculado' : 'Selecionar serviço…'}
-                  className="flex-1"
-                />
-              </div>
-            </div>
+            {/* Serviços */}
+            {itens.map((item, i) => (
+              <div key={i} className="flex flex-col gap-3 pb-3 border-b border-line last:border-b-0 last:pb-0">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] font-medium text-ink-2">
+                      {itens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
+                    </label>
+                    {itens.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeItem(i)}
+                        className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
+                      >
+                        <Icon name="x" size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {i === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setModalServico(true)}
+                        className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
+                      >
+                        <Icon name="plus" size={16} />
+                      </button>
+                    )}
+                    <SearchableSelect
+                      value={item.servicoId}
+                      onChange={(id) => handleServico(i, id)}
+                      disabled={loadingData || servicos.length === 0}
+                      options={servicos.map(s => ({ value: s.UUID, label: s.Name }))}
+                      placeholder={loadingData ? 'Carregando…' : servicos.length === 0 ? 'Nenhum serviço vinculado' : 'Selecionar serviço…'}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
 
-            {/* Horários */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[12px] font-medium text-ink-2">Início</label>
-                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClass} />
+                {/* Horários */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[12px] font-medium text-ink-2">Início</label>
+                    <input type="time" value={item.startTime} onChange={e => handleItemStartTime(i, e.target.value)} className={inputClass} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[12px] font-medium text-ink-2">Fim</label>
+                    <input type="time" value={item.endTime} onChange={e => handleItemEndTime(i, e.target.value)} className={inputClass} />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[12px] font-medium text-ink-2">Fim</label>
-                <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClass} />
-              </div>
-            </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addItem}
+              className="flex items-center justify-center gap-1.5 w-full h-[38px] rounded-md border border-dashed border-line text-[13px] font-medium text-ink-3 hover:text-brand hover:border-brand/30 transition-colors cursor-pointer"
+            >
+              <Icon name="plus" size={14} />
+              Adicionar serviço
+            </button>
 
             {/* Profissional (read-only) */}
             <div className="flex flex-col gap-1.5">
