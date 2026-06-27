@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import logo from '@/logo-dauth-agendamentos.png'
 
@@ -33,6 +33,12 @@ const NAV_LINKS = [
 
 export default function PortalPage() {
   const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = 'Dauth | Agendamentos em Caxias do Sul'
+    return () => { document.title = previousTitle }
+  }, [])
 
   return (
     <div className="font-body text-ink antialiased">
