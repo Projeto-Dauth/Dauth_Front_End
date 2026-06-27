@@ -90,7 +90,7 @@ export default function PortalPage() {
                 aria-label="Fechar menu"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
             </div>
@@ -167,11 +167,11 @@ export default function PortalPage() {
           {/* Right: phone mockup — desktop only */}
           <div className="col-span-12 lg:col-span-5 relative min-h-[600px] hidden lg:block">
             <div className="absolute top-0 right-0 w-[78%] aspect-[4/5] rounded-md overflow-hidden border border-line">
-              <img src="/horarios-dauth.png" alt="Tela de horários" className="w-full h-full object-cover object-top" />
+              <img src="/hero-tela-horarios.webp" alt="Tela de horários" className="w-full h-full object-cover object-top" />
             </div>
 
             <div className="absolute bottom-0 left-0 w-[52%]">
-              <img src="/agenda-dauth-mobile.png" alt="App de agendamento" className="w-full h-auto drop-shadow-xl" />
+              <img src="/hero-agenda-mobile.webp" alt="App de agendamento" className="w-full h-auto drop-shadow-xl" />
             </div>
 
             <div className="absolute top-8 left-2 bg-bg border border-line rounded-full px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-widest text-ink-2 shadow-sm -rotate-6">
@@ -191,10 +191,7 @@ export default function PortalPage() {
       <section className="border-b border-line">
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28">
           <div className="grid grid-cols-12 gap-6 md:gap-10 mb-14 md:mb-20">
-            <div className="col-span-12 md:col-span-2">
-              <div className="font-mono text-[10.5px] uppercase tracking-widest text-brand">// 01</div>
-            </div>
-            <div className="col-span-12 md:col-span-10">
+            <div className="col-span-12">
               <h2 className="font-display font-medium leading-[1.02] text-ink" style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}>
                 Beleza não devia depender de mensagem não respondida<span className="text-brand">.</span>
               </h2>
@@ -213,7 +210,7 @@ export default function PortalPage() {
                   'Você esquece, perde o horário',
                 ].map((item, i) => (
                   <li key={i} className="flex gap-4">
-                    <span className="font-serif italic text-gold text-[20px] leading-none mt-1 shrink-0">{['i.','ii.','iii.','iv.','v.'][i]}</span>
+                    <span className="font-serif italic text-gold text-[20px] leading-none mt-1 shrink-0">{['i.', 'ii.', 'iii.', 'iv.', 'v.'][i]}</span>
                     <span>{item}</span>
                   </li>
                 ))}
@@ -231,7 +228,7 @@ export default function PortalPage() {
                   'Acompanha seu histórico e seus pacotes de sessões',
                 ].map((item, i) => (
                   <li key={i} className="flex gap-4">
-                    <span className="font-serif italic text-gold text-[20px] leading-none mt-1 shrink-0">{['i.','ii.','iii.','iv.','v.'][i]}</span>
+                    <span className="font-serif italic text-gold text-[20px] leading-none mt-1 shrink-0">{['i.', 'ii.', 'iii.', 'iv.', 'v.'][i]}</span>
                     <span>{item}</span>
                   </li>
                 ))}
@@ -245,12 +242,9 @@ export default function PortalPage() {
       <section id="como" className="border-b border-line" style={{ background: 'rgba(245,236,226,0.4)' }}>
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28">
           <div className="grid grid-cols-12 gap-6 md:gap-10 mb-12 md:mb-16">
-            <div className="col-span-12 md:col-span-2">
-              <div className="font-mono text-[10.5px] uppercase tracking-widest text-brand">// 02</div>
-            </div>
-            <div className="col-span-12 md:col-span-10">
+            <div className="col-span-12">
               <h2 className="font-display font-medium leading-[1.02] text-ink mb-4 md:mb-6" style={{ fontSize: 'clamp(28px, 5vw, 56px)' }}>
-                Três passos. <span className="font-serif italic font-normal text-brand">Beleza.</span>
+                Simples <span className="font-serif italic font-normal text-brand">assim.</span>
               </h2>
               <p className="text-[16px] md:text-[18px] text-ink-2 max-w-[520px] leading-[1.55]">
                 Pensado para quem tem rotina apertada e não quer perder uma tarde tentando marcar um horário.
@@ -258,28 +252,33 @@ export default function PortalPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
-                num: '01', img: '/servico-dauth.png', alt: 'Tela de escolha de serviço',
+                num: '01', img: '/passo-01-servico.webp', alt: 'Tela de escolha de serviço',
                 title: 'Escolha o serviço',
                 desc: 'Veja os serviços disponíveis no salão e selecione o que você quer.',
               },
               {
-                num: '02', img: '/profissional-dauth.png', alt: 'Tela de escolha de profissional',
-                title: 'Escolha quem cuida',
-                desc: 'Selecione a profissional de sua preferência e veja os horários disponíveis para ela.',
+                num: '02', img: '/passo-02-profissional.webp', alt: 'Tela de escolha de profissional',
+                title: 'Escolha a profissional',
+                desc: 'Selecione a profissional de sua preferência e veja os horários disponíveis.',
               },
               {
-                num: '03', img: '/confirma-dauth.png', alt: 'Tela de confirmação',
+                num: '03', img: '/passo-03-horarios.png', alt: 'Tela de escolha de dia e horário',
+                title: 'Escolha o dia e horário',
+                desc: 'Veja os horários disponíveis em tempo real e escolha o que encaixa na sua rotina.',
+              },
+              {
+                num: '04', img: '/passo-03-confirmacao.webp', alt: 'Tela de confirmação',
                 title: 'Confirme em segundos',
-                desc: 'Confirme o agendamento. Você acompanha tudo pelo app e cancela quando precisar.',
+                desc: 'Confirme com um toque. Você acompanha, remarca ou cancela pelo app quando precisar.',
               },
             ].map((step, i) => (
-              <article key={step.num} className={`relative ${i === 1 ? 'md:mt-12' : ''} ${i === 2 ? 'md:mt-24' : ''}`}>
+              <article key={step.num} className={`relative ${i === 1 ? 'md:mt-8' : ''} ${i === 2 ? 'md:mt-16' : ''} ${i === 3 ? 'md:mt-24' : ''}`}>
                 <div className="rounded-md aspect-[4/5] mb-6 relative overflow-hidden border border-line bg-surface">
                   <img src={step.img} alt={step.alt} className="w-full h-full object-cover object-top" />
-                  <div className="absolute top-4 left-4 bg-bg/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center border border-line">
+                  <div className="absolute top-4 right-4 bg-bg/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center border border-line">
                     <span className="font-mono text-[11px] font-medium text-ink">{step.num}</span>
                   </div>
                 </div>
@@ -295,10 +294,7 @@ export default function PortalPage() {
       <section id="servicos" className="border-b border-line bg-ink text-bg">
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28">
           <div className="grid grid-cols-12 gap-6 md:gap-10 mb-12 md:mb-16">
-            <div className="col-span-12 md:col-span-2">
-              <div className="font-mono text-[10.5px] uppercase tracking-widest text-gold">// 03</div>
-            </div>
-            <div className="col-span-12 md:col-span-10">
+            <div className="col-span-12">
               <h2 className="font-display font-medium leading-[1.02] text-bg max-w-[820px]" style={{ fontSize: 'clamp(28px, 5vw, 56px)' }}>
                 Tudo que você precisa<br />para cuidar da sua <span className="font-serif italic font-normal text-gold">beleza</span>.
               </h2>
@@ -321,7 +317,6 @@ export default function PortalPage() {
       <section id="faq" className="border-b border-line">
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28 grid grid-cols-12 gap-6 md:gap-10">
           <div className="col-span-12 md:col-span-4">
-            <div className="font-mono text-[10.5px] uppercase tracking-widest text-brand mb-5">// 04 · perguntas</div>
             <h2 className="font-display font-medium leading-[1.05] text-ink" style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}>
               Resposta<br />antes da <span className="font-serif italic font-normal text-brand">dúvida</span>.
             </h2>
@@ -380,8 +375,8 @@ export default function PortalPage() {
             </div>
 
             <div className="col-span-12 lg:col-span-5 relative min-h-[560px] hidden lg:block">
-              <div className="absolute top-0 right-8 ph-warm-1 grain rounded-md w-[260px] aspect-[3/4] border border-line" />
-              <div className="absolute top-32 left-0 ph-warm-2 grain rounded-md w-[220px] aspect-[4/5] border border-line" />
+              <img src="/cta-imagem-01.webp" alt="Dashboard admin Dauth" className="absolute top-0 right-8 rounded-md w-[260px] aspect-[3/4] border border-line object-cover object-top" />
+              <img src="/cta-imagem-02.webp" alt="Meus combos Dauth" className="absolute top-32 left-0 rounded-md w-[220px] aspect-[4/5] border border-line object-cover object-top" />
               <div className="absolute bottom-0 right-0 bg-bg border border-line rounded-full px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-ink-2 shadow-sm">
                 dauth agendamentos
               </div>
