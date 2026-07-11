@@ -7,9 +7,11 @@ import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import PaginationControls from '@/components/ui/PaginationControls'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { usePagination } from '@/hooks/usePagination'
 import { useTour } from '@/hooks/useTour'
 import { adminAgendamentosSteps } from '@/tours/adminAgendamentosTour'
 
@@ -57,6 +59,9 @@ export default function AdminAgendamentos() {
 
   const activeTab = TABS.find(t => t.id === tab)
   const items = allItems.filter(a => activeTab.statuses.includes(a.Status))
+  const { pageItems, page, setPage, totalPages } = usePagination(items, 20)
+
+  useEffect(() => { setPage(1) }, [tab, date])
 
   const counts = {}
   TABS.forEach(t => { counts[t.id] = allItems.filter(a => t.statuses.includes(a.Status)).length })
@@ -146,7 +151,7 @@ export default function AdminAgendamentos() {
                 </tr>
               </thead>
               <tbody>
-                {items.map(row => (
+                {pageItems.map(row => (
                   <tr key={row.UUID} className="hover:bg-surface-2 transition-colors">
                     <td className="px-3.5 py-3 font-mono text-[12.5px] border-b border-line-2">{formatDate(row.Date)}</td>
                     <td className="px-3.5 py-3 font-mono text-[12.5px] border-b border-line-2">{row.Start_time?.slice(0, 5)} → {row.End_time?.slice(0, 5)}</td>
@@ -169,7 +174,7 @@ export default function AdminAgendamentos() {
 
           {/* Mobile cards */}
           <div className="flex flex-col gap-2 md:hidden">
-            {items.map(row => (
+            {pageItems.map(row => (
               <div
                 key={row.UUID}
                 className="bg-surface border border-line rounded-xl p-4 cursor-pointer"
@@ -190,6 +195,8 @@ export default function AdminAgendamentos() {
               </div>
             ))}
           </div>
+
+          <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
         </>
       )}
     </AppLayout>

@@ -46,6 +46,7 @@ import ConvidarProfissional from '@/pages/admin/ConvidarProfissional'
 import MeuPerfil from '@/pages/shared/MeuPerfil'
 import TrocarSenha from '@/pages/shared/TrocarSenha'
 import DetalhesAgendamento from '@/pages/shared/DetalhesAgendamento'
+import DocsPage from '@/pages/shared/DocsPage'
 
 // Página de erro
 import NaoAutorizado from '@/pages/NaoAutorizado'
@@ -88,6 +89,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={ALL_ROLES}>
         <DetalhesAgendamento />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/docs',
+    element: (
+      <ProtectedRoute allowedRoles={['Admin', 'Profissional']}>
+        <DocsPage />
       </ProtectedRoute>
     ),
   },
