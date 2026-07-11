@@ -9,10 +9,12 @@ import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
+import PaginationControls from '@/components/ui/PaginationControls'
 import useAuthStore from '@/store/authStore'
 import { useToast } from '@/context/ToastContext'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { usePagination } from '@/hooks/usePagination'
 
 const navItems = navItemsByRole['Profissional']
 
@@ -65,7 +67,10 @@ export default function MinhaAgenda() {
     ? items.filter(r => r.Date >= todayStr())
     : items.filter(r => r.Date < todayStr())
 
+  const { pageItems, page, setPage, totalPages } = usePagination(visibleItems, 20)
+
   useEffect(() => { load() }, [load])
+  useEffect(() => { setPage(1) }, [periodo, statusFilter, dateFilter])
 
   async function handleAbrirFecharConta(row) {
     setFecharContaOrdersLoading(true)
@@ -200,8 +205,9 @@ export default function MinhaAgenda() {
       ) : visibleItems.length === 0 ? (
         <EmptyState icon="cal" title="Nenhum agendamento" description="Não há agendamentos para os filtros selecionados." />
       ) : (
+        <>
         <div className="flex flex-col gap-2.5">
-          {visibleItems.map(row => (
+          {pageItems.map(row => (
             <div
               key={row.UUID}
               className="bg-surface border border-line rounded-xl p-4 flex items-center gap-3.5 hover:border-line-3 transition-colors"
@@ -236,6 +242,8 @@ export default function MinhaAgenda() {
             </div>
           ))}
         </div>
+        <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
+        </>
       )}
     </AppLayout>
   )

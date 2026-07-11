@@ -9,10 +9,12 @@ import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import PaginationControls from '@/components/ui/PaginationControls'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { usePagination } from '@/hooks/usePagination'
 import { useTour } from '@/hooks/useTour'
 import { profissionalComandasSteps } from '@/tours/profissionalComandasTour'
 
@@ -414,6 +416,10 @@ export default function ProfissionalComandas() {
         return t.Status === statusFilter
       })
 
+  const { pageItems: pagedTabs, page, setPage, totalPages } = usePagination(filtered, 20)
+
+  useEffect(() => { setPage(1) }, [statusFilter])
+
   const selected = tabs.find(t => t.UUID === selectedId)
 
   const emAberto = tabs.filter(t => t.Status === 'Em aberto').length
@@ -679,7 +685,7 @@ export default function ProfissionalComandas() {
             </div>
             {filtered.length === 0 ? (
               <div className="px-5 py-8 text-center text-ink-3 text-[13px]">Nenhuma comanda neste filtro</div>
-            ) : filtered.map((t, idx) => (
+            ) : pagedTabs.map((t, idx) => (
               <button key={t.UUID} onClick={() => setSelectedId(t.UUID)}
                 className={`w-full flex items-center gap-3 px-4 md:px-5 py-3.5 md:py-4 border-b border-line-2 last:border-0 cursor-pointer transition-colors text-left
                   ${t.UUID === selectedId ? 'bg-brand-soft' : 'hover:bg-surface-2'}`}>
@@ -698,6 +704,11 @@ export default function ProfissionalComandas() {
                 <Chip variant={statusVariant(t.Status)} className="shrink-0">{statusLabel(t.Status)}</Chip>
               </button>
             ))}
+            {filtered.length > 0 && (
+              <div className="px-4 md:px-5 py-3">
+                <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
+              </div>
+            )}
           </div>
 
           {/* Painel de pagamento */}
