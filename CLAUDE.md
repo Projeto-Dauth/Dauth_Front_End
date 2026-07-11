@@ -593,6 +593,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 | `/admin/usuarios` | AdminUsuarios | Admin |
 | `/admin/servicos` | AdminServicos | Admin |
 | `/admin/convidar-profissional` | ConvidarProfissional | Admin |
+| `/docs` | DocsPage | Admin, Profissional |
 
 ---
 
@@ -729,6 +730,9 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 
 - **Folgas na grade da Agenda** — bloco vermelho `bg-danger-soft border-danger/30` com ícone `x` e label "Folga" renderizado sobre os slots; `All_day=true` ocupa toda a coluna; folga parcial ocupa o intervalo `Start_time→End_time`; slots cobertos por folga bloqueiam abertura de novo agendamento; clique direito abre `LeaveContextMenu` com opção "Remover folga" (`DELETE /professional-leave/:id` + reload silencioso); `FolgaDrawer` acessível pelo botão `+ Folga` na barra de navegação de ambas as agendas; backend: `GET /professional-leave/professional/:id?date=` buscado no `load()` junto com os agendamentos
 
+- **Aba Docs — documentação de funcionalidades (2026-07-11)** — nova página `/docs` (`src/pages/shared/DocsPage.jsx`), acessível a Admin e Profissional via item "Docs" no `navItemsByRole` (ícone `book`, seção Conta). **Isolada do app principal** — não usa `AppLayout`/`Sidebar`; tem header próprio (logo, "Voltar ao app") e navegação lateral estilo wiki. Conteúdo em markdown estático por role: `src/content/docs/{admin,profissional}/*.md` + `index.json` (título + ordem de cada tópico). Renderizado com `react-markdown` + `remark-gfm` (instalados nesta sessão); estilos em `.docs-content` no final de `index.css`. **Carregamento dos `.md`:** `import.meta.glob('../../content/docs/{role}/*.md', { query: '?raw', import: 'default', eager: true })` — **importante:** o glob do Vite não resolve o alias `@/`, precisa ser caminho relativo, senão retorna objeto vazio silenciosamente (bug já visto e corrigido nesta sessão). Conteúdo cobre 12 tópicos Admin + 7 Profissional (Dashboard, Agenda, Agendamentos, Clientes, Serviços, Pacotes, Convidar profissional, Caixa, Comissões, Produtos, Meus serviços/horários, Perfil — Profissional sem Dashboard/Clientes/Pacotes/Convite). Imagens: pontos de inserção já marcados nos `.md` (`![alt](/docs-images/nome.webp)`), prompts de geração em `prompts/docs/admin/*.md` (12 arquivos, um por tela) — imagens ainda não geradas, ficam quebradas até salvar os `.webp` em `public/docs-images/`.
+- **Paginação client-side em listas (2026-07-11)** — `usePagination` (`src/hooks/usePagination.js`) + `PaginationControls` (`src/components/ui/PaginationControls.jsx`), 20 itens por página. Aplicado em 4 listas que já buscam tudo de uma vez e filtram no cliente: `AdminAgendamentos` (por tab), `MinhaAgenda` (Próximos/Histórico), `AdminCaixa` → `TabComandas`, `ProfissionalComandas` → sub-aba Serviços. Cada tela reseta `page` para 1 via `useEffect` quando seus filtros mudam. Ver seção "Paginação" para detalhes.
+
 ### Ainda com dados mockados / não implementado
 - `PortalPage` — landing page pública, sem implementação
 
@@ -862,6 +866,26 @@ Dados que crescem pouco por natureza (serviços, categorias, produtos, tabs aber
 
 **Limitação conhecida:** dropdowns de cliente na Agenda mostram no máximo 100 clientes. O backend não tem `?search=` em `/users`, então busca server-side não é possível sem mudança de backend. Solução futura: adicionar `?name=` no backend.
 
+### Paginação client-side (páginas de página — 20 por vez)
+Hook `usePagination` em `src/hooks/usePagination.js` + componente `PaginationControls` em `src/components/ui/PaginationControls.jsx`. Diferente do "load more": aqui os dados já foram todos buscados (`limit: 100`/`1000`) e filtrados no cliente; a paginação só corta o array já filtrado em fatias de 20, com botões Anterior/Próxima.
+
+```js
+import { usePagination } from '@/hooks/usePagination'
+import PaginationControls from '@/components/ui/PaginationControls'
+
+const { pageItems, page, setPage, totalPages } = usePagination(filteredArray, 20)
+useEffect(() => { setPage(1) }, [filtro1, filtro2]) // reseta ao mudar filtro
+
+// render: pageItems.map(...) em vez do array completo
+<PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
+```
+
+**Regras:**
+- `usePagination` só corta o array — quem chama é responsável por resetar `page` para 1 via `useEffect` quando um filtro muda (senão a página pode ficar "presa" além do novo total).
+- `PaginationControls` não renderiza nada (`return null`) quando `totalPages <= 1`.
+
+**Telas com essa paginação:** `AdminAgendamentos` (lista por tab), `MinhaAgenda` (lista de agendamentos), `AdminCaixa` → `TabComandas` (lista de comandas), `ProfissionalComandas` → sub-aba Serviços (lista de comandas).
+
 ---
 
 ## Convenções
@@ -891,3 +915,16 @@ Dados que crescem pouco por natureza (serviços, categorias, produtos, tabs aber
 - `POST /transaction` sempre exige `Payment_date: new Date().toISOString()`. Tabs com `Value === 0` (uso de combo) não geram transação — só atualizar status da comanda.
 - Schemas PascalCase confirmados: `POST /package` → `Name, Price, Available_until` · `POST /package/:id/items` → `Service_id, Quantity` · `POST /package/:id/sell` → `Client_id`
 - Exceções lowercase confirmadas: `PATCH /users/:id` → `{ active }` · `POST /working-hours` → `{ professional_id, weekday, start_time, end_time }` · `PATCH /working-hours/:id` → `{ start_time, end_time }` · `POST /service/:id/professionals` → `{ professional_id }`
+
+
+## Proximos passos
+
+**Aba Docs (2026-07-11) — feito parcialmente:**
+- ✅ Página `/docs` isolada, markdown por role (Admin/Profissional — decisão: sem Cliente/Usuario), navegação wiki, conteúdo escrito para os 19 tópicos.
+- ⬜ Gerar as ~12 imagens do lote Admin a partir dos prompts em `prompts/docs/admin/*.md` e salvar em `public/docs-images/`.
+- ⬜ Gerar lote de prompts + imagens do Profissional (7 telas, ainda não criado).
+- ⬜ Avaliar se algum passo merece GIF em vez de imagem estática (arrastado do escopo original, não abordado ainda).
+
+**Paginação (2026-07-11) — feito:**
+- ✅ `AdminAgendamentos`, `MinhaAgenda`, `AdminCaixa` (Comandas), `ProfissionalComandas` (Serviços) — 20 itens por página, client-side.
+- Debate pendente: se algum outro filtro/lista crescer muito (ex: histórico de repasses em `AdminComissoes`), avaliar se merece a mesma paginação ou o padrão `usePaginatedList`/load-more.

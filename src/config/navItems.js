@@ -24,6 +24,7 @@ export const navItemsByRole = {
     { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
     { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
     { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+    { to: '/docs', icon: 'book', label: 'Docs' },
   ],
   Profissional: [
     { to: '/profissional', end: true, icon: 'cal', label: 'Agenda' },
@@ -37,6 +38,7 @@ export const navItemsByRole = {
     { to: '/profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
     { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
     { to: '/perfil', icon: 'users', label: 'Meu perfil' },
+    { to: '/docs', icon: 'book', label: 'Docs' },
   ],
   Usuario: [
     { to: '/cliente', end: true, icon: 'cal', label: 'Início' },
