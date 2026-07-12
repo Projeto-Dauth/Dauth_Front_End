@@ -218,12 +218,49 @@ function formatCurrency(v) {
   return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+function toDateInputValue(iso) {
+  if (!iso) return ''
+  return iso.slice(0, 10)
+}
+
 function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const { addToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [appointments, setAppointments] = useState([])
   const [tabs, setTabs] = useState([])
   const [mensalistaModal, setMensalistaModal] = useState(false)
+
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ name: client.Name, phone: client.Phone ?? '', birthday: toDateInputValue(client.Birthday) })
+  const [editErrors, setEditErrors] = useState({})
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  function validateEdit() {
+    const errs = {}
+    if (!editForm.name.trim()) errs.name = 'Nome é obrigatório'
+    if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(editForm.phone)) errs.phone = 'Telefone inválido. Ex: (11) 9 9999-9999'
+    return errs
+  }
+
+  async function handleSaveEdit() {
+    const errs = validateEdit()
+    if (Object.keys(errs).length > 0) { setEditErrors(errs); return }
+    setSavingEdit(true)
+    try {
+      await api.patch(`/users/${client.UUID}`, {
+        Name: editForm.name.trim(),
+        Phone: editForm.phone,
+        Birthday: editForm.birthday || null,
+      })
+      addToast('Cliente atualizado com sucesso', 'success')
+      setEditing(false)
+      onReload()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao atualizar cliente', 'error')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   const [fecharOpen, setFecharOpen] = useState(false)
   const [fecharMethod, setFecharMethod] = useState('pix')
@@ -306,9 +343,46 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
               <p className="font-mono text-[11px] text-ink-3">{client.Phone ?? '—'}</p>
             </div>
             <Chip variant={client.active ? 'success' : 'danger'}>{client.active ? 'Ativo' : 'Inativo'}</Chip>
+            <button
+              onClick={() => setEditing((v) => !v)}
+              className="md:hidden p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
+              title="Editar cliente"
+            >
+              <Icon name="edit" size={16} />
+            </button>
           </div>
 
-          {loading ? (
+          {editing ? (
+            <div className="px-5 py-5 flex flex-col gap-4">
+              <Input
+                label="Nome completo"
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                error={editErrors.name}
+              />
+              <Input
+                label="Telefone"
+                placeholder="(11) 9 9999-9999"
+                value={editForm.phone}
+                onChange={(e) => setEditForm((f) => ({ ...f, phone: applyPhoneMask(e.target.value) }))}
+                error={editErrors.phone}
+              />
+              <Input
+                label="Data de nascimento"
+                type="date"
+                value={editForm.birthday}
+                onChange={(e) => setEditForm((f) => ({ ...f, birthday: e.target.value }))}
+              />
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" size="md" onClick={() => setEditing(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button variant="primary" size="md" onClick={handleSaveEdit} loading={savingEdit} className="flex-1">
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          ) : loading ? (
             <div className="px-5 py-5 flex flex-col gap-6 animate-pulse">
               {/* KPI skeleton */}
               <div className="grid grid-cols-3 gap-3">
@@ -412,6 +486,11 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                   </div>
                 )}
               </div>
+
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="hidden md:flex justify-center">
+                <Icon name="edit" size={13} />
+                Editar cliente
+              </Button>
 
             </div>
           )}
