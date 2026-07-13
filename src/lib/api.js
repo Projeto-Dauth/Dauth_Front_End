@@ -7,8 +7,23 @@ const api = axios.create({
   withCredentials: true,
 })
 
+// O refresh_token do Supabase é rotativo e de uso único: se duas requisições
+// expirarem ao mesmo tempo e cada uma disparar seu próprio /auth/refresh, a segunda
+// chega com um refresh_token já consumido pela primeira e derruba a sessão.
+// refreshPromise compartilha uma única chamada de refresh entre 401s concorrentes.
+let refreshPromise = null
+
+function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post(`${import.meta.env.VITE_API_URL}/auth/refresh`, {}, { withCredentials: true })
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+
 // Se receber 401, tenta renovar a sessão via cookie e repete a requisição original.
-// Só redireciona para /login se o usuário já estava autenticado — evita loop no bootstrap.
+// _retry evita loop infinito caso o refresh também retorne 401.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -18,17 +33,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true
 
-      const isAuthenticated = useAuthStore.getState().isAuthenticated
-      if (!isAuthenticated) {
-        return Promise.reject(error)
-      }
-
       try {
-        await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        )
+        await refreshSession()
         return api(original)
       } catch {
         try {
@@ -39,8 +45,10 @@ api.interceptors.response.use(
           )
         } catch {}
         useAuthStore.getState().logout()
-        sessionStorage.setItem('session_expired', '1')
-        window.location.href = '/login'
+        if (window.location.pathname !== '/login') {
+          sessionStorage.setItem('session_expired', '1')
+          window.location.href = '/login'
+        }
         return Promise.reject(error)
       }
     }
