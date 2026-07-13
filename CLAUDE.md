@@ -636,6 +636,14 @@ npm run build    # gera dist/ com VITE_API_URL do .env.production
 ## Estado atual
 
 ### Integrado com API real
+- **Editar cliente (AdminUsuarios, 2026-07-12)** — `ClientePanel` ganhou modo de edição: ícone de lápis no header (mobile) / botão "Editar cliente" abaixo de "Últimos agendamentos" (desktop) abrem um form com Nome, Telefone e Data de nascimento (resolve o caso de clientes cadastrados sem aniversário); `PATCH /users/:id` com `{ Name, Phone, Birthday }` (endpoint já existia, só faltava UI).
+- **Editar agendamento (2026-07-12)** — Admin, Profissional e Cliente agora podem editar um agendamento já criado, restrito a status `pendente`/`confirmado` (bloqueado em `concluido`/`cancelado` para não dessincronizar Tab/Transaction/combo já gerados):
+  - `DetalhesAgendamento.jsx`: botão "Editar" na barra de ações, ao lado de "Excluir" (visível para os 3 roles quando `canReschedule`). Abre um form inline no card "Informações" com Data + lista de itens de Serviço/Início/Fim.
+  - `AdminAgenda.jsx` e `ProfissionalAgenda.jsx`: item "Editar" no menu de contexto (renomeado de "Transferir data") abre o `TransferirDrawer` — mesmo form, como drawer lateral (bottom sheet mobile).
+  - **Múltiplos serviços na edição** — ambos os locais têm botão "+ Adicionar serviço" (mesmo padrão do `NovoAgendamentoDrawer`): trocar o serviço de um item recalcula o horário de término pela duração e encadeia o início do item seguinte. O item original (com `id`) é salvo via `PATCH /appointment/:id`; itens novos adicionados na edição são criados via `POST /appointment` — loop sequencial sem atomicidade, mesmo risco já aceito em `NovoAgendamentoDrawer`. Itens novos podem ser removidos (botão "x"); o item original não pode.
+  - **Checkbox "Agendamento urgente"** — visível só para Admin/Profissional (mesmo visual do `NovoAgendamentoDrawer`); permite sobrepor horários ocupados nos itens da edição. **Não aparece para o Cliente** — backend bloqueia `Is_urgent` para role `Usuario` em `POST` e `PATCH /appointment` (403).
+  - Conflito de horário (409) mostra toast dedicado: para Admin/Profissional, menciona a opção de marcar como urgente; para Cliente, mensagem neutra sem essa opção.
+  - `formatAppointment` (backend) agora expõe `Service_id`, `Professional_id` e `Client_id` além dos nomes — necessário para popular o form de edição e criar itens extras via POST.
 - Login (`POST /auth/login` com **phone** — campo email removido, máscara de telefone)
 - Register (`POST /auth/register` com name/phone/birthday/senha — **sem email** — + auto-login com phone)
 - Logout (`POST /auth/logout` via `authStore.logout()` async)

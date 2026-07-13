@@ -80,8 +80,8 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
           onClick={() => { onTransfer(appt); onClose() }}
           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          <Icon name="cal" size={13} />
-          Transferir data
+          <Icon name="edit" size={13} />
+          Editar
         </button>
       )}
 
@@ -946,37 +946,105 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
 function TransferirDrawer({ appt, onClose, onSaved }) {
   const { addToast } = useToast()
 
-  // Calcula duração em minutos do agendamento original
-  const durationMin = (() => {
-    const [sh, sm] = appt.Start_time.slice(0, 5).split(':').map(Number)
-    const [eh, em] = appt.End_time.slice(0, 5).split(':').map(Number)
-    return (eh * 60 + em) - (sh * 60 + sm)
-  })()
-
+  const [services, setServices] = useState([])
+  const [loadingServices, setLoadingServices] = useState(true)
   const [newDate, setNewDate] = useState(appt.Date)
-  const [startTime, setStartTime] = useState(appt.Start_time.slice(0, 5))
+  const [itens, setItens] = useState([{
+    id: appt.UUID,
+    servicoId: appt.Service_id ?? '',
+    startTime: appt.Start_time.slice(0, 5),
+    endTime: appt.End_time.slice(0, 5),
+  }])
+  const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Calcula end_time automaticamente pela duração
-  const endTime = (() => {
-    const [h, m] = startTime.split(':').map(Number)
-    const total = h * 60 + m + durationMin
-    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
-  })()
+  useEffect(() => {
+    if (!appt.Professional_id) return
+    setLoadingServices(true)
+    api.get('/service', { params: { professional: appt.Professional_id, limit: 100 } })
+      .then(({ data }) => setServices(data.data ?? []))
+      .catch(() => setServices([]))
+      .finally(() => setLoadingServices(false))
+  }, [appt.Professional_id])
+
+  // Quando serviço muda, ajusta end_time pela duração e encadeia o início do próximo item
+  function handleServico(index, id) {
+    setItens(prev => {
+      const next = [...prev]
+      const item = { ...next[index], servicoId: id }
+      const svc = services.find(s => s.UUID === id)
+      if (svc?.Duration) {
+        const [h, m] = svc.Duration.split(':').map(Number)
+        item.endTime = addMinutes(item.startTime, h * 60 + m)
+      }
+      next[index] = item
+      if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: item.endTime }
+      return next
+    })
+  }
+
+  function handleItemStartTime(index, value) {
+    setItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], startTime: value }
+      return next
+    })
+  }
+
+  function handleItemEndTime(index, value) {
+    setItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], endTime: value }
+      if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: value }
+      return next
+    })
+  }
+
+  function addItem() {
+    setItens(prev => {
+      const last = prev[prev.length - 1]
+      return [...prev, { id: null, servicoId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
+    })
+  }
+
+  function removeItem(index) {
+    setItens(prev => prev.filter((_, i) => i !== index))
+  }
 
   async function handleSalvar() {
+    if (itens.some(it => !it.servicoId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     setSaving(true)
     try {
-      await api.patch(`/appointment/${appt.UUID}`, {
-        Date: newDate,
-        Start_time: startTime,
-        End_time: endTime,
-      })
-      addToast('Agendamento transferido com sucesso', 'success')
+      for (const item of itens) {
+        if (item.id) {
+          await api.patch(`/appointment/${item.id}`, {
+            Service: item.servicoId,
+            Date: newDate,
+            Start_time: item.startTime,
+            End_time: item.endTime,
+            Is_urgent: isUrgent,
+          })
+        } else {
+          await api.post('/appointment', {
+            Client: appt.Client_id,
+            Professional: appt.Professional_id,
+            Service: item.servicoId,
+            Date: newDate,
+            Start_time: item.startTime,
+            End_time: item.endTime,
+            Is_urgent: isUrgent,
+          })
+        }
+      }
+      addToast('Agendamento atualizado com sucesso', 'success')
       onSaved()
       onClose()
     } catch (err) {
-      addToast(err.response?.data?.error ?? 'Erro ao transferir agendamento', 'error')
+      if (err.response?.status === 409) {
+        addToast('Já existe um agendamento nesse horário. Marque "Agendamento urgente" para sobrepor.', 'error')
+      } else {
+        addToast(err.response?.data?.error ?? 'Erro ao atualizar agendamento', 'error')
+      }
     } finally {
       setSaving(false)
     }
@@ -996,9 +1064,9 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
         {/* Header */}
         <div className="flex items-start justify-between px-5 md:px-7 py-4 md:py-6 border-b border-line">
           <div>
-            <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Transferir agendamento</span>
+            <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Editar agendamento</span>
             <h4 className="font-display font-medium text-[18px] tracking-tight mt-0.5">{appt.Client}</h4>
-            <p className="text-[12.5px] text-ink-3 mt-0.5">{appt.Service} · {appt.Start_time.slice(0, 5)}</p>
+            <p className="text-[12.5px] text-ink-3 mt-0.5">{appt.Professional}</p>
           </div>
           <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer mt-1">
             <Icon name="x" size={18} />
@@ -1008,7 +1076,7 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
         {/* Formulário */}
         <div className="flex-1 overflow-y-auto px-5 md:px-7 py-5 space-y-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-medium text-ink-2">Nova data</label>
+            <label className="text-[12px] font-medium text-ink-2">Data</label>
             <input
               type="date"
               value={newDate}
@@ -1018,34 +1086,86 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-medium text-ink-2">Novo horário</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={e => setStartTime(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-medium text-ink-2">Término (automático)</label>
-              <div className="h-[42px] px-[14px] flex items-center rounded-md border border-line bg-surface-2 text-ink-3 text-md">
-                {endTime}
+          {itens.map((item, i) => (
+            <div key={i} className="flex flex-col gap-3 pb-3 border-b border-line last:border-b-0 last:pb-0">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[12px] font-medium text-ink-2">
+                    {itens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
+                  </label>
+                  {itens.length > 1 && !item.id && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(i)}
+                      className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                  )}
+                </div>
+                <SearchableSelect
+                  value={item.servicoId}
+                  onChange={(id) => handleServico(i, id)}
+                  disabled={loadingServices || services.length === 0}
+                  options={services.map(s => ({ value: s.UUID, label: s.Name }))}
+                  placeholder={loadingServices ? 'Carregando…' : 'Selecione o serviço'}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12px] font-medium text-ink-2">Início</label>
+                  <input
+                    type="time"
+                    value={item.startTime}
+                    onChange={e => handleItemStartTime(i, e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12px] font-medium text-ink-2">Término</label>
+                  <input
+                    type="time"
+                    value={item.endTime}
+                    onChange={e => handleItemEndTime(i, e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          ))}
 
-          <div className="bg-surface-2 border border-line rounded-[10px] px-4 py-3 text-[12.5px] text-ink-3">
-            Duração mantida: <span className="font-medium text-ink-2">{durationMin} min</span>
-          </div>
+          <button
+            type="button"
+            onClick={addItem}
+            className="flex items-center justify-center gap-1.5 w-full h-[38px] rounded-md border border-dashed border-line text-[13px] font-medium text-ink-3 hover:text-brand hover:border-brand/30 transition-colors cursor-pointer"
+          >
+            <Icon name="plus" size={14} />
+            Adicionar serviço
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsUrgent(v => !v)}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+              ${isUrgent ? 'bg-warning-soft border-warning/40' : 'bg-surface border-line hover:border-ink-3'}`}
+          >
+            <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+              ${isUrgent ? 'bg-warning border-warning' : 'border-line-2'}`}>
+              {isUrgent && <Icon name="check" size={10} className="text-white" />}
+            </div>
+            <div>
+              <div className={`text-[13px] font-medium ${isUrgent ? 'text-warning' : 'text-ink-2'}`}>Agendamento urgente</div>
+              <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
+            </div>
+          </button>
         </div>
 
         {/* Footer */}
         <div className="px-5 md:px-7 py-4 md:py-5 border-t border-line">
           <Button onClick={handleSalvar} loading={saving} className="w-full justify-center">
-            <Icon name="cal" size={14} />
-            Confirmar transferência
+            <Icon name="edit" size={14} />
+            Salvar alterações
           </Button>
         </div>
       </div>
