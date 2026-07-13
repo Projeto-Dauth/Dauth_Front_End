@@ -8,12 +8,20 @@ import Avatar from '@/components/ui/Avatar'
 import Modal from '@/components/ui/Modal'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import Icon from '@/components/ui/Icons'
+import Input from '@/components/ui/Input'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
+
+function addMinutes(timeStr, mins) {
+  const [h, m] = timeStr.split(':').map(Number)
+  const total = h * 60 + m + mins
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 
@@ -54,6 +62,14 @@ export default function DetalhesAgendamento() {
   const [fecharPaying, setFecharPaying] = useState(false)
   const [fecharOrders, setFecharOrders] = useState([])
   const [fecharOrdersLoading, setFecharOrdersLoading] = useState(false)
+
+  const [editing, setEditing] = useState(false)
+  const [services, setServices] = useState([])
+  const [loadingServices, setLoadingServices] = useState(false)
+  const [editDate, setEditDate] = useState('')
+  const [editItens, setEditItens] = useState([])
+  const [editIsUrgent, setEditIsUrgent] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     api.get(`/appointment/${id}`)
@@ -146,10 +162,118 @@ export default function DetalhesAgendamento() {
     }
   }
 
+  function openEdit() {
+    setEditDate(item.Date)
+    setEditIsUrgent(false)
+    setEditItens([{
+      id: item.UUID,
+      serviceId: item.Service_id ?? '',
+      startTime: item.Start_time?.slice(0, 5) ?? '',
+      endTime: item.End_time?.slice(0, 5) ?? '',
+    }])
+    setEditing(true)
+    if (services.length === 0 && item.Professional_id) {
+      setLoadingServices(true)
+      api.get('/service', { params: { professional: item.Professional_id, limit: 100 } })
+        .then(({ data }) => setServices(data.data ?? []))
+        .catch(() => setServices([]))
+        .finally(() => setLoadingServices(false))
+    }
+  }
+
+  function handleEditService(index, serviceId) {
+    setEditItens(prev => {
+      const next = [...prev]
+      const it = { ...next[index], serviceId }
+      const svc = services.find(s => s.UUID === serviceId)
+      if (svc?.Duration) {
+        const [h, m] = svc.Duration.split(':').map(Number)
+        it.endTime = addMinutes(it.startTime, h * 60 + m)
+      }
+      next[index] = it
+      if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: it.endTime }
+      return next
+    })
+  }
+
+  function handleEditStartTime(index, startTime) {
+    setEditItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], startTime }
+      return next
+    })
+  }
+
+  function handleEditEndTime(index, endTime) {
+    setEditItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], endTime }
+      if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: endTime }
+      return next
+    })
+  }
+
+  function addEditItem() {
+    setEditItens(prev => {
+      const last = prev[prev.length - 1]
+      return [...prev, { id: null, serviceId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
+    })
+  }
+
+  function removeEditItem(index) {
+    setEditItens(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleSaveEdit() {
+    if (editItens.some(it => !it.serviceId)) return addToast('Selecione o serviço em todos os itens', 'warning')
+    setSavingEdit(true)
+    try {
+      for (const it of editItens) {
+        if (it.id) {
+          await api.patch(`/appointment/${it.id}`, {
+            Service: it.serviceId,
+            Date: editDate,
+            Start_time: it.startTime,
+            End_time: it.endTime,
+            ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
+          })
+        } else {
+          await api.post('/appointment', {
+            Client: item.Client_id,
+            Professional: item.Professional_id,
+            Service: it.serviceId,
+            Date: editDate,
+            Start_time: it.startTime,
+            End_time: it.endTime,
+            ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
+          })
+        }
+      }
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
+      addToast('Agendamento atualizado com sucesso')
+      setEditing(false)
+    } catch (err) {
+      if (err.response?.status === 409) {
+        addToast(
+          canEdit
+            ? 'Já existe um agendamento nesse horário. Marque "Agendamento urgente" para sobrepor.'
+            : 'Já existe um agendamento nesse horário para este profissional.',
+          'error'
+        )
+      } else {
+        addToast(err.response?.data?.error ?? 'Erro ao atualizar agendamento', 'error')
+      }
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   const role = user?.role ?? 'Usuario'
   const navItems = navItemsByRole[role] ?? []
   const allowedTransitions = STATUS_TRANSITIONS[role]?.[item?.Status] ?? []
   const canEdit = role === 'Admin' || role === 'Profissional'
+  const canReschedule = ['pendente', 'confirmado'].includes(item?.Status)
 
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole={role}>{role}</Sidebar>
@@ -184,14 +308,97 @@ export default function DetalhesAgendamento() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         {/* Main info */}
         <div className="bg-surface border border-line rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-line-2">
+          <div className="px-6 py-4 border-b border-line-2 flex items-center justify-between">
             <h4 className="font-medium text-[14px]">Informações</h4>
           </div>
-          <div className="px-6">
-            <InfoRow label="Data" value={formatDate(item.Date)} />
-            <InfoRow label="Horário" value={item.Start_time ? `${item.Start_time.slice(0,5)} → ${item.End_time?.slice(0,5)}` : null} />
-            <InfoRow label="Serviço" value={item.Service} />
-          </div>
+          {editing ? (
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <Input
+                label="Data"
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+              />
+
+              {editItens.map((it, i) => (
+                <div key={i} className="flex flex-col gap-3 pb-4 border-b border-line-2 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] text-ink-3 font-medium">
+                      {editItens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
+                    </label>
+                    {editItens.length > 1 && !it.id && (
+                      <button type="button" onClick={() => removeEditItem(i)} className="text-ink-3 hover:text-danger transition-colors cursor-pointer">
+                        <Icon name="x" size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <SearchableSelect
+                    options={services.map(s => ({ value: s.UUID, label: s.Name }))}
+                    value={it.serviceId}
+                    onChange={(sid) => handleEditService(i, sid)}
+                    disabled={loadingServices || services.length === 0}
+                    placeholder={loadingServices ? 'Carregando…' : 'Selecione o serviço'}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Início"
+                      type="time"
+                      value={it.startTime}
+                      onChange={(e) => handleEditStartTime(i, e.target.value)}
+                    />
+                    <Input
+                      label="Fim"
+                      type="time"
+                      value={it.endTime}
+                      onChange={(e) => handleEditEndTime(i, e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addEditItem}
+                className="flex items-center justify-center gap-1.5 w-full h-[38px] rounded-md border border-dashed border-line text-[13px] font-medium text-ink-3 hover:text-brand hover:border-brand/30 transition-colors cursor-pointer"
+              >
+                <Icon name="plus" size={14} />
+                Adicionar serviço
+              </button>
+
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setEditIsUrgent(v => !v)}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+                    ${editIsUrgent ? 'bg-warning-soft border-warning/40' : 'bg-surface border-line hover:border-ink-3'}`}
+                >
+                  <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+                    ${editIsUrgent ? 'bg-warning border-warning' : 'border-line-2'}`}>
+                    {editIsUrgent && <Icon name="check" size={10} className="text-white" />}
+                  </div>
+                  <div>
+                    <div className={`text-[13px] font-medium ${editIsUrgent ? 'text-warning' : 'text-ink-2'}`}>Agendamento urgente</div>
+                    <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
+                  </div>
+                </button>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" size="md" onClick={() => setEditing(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button variant="primary" size="md" onClick={handleSaveEdit} loading={savingEdit} className="flex-1">
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="px-6">
+              <InfoRow label="Data" value={formatDate(item.Date)} />
+              <InfoRow label="Horário" value={item.Start_time ? `${item.Start_time.slice(0,5)} → ${item.End_time?.slice(0,5)}` : null} />
+              <InfoRow label="Serviço" value={item.Service} />
+            </div>
+          )}
         </div>
 
         {/* People */}
@@ -249,9 +456,9 @@ export default function DetalhesAgendamento() {
       </div>
 
       {/* Actions */}
-      {canEdit && (
+      {(canEdit || canReschedule) && (
         <div className="flex gap-2.5 mt-5">
-          {allowedTransitions.map(s => (
+          {canEdit && allowedTransitions.map(s => (
             <Button
               key={s}
               variant={s === 'cancelado' ? 'ghost' : 'primary'}
@@ -261,12 +468,17 @@ export default function DetalhesAgendamento() {
               Marcar como {STATUS_LABELS[s]}
             </Button>
           ))}
-          {item.Status === 'concluido' && (
+          {canEdit && item.Status === 'concluido' && (
             <Button variant="ghost" size="sm" onClick={handleFecharConta}>
               <Icon name="receipt" size={13} />Fechar comanda
             </Button>
           )}
-          {item.Status !== 'concluido' && item.Status !== 'cancelado' && (
+          {canReschedule && !editing && (
+            <Button variant="ghost" size="sm" onClick={openEdit}>
+              <Icon name="edit" size={13} />Editar
+            </Button>
+          )}
+          {canEdit && item.Status !== 'concluido' && item.Status !== 'cancelado' && (
             <Button variant="ghost" size="sm" onClick={() => setModal({ open: true, status: '__delete__' })}>
               <Icon name="trash" size={13} />Excluir
             </Button>
