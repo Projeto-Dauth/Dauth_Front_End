@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import logo from '@/logo-dauth-agendamentos.png'
+import HandWrittenTitle from '@/components/ui/HandWrittenTitle'
+import BlurFade from '@/components/ui/BlurFade'
 
 function ArrowRight() {
   return (
@@ -10,24 +13,26 @@ function ArrowRight() {
   )
 }
 
+const WHATSAPP_LINK = 'https://wa.me/55SEUNUMERO'
+
 const FEATURES = [
-  { label: 'agendamento', title: 'Horário marcado em segundos', desc: 'Escolha o serviço, a profissional e o horário disponível. Tudo pelo navegador — sem precisar instalar nada.' },
-  { label: 'histórico', title: 'Seus agendamentos num só lugar', desc: 'Veja tudo que já passou e o que está por vir. Cancele ou acompanhe o status sem precisar falar com ninguém.' },
-  { label: 'pacotes', title: 'Compre uma vez, use durante meses', desc: 'Pacotes de sessões com desconto. O app conta quantas sessões você já usou — você só agenda.' },
+  { label: 'agenda', title: 'Grade por profissional, sem overbooking', desc: 'Cada funcionária com sua coluna, folgas marcadas, conflito de horário bloqueado automaticamente. Você enxerga o salão inteiro numa tela só.' },
+  { label: 'caixa & comissão', title: 'Comanda, repasse e fiado sob controle', desc: 'Fechamento de comanda por cliente, comissão calculada sozinha por profissional e mensalistas com fiado organizado — sem planilha, sem caderno.' },
+  { label: 'painel', title: 'Faturamento e ranking em tempo real', desc: 'Quanto entrou no mês, ticket médio, quem mais vendeu. Números prontos pra você decidir sem precisar somar nada.' },
 ]
 
 const FAQS = [
-  { q: 'Preciso instalar algum aplicativo?', a: 'Não. O Dauth é 100% web — você acessa direto pelo navegador do celular, do tablet ou do computador. Sem baixar nada, sem ocupar espaço.' },
-  { q: 'O Dauth é gratuito para mim?', a: 'Sim, totalmente. Você acessa, agenda e acompanha seus horários sem nenhuma taxa.' },
-  { q: 'Como funciona o pagamento?', a: 'O pagamento é feito diretamente no salão após o atendimento. O app registra a comanda e o salão escolhe o método (Pix, dinheiro, débito ou crédito).' },
-  { q: 'E se eu precisar cancelar?', a: 'Você pode cancelar pelo app a qualquer momento. O salão define a política de prazo — o app sempre mostra as condições antes de você confirmar.' },
-  { q: 'Posso escolher a profissional?', a: 'Sim. Na hora de agendar você vê quais profissionais estão disponíveis para o serviço escolhido e seleciona a que preferir.' },
-  { q: 'O que são pacotes de sessões?', a: 'São combos de serviços que você compra com desconto. Por exemplo, 5 hidratações por um preço fixo. O app controla quantas sessões você já usou — é só agendar quando quiser usar.' },
+  { q: 'Preciso instalar algum sistema no salão?', a: 'Não. O Dauth é 100% web — você e sua equipe acessam pelo navegador, do celular ou do computador do salão. Sem instalação, sem servidor próprio.' },
+  { q: 'Minhas clientes precisam baixar algo?', a: 'Não. Elas agendam por um link que você compartilha — abre direto no navegador, sem app pra instalar.' },
+  { q: 'Como funciona a comissão das profissionais?', a: 'Você cadastra o percentual de cada uma por serviço. O sistema calcula e mostra o valor a repassar automaticamente, com histórico de pagamentos.' },
+  { q: 'Dá pra controlar cliente fiado ou mensalista?', a: 'Sim. Você fecha a comanda como fiado e o sistema mantém o valor pendente até você registrar a quitação — com relatório de quem está devendo.' },
+  { q: 'Quanto tempo leva pra colocar o salão no ar?', a: 'Depois da conversa inicial, cadastramos seus serviços, profissionais e horários com você — geralmente pronto em poucos dias.' },
+  { q: 'Funciona pra salão pequeno, com 8-10 funcionárias?', a: 'É exatamente esse o tamanho que o Dauth foi pensado para atender: grande o bastante pra bagunçar no WhatsApp, pequeno o bastante pra você querer o controle na mão.' },
 ]
 
 const NAV_LINKS = [
   { href: '#como', label: 'Como funciona' },
-  { href: '#servicos', label: 'O que oferece' },
+  { href: '#servicos', label: 'O que você ganha' },
   { href: '#faq', label: 'Perguntas' },
 ]
 
@@ -36,7 +41,7 @@ export default function PortalPage() {
 
   useEffect(() => {
     const previousTitle = document.title
-    document.title = 'Dauth | Agendamentos em Caxias do Sul'
+    document.title = 'Dauth | Sistema de gestão para salões de beleza'
     return () => { document.title = previousTitle }
   }, [])
 
@@ -61,12 +66,12 @@ export default function PortalPage() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link to="/login" className="hidden sm:inline-flex h-[40px] items-center px-4 rounded-md text-[14px] hover:bg-brand-soft transition-colors">
+            {/* <Link to="/login" className="hidden sm:inline-flex h-[40px] items-center px-4 rounded-md text-[14px] hover:bg-brand-soft transition-colors">
               Entrar
-            </Link>
-            <Link to="/agendar" className="hidden sm:inline-flex h-[40px] items-center gap-2 px-5 rounded-md text-[14px] font-medium bg-ink text-bg hover:bg-ink-2 transition-colors">
-              Agendar agora <ArrowRight />
-            </Link>
+            </Link> */}
+            {/* <a href={WHATSAPP_LINK} target="_blank" rel="noreferrer" className="hidden sm:inline-flex h-[40px] items-center gap-2 px-5 rounded-md text-[14px] font-medium bg-ink text-bg hover:bg-ink-2 transition-colors">
+              Falar no WhatsApp <ArrowRight />
+            </a> */}
             <button
               onClick={() => setMenuOpen(true)}
               className="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded-lg border border-line hover:bg-surface-2 transition-colors gap-[5px]"
@@ -109,10 +114,10 @@ export default function PortalPage() {
               ))}
             </nav>
             <div className="px-4 pb-8 flex flex-col gap-2.5 border-t border-line pt-4">
-              <Link to="/agendar" onClick={() => setMenuOpen(false)}
+              <a href={WHATSAPP_LINK} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}
                 className="flex justify-center items-center h-[46px] rounded-md bg-ink text-bg text-[14px] font-medium hover:bg-ink-2 transition-colors">
-                Agendar agora
-              </Link>
+                Falar no WhatsApp
+              </a>
               <Link to="/login" onClick={() => setMenuOpen(false)}
                 className="flex justify-center items-center h-[46px] rounded-md border border-line text-[14px] text-ink-2 hover:bg-surface-2 transition-colors">
                 Entrar na conta
@@ -123,97 +128,65 @@ export default function PortalPage() {
       )}
 
       {/* ── HERO ── */}
-      <section className="relative overflow-hidden border-b border-line">
-        <div className="max-w-[1320px] mx-auto px-4 md:px-8 pt-14 md:pt-20 pb-16 md:pb-24 grid grid-cols-12 gap-6 md:gap-10">
+      <section className="relative overflow-hidden border-b border-line flex items-center min-h-[calc(100vh-64px)] md:min-h-[calc(100vh-72px)]">
+        <div className="max-w-[1320px] mx-auto px-4 md:px-8 w-full">
+          <HandWrittenTitle
+            title={
+              <h1 className="font-display font-medium leading-[0.92] tracking-tight text-ink" style={{ fontSize: 'clamp(40px, 12.5vw, 168px)' }}>
+                Seu salão,<br />
+                <motion.span
+                  className="inline-block font-serif italic font-normal text-brand"
+                  style={{ fontSize: 'clamp(44px, 14vw, 184px)' }}
+                  initial={{ opacity: 0, scale: 0.8, rotate: -4 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  transition={{ delay: 1, duration: 0.7, ease: [0.43, 0.13, 0.23, 0.96] }}
+                >
+                  organizado
+                </motion.span>{' '}
+                de verdade.
+              </h1>
+            }
+            subtitle={
+              <div className="flex flex-col items-center">
+                <p className="font-semibold text-[16px] md:text-[19px] leading-[1.55] text-ink-2 max-w-[520px] text-center">
+                  Agenda, comissão e caixa num só lugar — sem planilha, sem caderno, sem depender do WhatsApp pra saber quem tem horário e quanto cada profissional tem a receber.
+                </p>
 
-          <div className="col-span-12 lg:col-span-7">
-            <div className="flex items-center gap-3 mb-8 md:mb-10 flex-wrap">
-              <span className="bg-bg border border-line rounded-full px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-widest text-ink-2 shadow-xs">
-                agendamento online · 100% web
-              </span>
-            </div>
-
-            <h1 className="font-display font-medium leading-[0.92] tracking-tight mb-3 text-ink" style={{ fontSize: 'clamp(48px, 8vw, 92px)' }}>
-              Sua beleza,<br />
-              <span className="font-serif italic font-normal text-brand" style={{ fontSize: 'clamp(54px, 9vw, 100px)' }}>
-                marcada
-              </span>{' '}
-              com calma.
-            </h1>
-
-            <p className="text-[16px] md:text-[19px] leading-[1.55] text-ink-2 max-w-[520px] mt-6 md:mt-8 mb-8 md:mb-10">
-              Agende seus horários pelo navegador — sem precisar instalar nada, sem esperar resposta no WhatsApp. Funciona no celular, no tablet e no computador.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 mb-10 md:mb-12">
-              <Link to="/agendar" className="inline-flex h-[50px] md:h-[54px] items-center gap-3 px-6 md:px-7 rounded-md text-[14px] md:text-[15px] font-medium bg-ink text-bg hover:bg-ink-2 transition-colors">
-                Agendar agora <ArrowRight />
-              </Link>
-              <Link to="/register" className="inline-flex h-[50px] md:h-[54px] items-center px-5 md:px-6 rounded-md text-[14px] md:text-[15px] border border-line hover:bg-brand-soft transition-colors">
-                Criar conta grátis
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 md:gap-6 max-w-[480px] md:max-w-[560px] border-t border-line pt-6 md:pt-7">
-              {[
-                { val: '100%', label: 'web · sem instalar' },
-                { val: 'grátis', label: 'para clientes' },
-                { val: 'celular', sub: ' · tablet · pc', label: 'funciona em qualquer tela' },
-              ].map(({ val, sub, label }) => (
-                <div key={label}>
-                  <div className="font-display font-medium text-[20px] md:text-[24px] text-ink leading-none">
-                    {val}{sub && <span className="text-ink-4 text-[13px]">{sub}</span>}
-                  </div>
-                  <div className="font-mono text-[10px] md:text-[10.5px] uppercase tracking-widest text-ink-3 mt-2">{label}</div>
+                <div className="flex flex-wrap items-center justify-center gap-3 mt-8 md:mt-10">
+                  <a href={WHATSAPP_LINK} target="_blank" rel="noreferrer" className="inline-flex h-[50px] md:h-[54px] items-center gap-3 px-6 md:px-7 rounded-md text-[14px] md:text-[15px] font-medium bg-ink text-bg hover:bg-ink-2 transition-colors">
+                    Falar no WhatsApp <ArrowRight />
+                  </a>
+                  {/* <Link to="/login" className="inline-flex h-[50px] md:h-[54px] items-center px-5 md:px-6 rounded-md text-[14px] md:text-[15px] border border-line hover:bg-brand-soft transition-colors">
+                    Já tenho conta
+                  </Link> */}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: phone mockup — desktop only */}
-          <div className="col-span-12 lg:col-span-5 relative min-h-[600px] hidden lg:block">
-            <div className="absolute top-0 right-0 w-[78%] aspect-[4/5] rounded-md overflow-hidden border border-line">
-              <img src="/hero-tela-horarios.webp" alt="Tela de horários" className="w-full h-full object-cover object-top" />
-            </div>
-
-            <div className="absolute bottom-0 left-0 w-[52%]">
-              <img src="/hero-agenda-mobile.webp" alt="App de agendamento" className="w-full h-auto drop-shadow-xl" />
-            </div>
-
-            <div className="absolute top-8 left-2 bg-bg border border-line rounded-full px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-widest text-ink-2 shadow-sm -rotate-6">
-              100% web · sem instalar
-            </div>
-            <div className="absolute bottom-12 right-4 bg-bg border border-line rounded-md p-4 shadow-sm w-[200px]">
-              <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4 mb-1">funciona em</div>
-              <div className="font-display font-medium text-[20px] text-ink leading-none">celular · tablet<br />desktop</div>
-            </div>
-          </div>
+              </div>
+            }
+          />
         </div>
-
-        <div className="absolute right-0 top-1/3 w-[1px] h-32 bg-gold hidden lg:block" />
       </section>
 
       {/* ── PROBLEMA / VIRADA ── */}
       <section className="border-b border-line">
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28">
-          <div className="grid grid-cols-12 gap-6 md:gap-10 mb-14 md:mb-20">
+          <BlurFade className="grid grid-cols-12 gap-6 md:gap-10 mb-14 md:mb-20">
             <div className="col-span-12">
               <h2 className="font-display font-medium leading-[1.02] text-ink" style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}>
-                Beleza não devia depender de mensagem não respondida<span className="text-brand">.</span>
+                Gerir salão não devia ser um segundo emprego<span className="text-brand">.</span>
               </h2>
             </div>
-          </div>
+          </BlurFade>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <div className="border border-line rounded-md p-6 md:p-8 h-full" style={{ background: 'rgba(245,239,233,0.4)' }}>
+            <BlurFade delay={0.05} className="border border-line rounded-md p-6 md:p-8 h-full" style={{ background: 'rgba(245,239,233,0.4)' }}>
               <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4 mb-6">antes</div>
               <ul className="flex flex-col gap-4 md:gap-5 text-[15px] md:text-[16px] leading-[1.55] text-ink-2">
                 {[
-                  'Você manda mensagem perguntando se tem horário',
-                  'Espera meia hora pela resposta',
-                  'O horário que serve já não está disponível',
-                  'Vocês trocam mais cinco mensagens',
-                  'Você esquece, perde o horário',
+                  'Agenda no caderno, com risco de marcar duas clientes no mesmo horário',
+                  'Comissão calculada na mão, uma por uma, no fim do mês',
+                  'Cliente fiado que você perde o controle de quem já pagou',
+                  'WhatsApp lotado de "tem horário amanhã?"',
+                  'Você só descobre o faturamento do mês somando notinha',
                 ].map((item, i) => (
                   <li key={i} className="flex gap-4">
                     <span className="font-serif italic text-gold text-[20px] leading-none mt-1 shrink-0">{['i.', 'ii.', 'iii.', 'iv.', 'v.'][i]}</span>
@@ -221,17 +194,17 @@ export default function PortalPage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </BlurFade>
 
-            <div className="border border-ink rounded-md p-6 md:p-8 bg-ink text-bg h-full">
+            <BlurFade delay={0.15} className="border border-ink rounded-md p-6 md:p-8 bg-ink text-bg h-full">
               <div className="font-mono text-[10.5px] uppercase tracking-widest text-gold mb-6">com Dauth</div>
               <ul className="flex flex-col gap-4 md:gap-5 text-[15px] md:text-[16px] leading-[1.55]" style={{ color: 'rgba(253,244,245,0.85)' }}>
                 {[
-                  'Abre o app e vê todos os horários disponíveis, em tempo real',
-                  'Escolhe a profissional que prefere',
-                  'Confirma com um toque',
-                  'Remarca pelo app se precisar — sem precisar ligar',
-                  'Acompanha seu histórico e seus pacotes de sessões',
+                  'Grade visual por profissional — conflito de horário fica impossível',
+                  'Comissão calculada sozinha, por profissional e por serviço',
+                  'Fiado e mensalista com relatório de quem está devendo',
+                  'Clientes agendam por um link — sem trocar mensagem',
+                  'Faturamento, ticket médio e ranking em um painel só',
                 ].map((item, i) => (
                   <li key={i} className="flex gap-4">
                     <span className="font-serif italic text-gold text-[20px] leading-none mt-1 shrink-0">{['i.', 'ii.', 'iii.', 'iv.', 'v.'][i]}</span>
@@ -239,7 +212,7 @@ export default function PortalPage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </BlurFade>
           </div>
         </div>
       </section>
@@ -247,41 +220,41 @@ export default function PortalPage() {
       {/* ── COMO FUNCIONA ── */}
       <section id="como" className="border-b border-line" style={{ background: 'rgba(245,236,226,0.4)' }}>
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28">
-          <div className="grid grid-cols-12 gap-6 md:gap-10 mb-12 md:mb-16">
+          <BlurFade className="grid grid-cols-12 gap-6 md:gap-10 mb-12 md:mb-16">
             <div className="col-span-12">
               <h2 className="font-display font-medium leading-[1.02] text-ink mb-4 md:mb-6" style={{ fontSize: 'clamp(28px, 5vw, 56px)' }}>
-                Simples <span className="font-serif italic font-normal text-brand">assim.</span>
+                Simples <span className="font-serif italic font-normal text-brand">de colocar no ar.</span>
               </h2>
               <p className="text-[16px] md:text-[18px] text-ink-2 max-w-[520px] leading-[1.55]">
-                Pensado para quem tem rotina apertada e não quer perder uma tarde tentando marcar um horário.
+                Sem migração complicada, sem treinamento longo. Cadastramos seu salão com você e sua equipe já começa a usar.
               </p>
             </div>
-          </div>
+          </BlurFade>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
-                num: '01', img: '/passo-01-servico.webp', alt: 'Tela de escolha de serviço',
-                title: 'Escolha o serviço',
-                desc: 'Veja os serviços disponíveis no salão e selecione o que você quer.',
+                num: '01', img: '/passo-01-servico.webp', alt: 'Tela de cadastro de serviços',
+                title: 'Cadastramos seu salão',
+                desc: 'Serviços, preços, comissão por profissional e horário de cada uma — feito junto com você.',
               },
               {
-                num: '02', img: '/passo-02-profissional.webp', alt: 'Tela de escolha de profissional',
-                title: 'Escolha a profissional',
-                desc: 'Selecione a profissional de sua preferência e veja os horários disponíveis.',
+                num: '02', img: '/passo-02-profissional.webp', alt: 'Tela de agenda por profissional',
+                title: 'Sua equipe entra na agenda',
+                desc: 'Cada profissional com login próprio, vendo só a própria agenda e comissão.',
               },
               {
-                num: '03', img: '/passo-03-horarios.png', alt: 'Tela de escolha de dia e horário',
-                title: 'Escolha o dia e horário',
-                desc: 'Veja os horários disponíveis em tempo real e escolha o que encaixa na sua rotina.',
+                num: '03', img: '/passo-03-horarios.webp', alt: 'Tela de grade de horários',
+                title: 'Clientes agendam pelo link',
+                desc: 'Você compartilha um link — a cliente escolhe serviço, profissional e horário sem trocar mensagem.',
               },
               {
-                num: '04', img: '/passo-03-confirmacao.webp', alt: 'Tela de confirmação',
-                title: 'Confirme em segundos',
-                desc: 'Confirme com um toque. Você acompanha, remarca ou cancela pelo app quando precisar.',
+                num: '04', img: '/passo-03-confirmacao.webp', alt: 'Tela de painel financeiro',
+                title: 'Você acompanha tudo',
+                desc: 'Caixa, comissão e faturamento do mês num painel só, direto do celular ou computador.',
               },
             ].map((step, i) => (
-              <article key={step.num} className={`relative ${i === 1 ? 'md:mt-8' : ''} ${i === 2 ? 'md:mt-16' : ''} ${i === 3 ? 'md:mt-24' : ''}`}>
+              <BlurFade as="article" key={step.num} delay={i * 0.1} className={`relative ${i === 1 ? 'md:mt-8' : ''} ${i === 2 ? 'md:mt-16' : ''} ${i === 3 ? 'md:mt-24' : ''}`}>
                 <div className="rounded-md aspect-[4/5] mb-6 relative overflow-hidden border border-line bg-surface">
                   <img src={step.img} alt={step.alt} className="w-full h-full object-cover object-top" />
                   <div className="absolute top-4 right-4 bg-bg/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center border border-line">
@@ -290,7 +263,7 @@ export default function PortalPage() {
                 </div>
                 <h3 className="font-display font-medium text-[22px] md:text-[24px] text-ink mb-2">{step.title}</h3>
                 <p className="text-[14px] md:text-[15px] text-ink-3 leading-[1.6] max-w-[300px]">{step.desc}</p>
-              </article>
+              </BlurFade>
             ))}
           </div>
         </div>
@@ -299,21 +272,21 @@ export default function PortalPage() {
       {/* ── O QUE O APP OFERECE ── */}
       <section id="servicos" className="border-b border-line bg-ink text-bg">
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28">
-          <div className="grid grid-cols-12 gap-6 md:gap-10 mb-12 md:mb-16">
+          <BlurFade className="grid grid-cols-12 gap-6 md:gap-10 mb-12 md:mb-16">
             <div className="col-span-12">
               <h2 className="font-display font-medium leading-[1.02] text-bg max-w-[820px]" style={{ fontSize: 'clamp(28px, 5vw, 56px)' }}>
-                Tudo que você precisa<br />para cuidar da sua <span className="font-serif italic font-normal text-gold">beleza</span>.
+                Tudo que você precisa<br />pra tocar o <span className="font-serif italic font-normal text-gold">salão</span>.
               </h2>
             </div>
-          </div>
+          </BlurFade>
 
           <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-bg/15 border border-bg/15 rounded-md overflow-hidden">
-            {FEATURES.map((f) => (
-              <article key={f.label} className="bg-ink p-6 md:p-8">
+            {FEATURES.map((f, i) => (
+              <BlurFade as="article" key={f.label} delay={i * 0.1} className="bg-ink p-6 md:p-8">
                 <div className="font-mono text-[10.5px] uppercase tracking-widest text-gold mb-5">{f.label}</div>
                 <div className="font-display font-medium text-[20px] md:text-[24px] mb-3">{f.title}</div>
                 <p className="text-[13px] md:text-[14px] leading-[1.6]" style={{ color: 'rgba(253,244,245,0.7)' }}>{f.desc}</p>
-              </article>
+              </BlurFade>
             ))}
           </div>
         </div>
@@ -322,24 +295,24 @@ export default function PortalPage() {
       {/* ── FAQ ── */}
       <section id="faq" className="border-b border-line">
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-20 md:py-28 grid grid-cols-12 gap-6 md:gap-10">
-          <div className="col-span-12 md:col-span-4">
+          <BlurFade className="col-span-12 md:col-span-4">
             <h2 className="font-display font-medium leading-[1.05] text-ink" style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}>
               Resposta<br />antes da <span className="font-serif italic font-normal text-brand">dúvida</span>.
             </h2>
             <p className="text-[14px] md:text-[15px] text-ink-3 mt-5 md:mt-6 leading-[1.6] max-w-[320px]">
-              Não achou a sua? Fala com o salão — respondemos em minutos no horário comercial.
+              Não achou a sua? Chama a gente no WhatsApp — respondemos rápido.
             </p>
-          </div>
+          </BlurFade>
 
           <div className="col-span-12 md:col-span-8 divide-y divide-line border-y border-line">
-            {FAQS.map((faq) => (
-              <details key={faq.q} className="group py-5 md:py-6 px-1 cursor-pointer">
+            {FAQS.map((faq, i) => (
+              <BlurFade as="details" key={faq.q} delay={i * 0.06} className="group py-5 md:py-6 px-1 cursor-pointer">
                 <summary className="flex justify-between items-center gap-4 md:gap-6">
                   <span className="font-display font-medium text-[16px] md:text-[19px] text-ink">{faq.q}</span>
                   <span className="font-mono text-[18px] md:text-[20px] leading-none text-ink-4 shrink-0 group-open:rotate-45 transition-transform inline-block">+</span>
                 </summary>
                 <p className="mt-4 md:mt-5 text-[14px] md:text-[15px] leading-[1.65] text-ink-2 pr-6 md:pr-10">{faq.a}</p>
-              </details>
+              </BlurFade>
             ))}
           </div>
         </div>
@@ -349,24 +322,24 @@ export default function PortalPage() {
       <section id="acessar" className="border-b border-line">
         <div className="max-w-[1320px] mx-auto px-4 md:px-8 py-24 md:py-32">
           <div className="grid grid-cols-12 gap-6 md:gap-10 items-center">
-            <div className="col-span-12 lg:col-span-7">
+            <BlurFade className="col-span-12 lg:col-span-7">
               <img src={logo} alt="Dauth" className="w-14 md:w-16 h-14 md:h-16 rounded-xl object-cover mb-6 md:mb-8 opacity-90" />
               <h2 className="font-display font-medium leading-[0.95] text-ink mb-6 md:mb-8" style={{ fontSize: 'clamp(48px, 7vw, 88px)' }}>
-                Sua próxima<br />
-                <span className="font-serif italic font-normal text-brand">visita</span> está<br />
-                a um clique.
+                Seu salão<br />
+                <span className="font-serif italic font-normal text-brand">no controle</span> está<br />
+                a uma conversa.
               </h2>
               <p className="text-[16px] md:text-[18px] leading-[1.55] text-ink-2 max-w-[480px] mb-8 md:mb-10">
-                Acesse pelo navegador, veja os horários disponíveis e marque em menos de um minuto. Sem instalar nada.
+                Chama a gente no WhatsApp e a gente te mostra como fica a agenda, o caixa e a comissão da sua equipe dentro do Dauth.
               </p>
 
               <div className="flex flex-wrap gap-3 mb-6 md:mb-8">
-                <Link to="/register" className="inline-flex h-[52px] md:h-[58px] items-center gap-3 px-6 md:px-8 rounded-md bg-ink text-bg hover:bg-ink-2 transition-colors text-[14px] md:text-[15px] font-medium">
-                  Criar conta grátis <ArrowRight />
-                </Link>
-                <Link to="/agendar" className="inline-flex h-[52px] md:h-[58px] items-center px-6 md:px-7 rounded-md text-[14px] md:text-[15px] border border-line hover:bg-brand-soft transition-colors">
-                  Agendar sem cadastro
-                </Link>
+                <a href={WHATSAPP_LINK} target="_blank" rel="noreferrer" className="inline-flex h-[52px] md:h-[58px] items-center gap-3 px-6 md:px-8 rounded-md bg-ink text-bg hover:bg-ink-2 transition-colors text-[14px] md:text-[15px] font-medium">
+                  Falar no WhatsApp <ArrowRight />
+                </a>
+                {/* <Link to="/login" className="inline-flex h-[52px] md:h-[58px] items-center px-6 md:px-7 rounded-md text-[14px] md:text-[15px] border border-line hover:bg-brand-soft transition-colors">
+                  Já tenho conta
+                </Link> */}
               </div>
 
               <div className="flex items-center gap-3 md:gap-4 text-[12px] md:text-[13px] text-ink-3 flex-wrap">
@@ -378,15 +351,15 @@ export default function PortalPage() {
                   </span>
                 ))}
               </div>
-            </div>
+            </BlurFade>
 
-            <div className="col-span-12 lg:col-span-5 relative min-h-[560px] hidden lg:block">
+            <BlurFade delay={0.15} className="col-span-12 lg:col-span-5 relative min-h-[560px] hidden lg:block">
               <img src="/cta-imagem-01.webp" alt="Dashboard admin Dauth" className="absolute top-0 right-8 rounded-md w-[260px] aspect-[3/4] border border-line object-cover object-top" />
               <img src="/cta-imagem-02.webp" alt="Meus combos Dauth" className="absolute top-32 left-0 rounded-md w-[220px] aspect-[4/5] border border-line object-cover object-top" />
-              <div className="absolute bottom-0 right-0 bg-bg border border-line rounded-full px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-ink-2 shadow-sm">
+              {/* <div className="absolute bottom-0 right-0 bg-bg border border-line rounded-full px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-ink-2 shadow-sm">
                 dauth agendamentos
-              </div>
-            </div>
+              </div> */}
+            </BlurFade>
           </div>
         </div>
       </section>
@@ -403,7 +376,7 @@ export default function PortalPage() {
               </div>
             </div>
             <p className="text-[13px] md:text-[14px] text-ink-3 leading-[1.6] max-w-[360px]">
-              Plataforma de agendamento online para salões de beleza — marque seus horários pelo navegador, sem precisar instalar nada.
+              Sistema de gestão para salões de beleza — agenda, caixa e comissão da sua equipe num só lugar.
             </p>
           </div>
 
@@ -411,8 +384,8 @@ export default function PortalPage() {
             <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4 mb-4">portal</div>
             <ul className="flex flex-col gap-2 text-[13px] md:text-[14px] text-ink-2">
               <li><a href="#como" className="hover:text-brand transition-colors">Como funciona</a></li>
-              <li><a href="#servicos" className="hover:text-brand transition-colors">O que oferece</a></li>
-              <li><Link to="/agendar" className="hover:text-brand transition-colors">Agendar agora</Link></li>
+              <li><a href="#servicos" className="hover:text-brand transition-colors">O que você ganha</a></li>
+              <li><a href={WHATSAPP_LINK} target="_blank" rel="noreferrer" className="hover:text-brand transition-colors">Falar no WhatsApp</a></li>
             </ul>
           </div>
 
@@ -420,8 +393,7 @@ export default function PortalPage() {
             <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4 mb-4">conta</div>
             <ul className="flex flex-col gap-2 text-[13px] md:text-[14px] text-ink-2">
               <li><Link to="/login" className="hover:text-brand transition-colors">Entrar</Link></li>
-              <li><Link to="/register" className="hover:text-brand transition-colors">Criar conta</Link></li>
-              <li><Link to="/agendar" className="hover:text-brand transition-colors">Agendar sem cadastro</Link></li>
+              <li><a href={WHATSAPP_LINK} target="_blank" rel="noreferrer" className="hover:text-brand transition-colors">Solicitar acesso</a></li>
             </ul>
           </div>
 
