@@ -288,6 +288,24 @@ async function handleLogout() {
 // Se refresh falhar → window.location.href = '/login'
 ```
 
+**Fix — refresh concorrente derrubava sessão (2026-07-13):** o `refresh_token` do Supabase é rotativo e de uso único. Antes, cada request que recebia 401 disparava seu próprio `POST /auth/refresh` — se duas ou mais requisições expirassem quase ao mesmo tempo (comum em telas que disparam vários GETs em paralelo, ex: `AdminAgenda.load()`), cada uma lia o mesmo cookie `refresh_token` e tentava consumi-lo; a segunda chegava ao backend com um token já rotacionado pela primeira, recebia 401 de novo e o interceptor derrubava a sessão inteira (`logout()` + redirect `/login`) mesmo com a sessão sendo válida segundos antes.
+
+`src/lib/api.js` agora deduplica: uma variável de módulo `refreshPromise` guarda a promise do refresh em andamento; qualquer 401 concorrente reusa essa mesma promise em vez de disparar uma chamada nova, e ela é limpa (`.finally`) assim que o refresh termina.
+
+```js
+let refreshPromise = null
+function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post(`${import.meta.env.VITE_API_URL}/auth/refresh`, {}, { withCredentials: true })
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+```
+
+Relacionado ao fix espelhado no backend: `authModels.refreshSession` usava o client singleton `supabase` (que mantém `currentSession` global do processo Node, compartilhado por todos os usuários/dispositivos) em vez de `createTempClient()` — mesmo problema de fundo (corrida em torno de refresh tokens rotativos), duas causas diferentes. Ver `Dauth_Back_end/docs/claude/decisions.md`.
+
 ### Fluxo de convite de profissional
 ```js
 // 1. Admin chama POST /auth/invite → { message }
