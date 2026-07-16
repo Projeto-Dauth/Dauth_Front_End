@@ -1,8 +1,7 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 
 // Páginas públicas
-import PortalPage from '@/pages/public/PortalPage'
 import AgendarPage from '@/pages/public/AgendarPage'
 import PrivacidadePage from '@/pages/public/PrivacidadePage'
 import TermosPage from '@/pages/public/TermosPage'
@@ -56,7 +55,8 @@ const ALL_ROLES = ['Admin', 'Profissional', 'Usuario']
 
 const router = createBrowserRouter([
   // ── Rotas públicas ───────────────────────────────────────
-  { path: '/', element: <PortalPage /> },
+  // Landing pública mora em dauth.com.br (projeto "Dauth Landing"); este subdomínio é só o app
+  { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/agendar', element: <AgendarPage /> },
   { path: '/privacidade', element: <PrivacidadePage /> },
   { path: '/termos', element: <TermosPage /> },
