@@ -9,6 +9,19 @@ import { ToastProvider } from './context/ToastContext'
 import CookieBanner from './components/ui/CookieBanner'
 
 async function bootstrap() {
+  // Landing page é um site isolado — não faz nenhuma chamada à API
+  if (window.location.pathname === '/') {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ToastProvider>
+          <RouterProvider router={router} />
+          <CookieBanner />
+        </ToastProvider>
+      </StrictMode>
+    )
+    return
+  }
+
   try {
     const { data } = await api.get('/users/perfil/me')
     useAuthStore.getState().restoreSession({
