@@ -8,12 +8,14 @@ import Button from '@/components/ui/Button'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminCaixaComissoesSteps } from '@/tours/adminCaixaComissoes'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const navItems = navItemsByRole['Admin']
 
@@ -93,7 +95,7 @@ function groupByProfessional(transactions) {
   return Object.values(map)
 }
 
-function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPagarTodas, paid = false }) {
+function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPagarTodas, preparando = false, paid = false }) {
   const totalRows = groups.reduce((s, g) => s + g.rows.length, 0)
   return (
     <>
@@ -115,7 +117,8 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
                 {!paid && (
                   <button
                     onClick={() => onPagarTodas(g)}
-                    className="shrink-0 hidden md:inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors">
+                    disabled={preparando}
+                    className="shrink-0 hidden md:inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors disabled:opacity-60">
                     Pagar todas
                     <Icon name="arrowRight" size={11} />
                   </button>
@@ -126,7 +129,8 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
                 {!paid && (
                   <button
                     onClick={() => onPagarTodas(g)}
-                    className="md:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors">
+                    disabled={preparando}
+                    className="md:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors disabled:opacity-60">
                     Pagar todas
                     <Icon name="arrowRight" size={11} />
                   </button>
@@ -447,13 +451,30 @@ export default function AdminComissoes() {
   const [preset, setPreset] = useState('mes')
   const [profFilter, setProfFilter] = useState(null)
   const [profissionais, setProfissionais] = useState([])
-  const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(true)
   const [markingPaid, setMarkingPaid] = useState(null)
   const [pagarModal, setPagarModal] = useState(null)
   const [pagando, setPagando] = useState(false)
+  const [totals, setTotals] = useState({ totalPendente: 0, totalReceita: 0 })
+  const [preparandoModal, setPreparandoModal] = useState(false)
 
   const { from, to } = getDateRange(preset)
+
+  const {
+    items: transactions,
+    loading,
+    loadingMore,
+    hasMore,
+    reload,
+    loadMore,
+  } = usePaginatedList(
+    (page, limit) => api.get('/transaction/all-commissions', {
+      params: { ...(from && { from }), ...(to && { to }), ...(profFilter && { professional_id: profFilter }), page, limit },
+    }).then(res => {
+      setTotals(res.data.totals ?? { totalPendente: 0, totalReceita: 0 })
+      return res.data
+    }),
+    [from, to, profFilter]
+  )
 
   const { restartTour } = useTour('admin_caixa_comissoes', adminCaixaComissoesSteps, !loading)
 
@@ -463,30 +484,40 @@ export default function AdminComissoes() {
       .catch(() => setProfissionais([]))
   }, [])
 
-  function load(silent = false) {
-    if (!silent) setLoading(true)
-    const params = new URLSearchParams()
-    if (from) params.set('from', from)
-    if (to) params.set('to', to)
-    if (profFilter) params.set('professional_id', profFilter)
-    api.get(`/transaction/all-commissions?${params}`)
-      .then(res => setTransactions(res.data.data ?? []))
-      .catch(() => setTransactions([]))
-      .finally(() => { if (!silent) setLoading(false) })
-  }
-
-  useEffect(() => { load() }, [from, to, profFilter])
-
   async function handleMarcarRepassado(txUuid) {
     setMarkingPaid(txUuid)
     try {
       await api.patch(`/transaction/${txUuid}`, { Commission_paid: true })
       addToast('Comissão marcada como repassada', 'success')
-      load(true)
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao marcar comissão', 'error')
     } finally {
       setMarkingPaid(null)
+    }
+  }
+
+  // Busca o conjunto completo de comissões pendentes do profissional no período —
+  // não depende do que já está carregado na tela (que pode ser só uma página),
+  // garantindo que "Pagar todas" nunca perca comissões fora da página visível.
+  async function abrirModalPagarTodas(group) {
+    setPreparandoModal(true)
+    try {
+      const res = await api.get('/transaction/all-commissions', {
+        params: {
+          ...(from && { from }),
+          ...(to && { to }),
+          professional_id: group.professional_id,
+          page: 1,
+          limit: 1000,
+        },
+      })
+      const rows = (res.data.data ?? []).filter(tx => !tx.commission_paid)
+      setPagarModal({ professional_id: group.professional_id, name: group.name, rows })
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao carregar comissões do profissional', 'error')
+    } finally {
+      setPreparandoModal(false)
     }
   }
 
@@ -503,7 +534,7 @@ export default function AdminComissoes() {
       const n = res.data.paid
       addToast(`${n} comissão${n !== 1 ? 'ões' : ''} marcada${n !== 1 ? 's' : ''} como repassada${n !== 1 ? 's' : ''}`, 'success')
       setPagarModal(null)
-      load(true)
+      reload()
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao registrar repasse', 'error')
     } finally {
@@ -513,8 +544,8 @@ export default function AdminComissoes() {
 
   const pendentes = transactions.filter(tx => !tx.commission_paid)
   const repassadas = transactions.filter(tx => tx.commission_paid)
-  const totalPendente = pendentes.reduce((s, tx) => s + tx.commission_amount, 0)
-  const totalReceita = transactions.reduce((s, tx) => s + tx.gross_amount, 0)
+  const totalPendente = totals.totalPendente
+  const totalReceita = totals.totalReceita
   const groupsPendentes = groupByProfessional(pendentes)
   const groupsRepassadas = groupByProfessional(repassadas)
 
@@ -654,13 +685,16 @@ export default function AdminComissoes() {
                       groups={groupsPendentes}
                       markingPaid={markingPaid}
                       onMarcarRepassado={handleMarcarRepassado}
-                      onPagarTodas={g => setPagarModal(g)}
+                      onPagarTodas={abrirModalPagarTodas}
+                      preparando={preparandoModal}
                     />
               ) : (
                 groupsRepassadas.length === 0
                   ? <EmptyState icon="cash" title="Nenhum repasse" description="Nenhuma comissão repassada neste período." />
                   : <CommissionSection title="Repassadas" groups={groupsRepassadas} paid />
               )}
+
+              {hasMore && <LoadMoreButton onClick={loadMore} loading={loadingMore} />}
             </>
           )}
         </>

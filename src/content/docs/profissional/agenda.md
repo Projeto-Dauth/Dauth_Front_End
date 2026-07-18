@@ -14,7 +14,7 @@ Clique em um horário vazio. Escolha o cliente (ou cadastre um novo na hora), o 
 
 Clique com o botão direito (ou toque e segure no celular):
 - Marcar como Confirmado / Concluído / Cancelado.
-- Transferir data — muda o agendamento para outro dia/horário.
+- Editar — muda data, horários e até os serviços do agendamento (mesma lógica da criação, pode adicionar/remover serviços). Só funciona enquanto o status for Pendente ou Confirmado.
 - Abrir comanda — vai direto para Comandas com o cliente selecionado.
 - Fechar comanda — disponível depois que o atendimento é Concluído.
 - Ver detalhes.

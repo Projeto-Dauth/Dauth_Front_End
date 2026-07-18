@@ -18,3 +18,7 @@ Use esta tela quando precisar:
 - Encontrar um agendamento específico sem navegar pela grade dia a dia.
 - Ver rapidamente o histórico de cancelamentos.
 - Conferir a lista de atendimentos concluídos de um período.
+
+## Detalhes do agendamento
+
+Clique em um item da lista para abrir a página de detalhes completa: informações do agendamento, ações de status, e um card **Últimas visitas** com o histórico recente do mesmo cliente — útil para lembrar preferências ou serviços anteriores antes de atender de novo.

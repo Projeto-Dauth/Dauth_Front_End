@@ -57,11 +57,9 @@ export default function DetalhesAgendamento() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState({ open: false, status: '' })
   const [saving, setSaving] = useState(false)
-  const [fecharConta, setFecharConta] = useState(null) // { name, clientId, tabs }
-  const [fecharMethod, setFecharMethod] = useState('Pix')
+  const [fecharConta, setFecharConta] = useState(null)
+  const [fecharMethod, setFecharMethod] = useState('pix')
   const [fecharPaying, setFecharPaying] = useState(false)
-  const [fecharOrders, setFecharOrders] = useState([])
-  const [fecharOrdersLoading, setFecharOrdersLoading] = useState(false)
 
   const [editing, setEditing] = useState(false)
   const [services, setServices] = useState([])
@@ -120,37 +118,27 @@ export default function DetalhesAgendamento() {
   }
 
   async function handleFecharConta() {
+    setFecharMethod('pix')
     try {
-      const { data: tabData } = await api.get('/tab')
-      const tabs = (tabData.data ?? tabData).filter(
-        t => t.Status === 'Em aberto' && t.Appointment?.Client === item.Client
-      )
-      if (!tabs.length) {
+      const { data } = await api.get(`/tab/client/${item.Client_id}/account-summary`)
+      if (!data.eligible) {
         addToast('Nenhuma comanda em aberto para este cliente', 'warning')
         return
       }
-      const clientId = tabs[0].Appointment?.ClientId
-      setFecharConta({ name: item.Client, clientId, tabs })
-      setFecharMethod('Pix')
-      setFecharOrdersLoading(true)
-      setFecharOrders([])
-      api.get('/product-order', { params: { client_id: clientId, status: 'encomendado' } })
-        .then(({ data }) => setFecharOrders(data.data ?? []))
-        .catch(() => setFecharOrders([]))
-        .finally(() => setFecharOrdersLoading(false))
-    } catch {
-      addToast('Erro ao buscar comandas', 'error')
+      setFecharConta(data)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao buscar comandas', 'error')
     }
   }
 
-  async function handleConfirmFechar() {
+  async function handleConfirmFechar(tabIds, orderPayments) {
     setFecharPaying(true)
     try {
       await api.post('/tab/batch-pay', {
-        tab_ids: fecharConta.tabs.map(t => t.UUID),
+        tab_ids: tabIds,
         Method: fecharMethod,
         Payment_date: new Date().toISOString(),
-        client_id: fecharConta.clientId,
+        order_payments: orderPayments,
       })
       addToast('Conta fechada com sucesso')
       setFecharConta(null)
@@ -505,8 +493,6 @@ export default function DetalhesAgendamento() {
       {fecharConta && (
         <ModalFecharConta
           client={fecharConta}
-          orders={fecharOrders}
-          ordersLoading={fecharOrdersLoading}
           method={fecharMethod}
           onMethodChange={setFecharMethod}
           paying={fecharPaying}
