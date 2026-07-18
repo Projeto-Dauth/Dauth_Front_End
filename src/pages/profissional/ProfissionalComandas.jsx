@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
+import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import PaginationControls from '@/components/ui/PaginationControls'
@@ -378,21 +379,23 @@ export default function ProfissionalComandas() {
   const [batchClient, setBatchClient] = useState(null)
   const [batchMethod, setBatchMethod] = useState('pix')
   const [batchPaying, setBatchPaying] = useState(false)
-  const [batchOrders, setBatchOrders] = useState([])
-  const [batchOrdersLoading, setBatchOrdersLoading] = useState(false)
+  const [openAccounts, setOpenAccounts] = useState([])
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const [apptRes, tabRes] = await Promise.all([
+      const [apptRes, tabRes, accountsRes] = await Promise.all([
         api.get('/appointment/my', { params: { limit: 500 } }),
         api.get('/tab', { params: { limit: 1000 } }),
+        api.get('/tab/open-accounts'),
       ])
       const apptUUIDs = new Set((apptRes.data.data ?? []).map(a => a.UUID))
       const myTabs = (tabRes.data.data ?? []).filter(t => t.Appointment && apptUUIDs.has(t.Appointment.UUID))
       setTabs(myTabs)
+      setOpenAccounts(accountsRes.data.data ?? [])
     } catch {
       setTabs([])
+      setOpenAccounts([])
     } finally {
       if (!silent) setLoading(false)
     }
@@ -425,16 +428,6 @@ export default function ProfissionalComandas() {
   const emAberto = tabs.filter(t => t.Status === 'Em aberto').length
   const totalAberto = tabs.filter(t => t.Status === 'Em aberto').reduce((s, t) => s + t.Value, 0)
 
-  const clientsWithOpenTabs = (() => {
-    const map = {}
-    tabs.filter(t => t.Status === 'Em aberto' && t.Appointment?.ClientId).forEach(t => {
-      const id = t.Appointment.ClientId
-      if (!map[id]) map[id] = { name: t.Appointment.Client, clientId: id, tabs: [] }
-      map[id].tabs.push(t)
-    })
-    return Object.values(map)
-  })()
-
   async function handlePagar() {
     if (!selected) return
     setPaying(true)
@@ -460,33 +453,27 @@ export default function ProfissionalComandas() {
   }
 
   async function openBatchModal(c) {
-    setBatchClient(c)
     setBatchMethod('pix')
-    setBatchOrders([])
-    setBatchOrdersLoading(true)
     try {
-      const { data } = await api.get(`/product-order?client_id=${c.clientId}&status=encomendado`)
-      setBatchOrders(data.data ?? [])
-    } catch {
-      setBatchOrders([])
-    } finally {
-      setBatchOrdersLoading(false)
+      const { data } = await api.get(`/tab/client/${c.client_id}/account-summary`)
+      setBatchClient(data)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao carregar conta do cliente', 'error')
     }
   }
 
-  async function handleFecharConta() {
+  async function handleFecharConta(tabIds, orderPayments) {
     if (!batchClient) return
     setBatchPaying(true)
     try {
       await api.post('/tab/batch-pay', {
-        tab_ids: batchClient.tabs.map(t => t.UUID),
+        tab_ids: tabIds,
         Method: batchMethod,
         Payment_date: new Date().toISOString(),
-        client_id: batchClient.clientId,
+        order_payments: orderPayments,
       })
-      addToast(`Conta de ${batchClient.name} fechada com sucesso`, 'success')
+      addToast(`Conta de ${batchClient.client_name} fechada com sucesso`, 'success')
       setBatchClient(null)
-      setBatchOrders([])
       load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
@@ -531,33 +518,30 @@ export default function ProfissionalComandas() {
       </div>
 
       {/* Contas a fechar */}
-      {clientsWithOpenTabs.length > 0 && (
+      {openAccounts.length > 0 && (
         <div className="mb-5 space-y-2">
           <p className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">
-            {clientsWithOpenTabs.length === 1 ? 'Conta em aberto' : 'Contas em aberto'}
+            {openAccounts.length === 1 ? 'Conta em aberto' : 'Contas em aberto'}
           </p>
-          {clientsWithOpenTabs.map((c, idx) => {
-            const total = c.tabs.reduce((s, t) => s + t.Value, 0)
-            return (
-              <div key={c.clientId} className="flex items-center justify-between gap-3 bg-surface border border-line rounded-[12px] px-4 py-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Avatar name={c.name} index={idx} size="sm" />
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium truncate">{c.name}</div>
-                    <div className="font-mono text-[11px] text-ink-3">
-                      {c.tabs.length} comanda{c.tabs.length !== 1 ? 's' : ''} · {formatCurrency(total)}
-                    </div>
+          {openAccounts.map((c, idx) => (
+            <div key={c.client_id} className="flex items-center justify-between gap-3 bg-surface border border-line rounded-[12px] px-4 py-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar name={c.client_name} index={idx} size="sm" />
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium truncate">{c.client_name}</div>
+                  <div className="font-mono text-[11px] text-ink-3">
+                    {c.tab_count + c.order_count} ite{c.tab_count + c.order_count !== 1 ? 'ns' : 'm'} · {formatCurrency(c.total)}
                   </div>
                 </div>
-                <button
-                  onClick={() => openBatchModal(c)}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] text-[12.5px] font-medium bg-brand text-white hover:bg-brand/90 transition-colors cursor-pointer">
-                  <Icon name="cash" size={13} />
-                  Fechar conta
-                </button>
               </div>
-            )
-          })}
+              <button
+                onClick={() => openBatchModal(c)}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] text-[12.5px] font-medium bg-brand text-white hover:bg-brand/90 transition-colors cursor-pointer">
+                <Icon name="cash" size={13} />
+                Fechar conta
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -574,102 +558,14 @@ export default function ProfissionalComandas() {
 
       {/* Modal fechar conta */}
       {batchClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-surface border border-line rounded-[16px] w-full max-w-[400px] shadow-xl">
-            <div className="px-6 py-5 border-b border-line flex justify-between items-center">
-              <div>
-                <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Fechar conta</span>
-                <h4 className="font-display font-medium text-[18px] tracking-tight mt-1">{batchClient.name}</h4>
-              </div>
-              <button onClick={() => { setBatchClient(null); setBatchOrders([]) }} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
-                <Icon name="x" size={18} />
-              </button>
-            </div>
-            <div className="px-6 py-5">
-              {batchOrdersLoading ? (
-                <div className="space-y-2 mb-5 animate-pulse">
-                  {batchClient.tabs.map(t => (
-                    <div key={t.UUID} className="flex items-center justify-between">
-                      <div className="h-3.5 bg-line rounded w-2/3" />
-                      <div className="h-3.5 bg-line rounded w-16" />
-                    </div>
-                  ))}
-                  <div className="pt-2 border-t border-dashed border-line-2 space-y-2">
-                    <div className="h-3 bg-line rounded w-1/4" />
-                    <div className="flex items-center justify-between">
-                      <div className="h-3.5 bg-line rounded w-1/2" />
-                      <div className="h-3.5 bg-line rounded w-16" />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
-                    <div className="h-3 bg-line rounded w-10" />
-                    <div className="h-6 bg-line rounded w-24" />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2 mb-5">
-                  {batchClient.tabs.map(t => (
-                    <div key={t.UUID} className="flex items-center justify-between text-[13px]">
-                      <span className="text-ink-2">{t.Appointment?.Service} · {formatTime(t.Appointment?.Start_time)}</span>
-                      <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
-                    </div>
-                  ))}
-                  {batchOrders.length > 0 && (
-                    <>
-                      <div className="pt-2 border-t border-dashed border-line-2">
-                        <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Produtos</span>
-                      </div>
-                      {batchOrders.map(o => (
-                        <div key={o.UUID} className="flex items-center justify-between text-[13px]">
-                          <span className="text-ink-2">{o.Product?.Name} × {o.Quantity}</span>
-                          <span className="font-mono font-medium text-ink">{formatCurrency(o.Total_price)}</span>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                  <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
-                    <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
-                    <span className="font-display text-[20px] font-medium text-ink">
-                      {formatCurrency(
-                        batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
-                        batchOrders.reduce((s, o) => s + o.Total_price, 0)
-                      )}
-                    </span>
-                  </div>
-                </div>
-              )}
-              <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">Método de pagamento</div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                {PAY_METHODS_PROD.map(m => (
-                  <button key={m.id} onClick={() => setBatchMethod(m.id)}
-                    className={`px-3 py-3 rounded-[10px] border flex flex-col items-center gap-1.5 text-[13px] cursor-pointer transition-colors
-                      ${batchMethod === m.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink-3'}`}>
-                    <Icon name={m.icon} size={18} />
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setBatchMethod(PAY_METHODS_FIADO.id)}
-                className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-5
-                  ${batchMethod === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
-              >
-                <Icon name={PAY_METHODS_FIADO.icon} size={16} />
-                {PAY_METHODS_FIADO.label}
-              </button>
-              <Button variant="primary" className="w-full justify-center" onClick={handleFecharConta} disabled={batchPaying || batchOrdersLoading}>
-                <Icon name="check" size={14} />
-                {batchPaying ? 'Fechando...' : batchOrdersLoading ? 'Carregando...' : batchMethod === 'fiado' ? `Registrar mensalidade · ${formatCurrency(
-                  batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
-                  batchOrders.reduce((s, o) => s + o.Total_price, 0)
-                )}` : `Fechar conta · ${formatCurrency(
-                  batchClient.tabs.reduce((s, t) => s + t.Value, 0) +
-                  batchOrders.reduce((s, o) => s + o.Total_price, 0)
-                )}`}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ModalFecharConta
+          client={batchClient}
+          method={batchMethod}
+          onMethodChange={setBatchMethod}
+          paying={batchPaying}
+          onClose={() => setBatchClient(null)}
+          onConfirm={handleFecharConta}
+        />
       )}
 
       {loading ? <PageSpinner /> : tabs.length === 0 ? (

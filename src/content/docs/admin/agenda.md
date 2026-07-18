@@ -21,7 +21,7 @@ Clique em um horário vazio na grade do profissional desejado. Um painel abre co
 
 Clique com o botão direito (ou toque e segure no celular) sobre o bloco do agendamento para abrir o menu de opções:
 - **Marcar como Confirmado / Concluído / Cancelado** — dependendo do status atual.
-- **Transferir data** — muda o agendamento para outro dia/horário sem precisar cancelar e recriar.
+- **Editar** — abre um painel para alterar data, horários e até os serviços do agendamento (pode adicionar ou remover serviços, igual na criação). Só disponível enquanto o status for Pendente ou Confirmado — depois de Concluído ou Cancelado não dá mais para editar, para não desalinhar comandas e comissões já geradas.
 - **Abrir comanda** — leva direto para o Caixa com a comanda daquele cliente selecionada.
 - **Fechar comanda** — disponível só depois que o atendimento foi marcado como Concluído; abre o fechamento de conta direto pela Agenda.
 - **Ver detalhes** — abre a página completa do agendamento.

@@ -1199,8 +1199,6 @@ export default function AdminAgenda() {
   const [fecharContaClient, setFecharContaClient] = useState(null)
   const [fecharContaMethod, setFecharContaMethod] = useState('pix')
   const [fecharContaPaying, setFecharContaPaying] = useState(false)
-  const [fecharContaOrders, setFecharContaOrders] = useState([])
-  const [fecharContaOrdersLoading, setFecharContaOrdersLoading] = useState(false)
   const longPressTimer = useRef(null)
   const dateInputRef = useRef(null)
 
@@ -1238,42 +1236,31 @@ export default function AdminAgenda() {
   }
 
   async function handleAbrirFecharConta(appt) {
-    setFecharContaOrdersLoading(true)
     setFecharContaMethod('pix')
-    setFecharContaOrders([])
     try {
-      const { data } = await api.get('/tab')
-      const allTabs = data.data ?? []
-      const openTabs = allTabs.filter(t => t.Status === 'Em aberto' && t.Appointment?.Client === appt.Client)
-      if (openTabs.length === 0) {
+      const { data } = await api.get(`/tab/client/${appt.Client_id}/account-summary`)
+      if (!data.eligible) {
         addToast('Nenhuma comanda em aberto para este cliente', 'warning')
-        setFecharContaOrdersLoading(false)
         return
       }
-      const clientId = openTabs[0].Appointment?.ClientId
-      setFecharContaClient({ name: appt.Client, clientId, tabs: openTabs })
-      const { data: ordersData } = await api.get(`/product-order?client_id=${clientId}&status=encomendado`)
-      setFecharContaOrders(ordersData.data ?? [])
-    } catch {
-      setFecharContaOrders([])
-    } finally {
-      setFecharContaOrdersLoading(false)
+      setFecharContaClient(data)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao carregar conta do cliente', 'error')
     }
   }
 
-  async function handleFecharConta() {
+  async function handleFecharConta(tabIds, orderPayments) {
     if (!fecharContaClient) return
     setFecharContaPaying(true)
     try {
       await api.post('/tab/batch-pay', {
-        tab_ids: fecharContaClient.tabs.map(t => t.UUID),
+        tab_ids: tabIds,
         Method: fecharContaMethod,
         Payment_date: new Date().toISOString(),
-        client_id: fecharContaClient.clientId,
+        order_payments: orderPayments,
       })
-      addToast(`Conta de ${fecharContaClient.name} fechada com sucesso`, 'success')
+      addToast(`Conta de ${fecharContaClient.client_name} fechada com sucesso`, 'success')
       setFecharContaClient(null)
-      setFecharContaOrders([])
       load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
@@ -1401,12 +1388,10 @@ export default function AdminAgenda() {
       {fecharContaClient && (
         <ModalFecharConta
           client={fecharContaClient}
-          orders={fecharContaOrders}
-          ordersLoading={fecharContaOrdersLoading}
           method={fecharContaMethod}
           onMethodChange={setFecharContaMethod}
           paying={fecharContaPaying}
-          onClose={() => { setFecharContaClient(null); setFecharContaOrders([]) }}
+          onClose={() => setFecharContaClient(null)}
           onConfirm={handleFecharConta}
         />
       )}
