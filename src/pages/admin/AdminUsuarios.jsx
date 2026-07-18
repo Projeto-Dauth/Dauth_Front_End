@@ -262,10 +262,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     }
   }
 
-  const [fecharOpen, setFecharOpen] = useState(false)
+  const [fecharConta, setFecharConta] = useState(null)
   const [fecharMethod, setFecharMethod] = useState('pix')
-  const [fecharOrders, setFecharOrders] = useState([])
-  const [fecharOrdersLoading, setFecharOrdersLoading] = useState(false)
   const [fecharPaying, setFecharPaying] = useState(false)
 
   useEffect(() => {
@@ -289,29 +287,26 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const ticketMedio = concludedCount > 0 ? totalGasto / concludedCount : 0
 
   async function handleOpenFecharConta() {
-    setFecharOpen(true)
-    setFecharOrdersLoading(true)
+    setFecharMethod('pix')
     try {
-      const { data } = await api.get('/product-order', { params: { client_id: client.UUID, status: 'encomendado' } })
-      setFecharOrders(data.data ?? [])
-    } catch {
-      setFecharOrders([])
-    } finally {
-      setFecharOrdersLoading(false)
+      const { data } = await api.get(`/tab/client/${client.UUID}/account-summary`)
+      setFecharConta(data)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao carregar conta do cliente', 'error')
     }
   }
 
-  async function handleFecharConta() {
+  async function handleFecharConta(tabIds, orderPayments) {
     setFecharPaying(true)
     try {
       await api.post('/tab/batch-pay', {
-        tab_ids: openTabs.map(t => t.UUID),
+        tab_ids: tabIds,
         Method: fecharMethod,
         Payment_date: new Date().toISOString(),
-        client_id: client.UUID,
+        order_payments: orderPayments,
       })
       addToast('Conta fechada com sucesso', 'success')
-      setFecharOpen(false)
+      setFecharConta(null)
       onReload()
       onClose()
     } catch (err) {
@@ -497,15 +492,13 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
         </div>
       </div>
 
-      {fecharOpen && (
+      {fecharConta && (
         <ModalFecharConta
-          client={{ name: client.Name, clientId: client.UUID, tabs: openTabs }}
-          orders={fecharOrders}
-          ordersLoading={fecharOrdersLoading}
+          client={fecharConta}
           method={fecharMethod}
           onMethodChange={setFecharMethod}
           paying={fecharPaying}
-          onClose={() => setFecharOpen(false)}
+          onClose={() => setFecharConta(null)}
           onConfirm={handleFecharConta}
         />
       )}
