@@ -428,9 +428,12 @@ function HistoricoRepasses({ profFilter }) {
               <p className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4 mb-2">
                 {h.transaction_count} transação{h.transaction_count !== 1 ? 'ões' : ''} incluída{h.transaction_count !== 1 ? 's' : ''}
               </p>
-              <div className="space-y-1">
-                {(h.transaction_ids ?? []).map(id => (
-                  <div key={id} className="font-mono text-[11px] text-ink-4 truncate">{id}</div>
+              <div className="space-y-1.5">
+                {(h.transactions ?? []).map(t => (
+                  <div key={t.uuid} className="flex items-center justify-between gap-2 text-[12.5px]">
+                    <span className="text-ink-2 truncate">{t.cliente ?? 'Cliente'} · {t.servico ?? 'Produto'}</span>
+                    <span className="font-mono text-ink-3 shrink-0">{t.commission_amount != null ? formatCurrency(t.commission_amount) : '—'}</span>
+                  </div>
                 ))}
               </div>
             </div>

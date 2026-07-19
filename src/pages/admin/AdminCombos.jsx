@@ -6,9 +6,11 @@ import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 
 const navItems = navItemsByRole['Admin']
@@ -32,7 +34,6 @@ export default function AdminCombos() {
 
   const [packages, setPackages] = useState([])  // [{ ...pkg, items: [] }]
   const [services, setServices] = useState([])
-  const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Drawer pacote
@@ -73,7 +74,6 @@ export default function AdminCombos() {
 
   useEffect(() => {
     api.get('/service', { params: { limit: 100 } }).then(({ data }) => setServices(data.data ?? [])).catch(() => {})
-    api.get('/users', { params: { Role: 'Usuario', limit: 100 } }).then(({ data }) => setClients(data.data ?? [])).catch(() => {})
   }, [])
 
   // ── Pacote handlers ──────────────────────────────────────────────────────
@@ -448,12 +448,12 @@ export default function AdminCombos() {
               <div className="font-mono text-[13px] text-brand mt-0.5">{formatCurrency(sellPkg.Price)}</div>
             </div>
             <DrawerField label="Cliente">
-              <select value={sellClientId} onChange={(e) => setSellClientId(e.target.value)} className={inputCls}>
-                <option value="">Selecione o cliente...</option>
-                {clients.map((c) => (
-                  <option key={c.UUID} value={c.UUID}>{c.Name} — {c.Email}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={sellClientId}
+                onChange={setSellClientId}
+                onSearch={searchClients}
+                placeholder="Selecionar cliente…"
+              />
             </DrawerField>
             <div className="text-[12px] text-ink-3 mt-2 mb-5">
               Uma comanda será criada automaticamente. Registre o pagamento na Caixa.

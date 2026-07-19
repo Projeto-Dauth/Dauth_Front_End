@@ -8,7 +8,9 @@ Cada serviço tem um percentual de comissão definido pelo administrador. Ao con
 
 ## O que você vê
 
-- Seletor de mês/ano.
-- Cards com total de atendimentos, receita gerada e comissão a receber.
-- Tabela com cada atendimento: data do agendamento, data do pagamento, cliente, serviço, valor do serviço e sua comissão.
-- Marcação **Repassado / A repassar** — indica se o administrador já pagou aquela comissão para você.
+| Item | O que mostra |
+|---|---|
+| **Seletor de mês/ano** | Escolhe o período |
+| **Cards de resumo** | Total de atendimentos, receita gerada e comissão a receber |
+| **Tabela de atendimentos** | Data do agendamento, data do pagamento, cliente, serviço, valor do serviço e sua comissão |
+| **Marcação Repassado / A repassar** | Indica se o administrador já pagou aquela comissão para você |

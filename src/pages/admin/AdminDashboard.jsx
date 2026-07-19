@@ -80,43 +80,121 @@ const CustomTooltipBar = ({ active, payload }) => {
   )
 }
 
+const PRESETS = [
+  { id: 'mes', label: 'Este mês' },
+  { id: '7d', label: 'Últimos 7 dias' },
+  { id: '90d', label: 'Últimos 90 dias' },
+  { id: 'custom', label: 'Personalizado' },
+]
+
+function toLocalDateStringFE(date) {
+  return date.toLocaleDateString('en-CA')
+}
+
+function rangeForPreset(preset) {
+  const now = new Date()
+  if (preset === 'mes') {
+    const from = new Date(now.getFullYear(), now.getMonth(), 1)
+    return { from: toLocalDateStringFE(from), to: toLocalDateStringFE(now) }
+  }
+  const days = preset === '7d' ? 6 : 89
+  const from = new Date(now)
+  from.setDate(from.getDate() - days)
+  return { from: toLocalDateStringFE(from), to: toLocalDateStringFE(now) }
+}
+
 export default function AdminDashboard() {
   const { user } = useAuthStore()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [preset, setPreset] = useState('mes')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   useEffect(() => {
-    api.get('/dashboard')
+    if (preset === 'custom' && (!customFrom || !customTo)) return
+    setLoading(true)
+    const params = preset === 'mes' ? {} : preset === 'custom' ? { from: customFrom, to: customTo } : rangeForPreset(preset)
+    api.get('/dashboard', { params })
       .then(res => setData(res.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-  }, [])
+  }, [preset, customFrom, customTo])
 
   const sidebar = <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin" />
 
-  if (loading) return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
+  const periodFilter = (
+    <div className="flex flex-wrap items-center gap-2">
+      {PRESETS.map(p => (
+        <button
+          key={p.id}
+          onClick={() => setPreset(p.id)}
+          className={`h-[34px] px-3 rounded-full text-[12.5px] font-medium transition-colors cursor-pointer ${preset === p.id ? 'bg-brand text-white' : 'bg-surface border border-line text-ink-3 hover:border-brand/40'}`}
+        >
+          {p.label}
+        </button>
+      ))}
+      {preset === 'custom' && (
+        <div className="flex items-center gap-2 ml-1">
+          <input
+            type="date"
+            value={customFrom}
+            max={customTo || undefined}
+            onChange={e => setCustomFrom(e.target.value)}
+            className="h-[34px] px-2.5 rounded-lg border border-line bg-surface text-ink-2 text-[12.5px] font-body focus:outline-none focus:border-brand cursor-pointer"
+          />
+          <span className="text-ink-4 text-[12px]">até</span>
+          <input
+            type="date"
+            value={customTo}
+            min={customFrom || undefined}
+            onChange={e => setCustomTo(e.target.value)}
+            className="h-[34px] px-2.5 rounded-lg border border-line bg-surface text-ink-2 text-[12.5px] font-body focus:outline-none focus:border-brand cursor-pointer"
+          />
+        </div>
+      )}
+    </div>
+  )
 
-  if (!data) return (
+  if (loading || !data) return (
     <AppLayout sidebar={sidebar}>
-      <div className="flex items-center justify-center h-64 text-ink-4 text-sm">
-        Não foi possível carregar o dashboard.
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl font-display font-semibold tracking-tight text-ink">Dashboard</h1>
+          {periodFilter}
+        </div>
+        {loading ? <PageSpinner /> : (
+          <div className="flex items-center justify-center h-64 text-ink-4 text-sm">
+            Não foi possível carregar o dashboard.
+          </div>
+        )}
       </div>
     </AppLayout>
   )
 
-  const { hoje, mes, top_servicos, receita_diaria, alertas, ranking_profissionais } = data
+  const { hoje, mes, top_servicos, receita_diaria, alertas, ranking_profissionais, periodo } = data
   const taxa = mes.taxa_cancelamento
+
+  function formatPeriodLabel() {
+    if (!periodo?.custom) return new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    const [fy, fm, fd] = periodo.from.split('-')
+    const [ty, tm, td] = periodo.to.split('-')
+    return `${fd}/${fm}/${fy} — ${td}/${tm}/${ty}`
+  }
 
   return (
     <AppLayout sidebar={sidebar}>
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-display font-semibold tracking-tight text-ink">Dashboard</h1>
-          <p className="text-sm text-ink-4 mt-1">
-            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-semibold tracking-tight text-ink">Dashboard</h1>
+            <p className="text-sm text-ink-4 mt-1">
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+          {periodFilter}
         </div>
 
         {/* Alertas */}
@@ -132,15 +210,15 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* KPIs — mês */}
+        {/* KPIs — período selecionado */}
         <section>
           <h2 className="text-xs font-mono uppercase tracking-widest text-ink-4 mb-3">
-            {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+            {formatPeriodLabel()}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard icon="chart" label="Receita do mês" value={formatCurrency(mes.receita)} sub={`${mes.total_comandas_pagas} comanda${mes.total_comandas_pagas !== 1 ? 's' : ''} paga${mes.total_comandas_pagas !== 1 ? 's' : ''}`} highlight />
+            <KpiCard icon="chart" label="Receita do período" value={formatCurrency(mes.receita)} sub={`${mes.total_comandas_pagas} comanda${mes.total_comandas_pagas !== 1 ? 's' : ''} paga${mes.total_comandas_pagas !== 1 ? 's' : ''}`} highlight />
             <KpiCard icon="tag" label="Ticket médio" value={formatCurrency(mes.ticket_medio)} sub="Por comanda paga" />
-            <KpiCard icon="check" label="Comandas pagas" value={mes.total_comandas_pagas} sub="No mês corrente" />
+            <KpiCard icon="check" label="Comandas pagas" value={mes.total_comandas_pagas} sub="No período" />
             <KpiCard
               icon="alertCircle"
               label="Cancelamentos"
@@ -155,8 +233,8 @@ export default function AdminDashboard() {
 
           {/* Receita diária */}
           <div className="bg-surface border border-line rounded-xl p-5">
-            <h2 className="text-sm font-display font-medium text-ink mb-1">Receita dos últimos 30 dias</h2>
-            <p className="text-xs text-ink-4 mb-5">Comandas pagas por dia</p>
+            <h2 className="text-sm font-display font-medium text-ink mb-1">Receita diária</h2>
+            <p className="text-xs text-ink-4 mb-5">Comandas pagas por dia no período selecionado</p>
             <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={receita_diaria} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -199,10 +277,10 @@ export default function AdminDashboard() {
 
           {/* Top serviços */}
           <div className="bg-surface border border-line rounded-xl p-5">
-            <h2 className="text-sm font-display font-medium text-ink mb-1">Top serviços do mês</h2>
+            <h2 className="text-sm font-display font-medium text-ink mb-1">Top serviços</h2>
             <p className="text-xs text-ink-4 mb-5">Agendamentos por serviço</p>
             {top_servicos.length === 0 ? (
-              <p className="text-sm text-ink-4 text-center py-10">Sem dados ainda.</p>
+              <p className="text-sm text-ink-4 text-center py-10">Sem dados no período.</p>
             ) : (
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -246,11 +324,11 @@ export default function AdminDashboard() {
           <div className="bg-surface border border-line rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-line">
               <h2 className="text-sm font-display font-medium text-ink">Ranking de profissionais</h2>
-              <p className="text-xs text-ink-4 mt-0.5">Receita gerada no mês · top {ranking_profissionais.length}</p>
+              <p className="text-xs text-ink-4 mt-0.5">Receita gerada no período · top {ranking_profissionais.length}</p>
             </div>
 
             {ranking_profissionais.length === 0 ? (
-              <p className="text-sm text-ink-4 text-center py-10">Nenhuma transação registrada este mês.</p>
+              <p className="text-sm text-ink-4 text-center py-10">Nenhuma transação registrada neste período.</p>
             ) : (
               <>
                 {/* Desktop table */}

@@ -469,7 +469,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                   <p className="text-[13px] text-ink-3">Nenhum agendamento registrado.</p>
                 ) : (
                   <div>
-                    {appointments.slice(0, 10).map(row => (
+                    {appointments.slice(0, 5).map(row => (
                       <div key={row.UUID} className="flex items-center justify-between py-2.5 border-b border-line-2 last:border-0">
                         <div>
                           <div className="text-[13px] font-medium">{row.Service ?? '—'}</div>
@@ -567,7 +567,7 @@ export default function AdminUsuarios() {
 
   // tabs: busca única, independente da paginação de usuários
   useEffect(() => {
-    api.get('/tab', { params: { limit: 100 } })
+    api.get('/tab', { params: { limit: 1000 } })
       .then(({ data }) => {
         const tabs = data.data ?? []
         setOpenTabClientIds(new Set(

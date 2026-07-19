@@ -65,16 +65,11 @@ export default function ConvidarProfissional() {
     <AppLayout sidebar={sidebar}>
       <div className="max-w-md">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-7">
-          <button onClick={() => navigate('/admin/usuarios')} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
-            <Icon name="arrowLeft" size={18} />
-          </button>
-          <div>
-            <h3 className="font-display font-medium text-[26px] tracking-tight">Convidar profissional</h3>
-            <p className="text-[13px] text-ink-3 mt-1">
-              Um e-mail de ativação será enviado automaticamente
-            </p>
-          </div>
+        <div className="mb-7">
+          <h3 className="font-display font-medium text-[26px] tracking-tight">Convidar profissional</h3>
+          <p className="text-[13px] text-ink-3 mt-1">
+            Um e-mail de ativação será enviado automaticamente
+          </p>
         </div>
 
         {/* Sucesso */}
@@ -122,7 +117,7 @@ export default function ConvidarProfissional() {
 
             <div className="mt-1 p-3.5 bg-surface-2 rounded-lg border border-line-2 mb-5">
               <p className="text-[12px] text-ink-3 leading-relaxed">
-                O Supabase enviará um e-mail com um link de ativação. Ao clicar no link, o profissional será direcionado para completar o cadastro com telefone e data de nascimento.
+                Será enviado um e-mail com um link de ativação. Ao clicar no link, o profissional será direcionado para completar o cadastro com telefone e data de nascimento.
               </p>
             </div>
 
