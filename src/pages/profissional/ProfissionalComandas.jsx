@@ -31,7 +31,34 @@ const PROD_STATUS_COLORS = {
   pago: 'bg-success-soft text-success',
   cancelado: 'bg-surface-2 text-ink-3',
 }
-const PAYMENT_LABELS_PROD = { dinheiro: 'Dinheiro', pix: 'Pix', cartao_credito: 'Crédito', cartao_debito: 'Débito' }
+const PAYMENT_LABELS_PROD = { dinheiro: 'Dinheiro', pix: 'Pix', cartao_credito: 'Crédito', cartao_debito: 'Débito', fiado: 'Mensalista (fiado)' }
+
+function isFiadoTab(t) {
+  return (t.Transaction ?? []).some(tx => tx.Method === 'fiado')
+}
+
+function TabPaymentInfo({ tab }) {
+  const isPaga = tab.Status === 'Paga' || tab.Status === 'Pago'
+  if (!isPaga) {
+    return (
+      <div className="rounded-lg px-4 py-3 text-[13px] text-center bg-danger-soft text-danger">
+        Comanda expirada
+      </div>
+    )
+  }
+  const tx = (tab.Transaction ?? [])[0]
+  const isFiadoPendente = tx?.Method === 'fiado' && tx?.Payment === false
+  return (
+    <div className={`rounded-lg px-4 py-3 text-[13px] text-center ${isFiadoPendente ? 'bg-warning/10 text-warning' : 'bg-success-soft text-success'}`}>
+      {isFiadoPendente ? 'Registrada como mensalidade' : 'Pagamento confirmado'}
+      <div className="mt-1 font-mono text-[11px] opacity-80">
+        {tx
+          ? `${PAYMENT_LABELS_PROD[tx.Method] ?? tx.Method}${tx.Payment_date ? ` · ${formatDate(tx.Payment_date)}` : ''}${isFiadoPendente ? ' · aguardando quitação' : ''}`
+          : tab.Value === 0 ? 'Sessão de combo' : 'Sem transação registrada'}
+      </div>
+    </div>
+  )
+}
 const inputClsProd = 'h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors w-full'
 const EMPTY_ORDER = { Product_id: '', Client_id: '', Quantity: '1', Payment_method: '', Notes: '' }
 const PAY_METHODS_PROD = [
@@ -599,7 +626,9 @@ export default function ProfissionalComandas() {
                 <div className="font-mono text-[12px] md:text-[13px] font-medium shrink-0">
                   {formatCurrency(t.Value)}
                 </div>
-                <Chip variant={statusVariant(t.Status)} className="shrink-0">{statusLabel(t.Status)}</Chip>
+                {isFiadoTab(t)
+                  ? <Chip variant="warning" className="shrink-0">Mensalista</Chip>
+                  : <Chip variant={statusVariant(t.Status)} className="shrink-0">{statusLabel(t.Status)}</Chip>}
               </button>
             ))}
             {filtered.length > 0 && (
@@ -664,9 +693,7 @@ export default function ProfissionalComandas() {
                     </Button>
                   </>
                 ) : (
-                  <div className="text-center py-4 text-ink-3 text-[13px]">
-                    {selected.Status === 'Expirada' ? 'Comanda expirada' : 'Pagamento já registrado'}
-                  </div>
+                  <TabPaymentInfo tab={selected} />
                 )}
               </div>
             </div>
