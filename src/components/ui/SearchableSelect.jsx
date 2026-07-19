@@ -1,19 +1,45 @@
 import { useState, useRef, useEffect } from 'react'
 import Icon from './Icons'
 
-// options: [{ value, label }]
-// value, onChange(value), placeholder, disabled, required
-export default function SearchableSelect({ options = [], value, onChange, placeholder = 'Selecione…', disabled = false, required = false, className = '' }) {
+// Modo estático (padrão): options: [{ value, label }] — filtra localmente.
+// Modo remoto: passe onSearch(query) => Promise<[{ value, label }]> — busca no backend
+// a cada digitação (debounce 300ms), sem carregar a lista inteira de uma vez.
+// injectOption: { value, label } — usado para exibir o label de um item selecionado
+// fora do fluxo normal de busca (ex: cliente recém-criado por um modal "+").
+export default function SearchableSelect({
+  options = [],
+  onSearch,
+  minChars = 0,
+  injectOption = null,
+  value,
+  onChange,
+  placeholder = 'Selecione…',
+  disabled = false,
+  required = false,
+  className = ''
+}) {
+  const isRemote = typeof onSearch === 'function'
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [remoteOptions, setRemoteOptions] = useState([])
+  const [remoteLoading, setRemoteLoading] = useState(false)
+  const [selectedOption, setSelectedOption] = useState(null)
   const containerRef = useRef(null)
   const inputRef = useRef(null)
+  const debounceRef = useRef(null)
+  const requestIdRef = useRef(0)
 
-  const selected = options.find(o => o.value === value)
+  useEffect(() => {
+    if (injectOption) setSelectedOption(injectOption)
+  }, [injectOption])
 
-  const filtered = query.trim()
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
-    : options
+  const selected = isRemote
+    ? (selectedOption?.value === value ? selectedOption : remoteOptions.find(o => o.value === value)) ?? selectedOption
+    : options.find(o => o.value === value)
+
+  const filtered = !isRemote
+    ? (query.trim() ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase())) : options)
+    : remoteOptions
 
   useEffect(() => {
     if (!open) { setQuery('') }
@@ -21,15 +47,38 @@ export default function SearchableSelect({ options = [], value, onChange, placeh
   }, [open])
 
   useEffect(() => {
+    if (!isRemote || !open) return
+    if (query.trim().length < minChars) { setRemoteOptions([]); return }
+
+    const myRequestId = ++requestIdRef.current
+    setRemoteLoading(true)
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await onSearch(query.trim())
+        if (myRequestId === requestIdRef.current) setRemoteOptions(results ?? [])
+      } catch {
+        if (myRequestId === requestIdRef.current) setRemoteOptions([])
+      } finally {
+        if (myRequestId === requestIdRef.current) setRemoteLoading(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(debounceRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, open, isRemote])
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
     function handleClickOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false)
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  function handleSelect(val) {
-    onChange(val)
+  function handleSelect(opt) {
+    onChange(opt.value)
+    if (isRemote) setSelectedOption(opt)
     setOpen(false)
   }
 
@@ -74,12 +123,16 @@ export default function SearchableSelect({ options = [], value, onChange, placeh
             </div>
           </div>
           <ul className="max-h-48 overflow-y-auto py-1">
-            {filtered.length === 0 ? (
+            {isRemote && remoteLoading ? (
+              <li className="px-3 py-2 text-[13px] text-ink-3 italic">Buscando…</li>
+            ) : isRemote && query.trim().length < minChars ? (
+              <li className="px-3 py-2 text-[13px] text-ink-3 italic">Digite para buscar…</li>
+            ) : filtered.length === 0 ? (
               <li className="px-3 py-2 text-[13px] text-ink-3 italic">Nenhum resultado</li>
             ) : filtered.map(o => (
               <li
                 key={o.value}
-                onClick={() => handleSelect(o.value)}
+                onClick={() => handleSelect(o)}
                 className={`px-3 py-2 text-[13px] cursor-pointer transition-colors hover:bg-surface-2
                   ${o.value === value ? 'font-medium text-ink' : 'text-ink-2'}`}
               >

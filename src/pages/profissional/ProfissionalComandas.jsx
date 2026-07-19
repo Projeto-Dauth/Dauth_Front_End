@@ -11,9 +11,11 @@ import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import PaginationControls from '@/components/ui/PaginationControls'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 import { usePagination } from '@/hooks/usePagination'
 import { useTour } from '@/hooks/useTour'
@@ -69,7 +71,6 @@ function TabPedidosProdutos() {
   const [payMethod, setPayMethod] = useState('pix')
   const [paying, setPaying] = useState(false)
   const [products, setProducts] = useState([])
-  const [clients, setClients] = useState([])
   const [newDrawer, setNewDrawer] = useState(false)
   const [orderForm, setOrderForm] = useState(EMPTY_ORDER)
   const [savingOrder, setSavingOrder] = useState(false)
@@ -90,11 +91,9 @@ function TabPedidosProdutos() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    Promise.all([api.get('/product', { params: { limit: 100 } }), api.get('/users', { params: { Role: 'Usuario', limit: 100 } })])
-      .then(([pRes, cRes]) => {
-        setProducts((pRes.data.data ?? []).filter(p => p.Active))
-        setClients(cRes.data.data ?? [])
-      }).catch(() => {})
+    api.get('/product', { params: { limit: 100 } })
+      .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -297,10 +296,13 @@ function TabPedidosProdutos() {
                 </select>
               </FieldProd>
               <FieldProd label="Cliente">
-                <select required value={orderForm.Client_id} onChange={e => setOrderForm(f => ({ ...f, Client_id: e.target.value }))} className={inputClsProd}>
-                  <option value="">Selecione...</option>
-                  {clients.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
-                </select>
+                <SearchableSelect
+                  required
+                  value={orderForm.Client_id}
+                  onChange={val => setOrderForm(f => ({ ...f, Client_id: val }))}
+                  onSearch={searchClients}
+                  placeholder="Selecione…"
+                />
               </FieldProd>
               <FieldProd label="Quantidade">
                 <input required type="number" min="1" value={orderForm.Quantity} onChange={e => setOrderForm(f => ({ ...f, Quantity: e.target.value }))} className={inputClsProd} />

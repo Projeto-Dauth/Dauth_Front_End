@@ -7,8 +7,8 @@ export const adminAgendamentosSteps = [
   },
   {
     id: 'filtro-data',
-    title: 'Filtrar por data',
-    text: 'Use o seletor de data para ver os agendamentos de um dia específico. Deixe em branco para ver todos.',
+    title: 'Buscar e filtrar',
+    text: 'Digite o nome do cliente para ver só os agendamentos dele, ou escolha uma data para ver os de um dia específico.',
     attachTo: { element: '[data-tour="agendamentos-filtro"]', on: 'bottom' },
   },
   {

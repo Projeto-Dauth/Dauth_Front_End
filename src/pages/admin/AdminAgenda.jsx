@@ -10,6 +10,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminSteps } from '@/tours/adminTour'
@@ -493,7 +494,7 @@ function ModalNovoCliente({ onClose, onCreated }) {
       await api.post('/auth/register-admin', body)
       addToast(`${form.name} cadastrado com sucesso`, 'success')
       // Busca o usuário criado para obter o UUID
-      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', limit: 100 } })
+      const { data: usersRes } = await api.get('/users', { params: { Role: 'Usuario', search: form.phone, limit: 5 } })
       const criado = (usersRes.data ?? []).find(u => u.Phone === form.phone)
       onCreated(criado ?? { Name: form.name.trim(), Phone: form.phone })
       onClose()
@@ -690,9 +691,9 @@ function LeaveContextMenu({ leave, x, y, onClose, onRemove }) {
 
 function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   const { addToast } = useToast()
-  const [clientes, setClientes] = useState([])
   const [servicos, setServicos] = useState([])
   const [clienteId, setClienteId] = useState('')
+  const [clienteOption, setClienteOption] = useState(null)
   const [itens, setItens] = useState([{ servicoId: '', startTime: slot, endTime: addMinutes(slot, 60) }])
   const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -702,19 +703,15 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
 
   useEffect(() => {
     setLoadingData(true)
-    Promise.all([
-      api.get('/users', { params: { Role: 'Usuario', limit: 100 } }),
-      api.get('/service', { params: { professional: professional.UUID, limit: 100 } }),
-    ]).then(([cRes, sRes]) => {
-      setClientes(cRes.data.data ?? [])
-      setServicos(sRes.data.data ?? [])
-    }).catch(() => { })
+    api.get('/service', { params: { professional: professional.UUID, limit: 100 } })
+      .then(({ data }) => setServicos(data.data ?? []))
+      .catch(() => { })
       .finally(() => setLoadingData(false))
   }, [professional.UUID])
 
   function handleClienteCriado(cliente) {
-    setClientes(prev => [...prev, cliente])
     setClienteId(cliente.UUID)
+    setClienteOption({ value: cliente.UUID, label: cliente.Name })
   }
 
   function handleServicoCriado(servico) {
@@ -838,7 +835,8 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
                 <SearchableSelect
                   value={clienteId}
                   onChange={setClienteId}
-                  options={clientes.map(c => ({ value: c.UUID, label: c.Name }))}
+                  onSearch={searchClients}
+                  injectOption={clienteOption}
                   placeholder="Selecionar cliente…"
                   className="flex-1"
                 />

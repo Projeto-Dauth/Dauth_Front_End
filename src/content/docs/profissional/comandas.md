@@ -7,9 +7,13 @@ Uma comanda é aberta automaticamente quando um atendimento acontece. Aqui você
 - **Serviços** — comandas de atendimentos, com o valor a receber.
 - **Produtos** — pedidos de produtos vendidos ao cliente.
 
-## Fechar uma comanda
+## 1. Fechar uma comanda
 
-Clique na comanda do cliente e escolha o método de pagamento. Se o cliente tiver mais de uma comanda em aberto, elas aparecem agrupadas para fechamento conjunto (inclui produtos pendentes).
+1. Clique na comanda do cliente.
+2. Escolha o método de pagamento: **dinheiro**, **cartão**, **pix** ou **Fiado — cobrar depois**.
+3. Confirme.
+
+Se o cliente tiver mais de uma comanda em aberto, elas aparecem agrupadas para fechamento conjunto (inclui produtos pendentes).
 
 ## Fiado
 
