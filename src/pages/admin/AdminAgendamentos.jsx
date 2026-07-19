@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
@@ -7,11 +7,11 @@ import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
-import PaginationControls from '@/components/ui/PaginationControls'
+import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
-import { usePagination } from '@/hooks/usePagination'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useTour } from '@/hooks/useTour'
 import { adminAgendamentosSteps } from '@/tours/adminAgendamentosTour'
 
@@ -35,36 +35,39 @@ export default function AdminAgendamentos() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
 
-  const [allItems, setAllItems] = useState([])
-  const [loading, setLoading]   = useState(true)
-  const { restartTour } = useTour('admin_agendamentos', adminAgendamentosSteps, !loading)
-  const [date, setDate]         = useState('')
-  const [tab, setTab]           = useState('ativos')
+  const [date, setDate]     = useState('')
+  const [search, setSearch] = useState('')
+  const [clientName, setClientName] = useState('')
+  const [tab, setTab]       = useState('ativos')
+  const [counts, setCounts] = useState({})
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = { limit: 100 }
-      if (date) params.date = date
-      const { data } = await api.get('/appointment', { params })
-      setAllItems(data.data ?? [])
-    } catch {
-      setAllItems([])
-    } finally {
-      setLoading(false)
-    }
-  }, [date])
-
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const t = setTimeout(() => setClientName(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
 
   const activeTab = TABS.find(t => t.id === tab)
-  const items = allItems.filter(a => activeTab.statuses.includes(a.Status))
-  const { pageItems, page, setPage, totalPages } = usePagination(items, 20)
 
-  useEffect(() => { setPage(1) }, [tab, date])
+  const { items, loading, loadingMore, hasMore, loadMore } = usePaginatedList(
+    (page, limit) => api.get('/appointment', {
+      params: { page, limit, status: activeTab.statuses.join(','), date: date || undefined, client_name: clientName || undefined }
+    }).then(r => r.data),
+    [tab, date, clientName]
+  )
 
-  const counts = {}
-  TABS.forEach(t => { counts[t.id] = allItems.filter(a => t.statuses.includes(a.Status)).length })
+  const { restartTour } = useTour('admin_agendamentos', adminAgendamentosSteps, !loading)
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all(TABS.map(t =>
+      api.get('/appointment', {
+        params: { page: 1, limit: 1, status: t.statuses.join(','), date: date || undefined, client_name: clientName || undefined }
+      }).then(r => [t.id, r.data.pagination?.total ?? 0])
+    )).then(results => {
+      if (!cancelled) setCounts(Object.fromEntries(results))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [date, clientName])
 
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
@@ -87,8 +90,18 @@ export default function AdminAgendamentos() {
         </Button>
       </div>
 
-      {/* Date filter */}
-      <div data-tour="agendamentos-filtro" className="flex gap-2 items-center mb-4">
+      {/* Filtros */}
+      <div data-tour="agendamentos-filtro" className="flex flex-col sm:flex-row gap-2 sm:items-center mb-4">
+        <div className="relative flex-1 max-w-[280px]">
+          <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por cliente..."
+            className="w-full h-[36px] pl-9 pr-3 rounded-md border border-line bg-surface text-ink-2 text-[13px] placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors"
+          />
+        </div>
         <input
           type="date"
           value={date}
@@ -134,7 +147,7 @@ export default function AdminAgendamentos() {
         <EmptyState
           icon="cal"
           title={`Nenhum agendamento ${activeTab.label.toLowerCase()}`}
-          description={date ? 'Nenhum resultado para a data selecionada.' : 'Nenhum agendamento nesta categoria.'}
+          description={date || clientName ? 'Nenhum resultado para os filtros selecionados.' : 'Nenhum agendamento nesta categoria.'}
         />
       ) : (
         <>
@@ -151,7 +164,7 @@ export default function AdminAgendamentos() {
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map(row => (
+                {items.map(row => (
                   <tr key={row.UUID} className="hover:bg-surface-2 transition-colors">
                     <td className="px-3.5 py-3 font-mono text-[12.5px] border-b border-line-2">{formatDate(row.Date)}</td>
                     <td className="px-3.5 py-3 font-mono text-[12.5px] border-b border-line-2">{row.Start_time?.slice(0, 5)} → {row.End_time?.slice(0, 5)}</td>
@@ -174,7 +187,7 @@ export default function AdminAgendamentos() {
 
           {/* Mobile cards */}
           <div className="flex flex-col gap-2 md:hidden">
-            {pageItems.map(row => (
+            {items.map(row => (
               <div
                 key={row.UUID}
                 className="bg-surface border border-line rounded-xl p-4 cursor-pointer"
@@ -196,7 +209,7 @@ export default function AdminAgendamentos() {
             ))}
           </div>
 
-          <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
+          {hasMore && <LoadMoreButton onClick={loadMore} loading={loadingMore} />}
         </>
       )}
     </AppLayout>

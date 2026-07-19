@@ -7,9 +7,11 @@ import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 
@@ -43,7 +45,6 @@ export default function ProfissionalPedidosProdutos() {
 
   const [filterStatus, setFilterStatus] = useState('')
   const [products, setProducts] = useState([])
-  const [clients, setClients] = useState([])
   const [newDrawer, setNewDrawer] = useState(false)
   const [orderForm, setOrderForm] = useState(EMPTY_ORDER)
   const [savingOrder, setSavingOrder] = useState(false)
@@ -63,14 +64,8 @@ export default function ProfissionalPedidosProdutos() {
   )
 
   useEffect(() => {
-    Promise.all([
-      api.get('/product', { params: { limit: 100 } }),
-      api.get('/users', { params: { Role: 'Usuario', limit: 100 } }),
-    ])
-      .then(([prodRes, clientRes]) => {
-        setProducts((prodRes.data.data ?? []).filter(p => p.Active))
-        setClients(clientRes.data.data ?? [])
-      })
+    api.get('/product', { params: { limit: 100 } })
+      .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
       .catch(() => {})
   }, [])
 
@@ -256,10 +251,13 @@ export default function ProfissionalPedidosProdutos() {
                 </select>
               </Field>
               <Field label="Cliente">
-                <select required value={orderForm.Client_id} onChange={e => setOrderForm(f => ({ ...f, Client_id: e.target.value }))} className={inputCls}>
-                  <option value="">Selecione...</option>
-                  {clients.map(c => <option key={c.UUID} value={c.UUID}>{c.Name}</option>)}
-                </select>
+                <SearchableSelect
+                  required
+                  value={orderForm.Client_id}
+                  onChange={val => setOrderForm(f => ({ ...f, Client_id: val }))}
+                  onSearch={searchClients}
+                  placeholder="Selecione…"
+                />
               </Field>
               <Field label="Quantidade">
                 <input required type="number" min="1" value={orderForm.Quantity}

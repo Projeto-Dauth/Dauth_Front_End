@@ -6,4 +6,13 @@ Lista somente leitura dos serviços que você está autorizado a realizar. A vin
 
 ## Meus horários
 
-Cadastre sua agenda semanal: dias e horários em que você atende, incluindo intervalo de pausa/almoço. É esse cadastro que define os horários disponíveis para agendamento na sua Agenda.
+Cadastre sua agenda semanal:
+
+| Campo | Obrigatório? | O que é |
+|---|---|---|
+| **Dia da semana** | Sim | Ex: Segunda, Terça... |
+| **Horário de início** | Sim | Início do seu expediente naquele dia |
+| **Horário de fim** | Sim | Fim do seu expediente naquele dia |
+| **Intervalo (almoço/pausa)** | Não | Bloqueia esse período para novos agendamentos |
+
+É esse cadastro que define os horários disponíveis para agendamento na sua Agenda.

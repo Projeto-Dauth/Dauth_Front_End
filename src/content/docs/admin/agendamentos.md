@@ -12,10 +12,20 @@ Enquanto a Agenda mostra a grade visual por dia, a tela de Agendamentos é uma l
 
 Cada aba mostra quantos itens tem, para você ter noção do volume sem precisar contar.
 
+## Filtros
+
+Acima da lista você encontra dois filtros, que podem ser usados juntos ou separados:
+
+- **Buscar por cliente** — digite o nome (ou parte dele) para ver só os agendamentos daquele cliente, em qualquer data.
+- **Data** — mostra só os agendamentos de um dia específico. Clique em "Limpar" para voltar a ver todos.
+
+Os contadores de cada aba (Ativos, Concluídos, Cancelados) se ajustam automaticamente aos filtros aplicados.
+
 ## Uso
 
 Use esta tela quando precisar:
 - Encontrar um agendamento específico sem navegar pela grade dia a dia.
+- Ver o histórico de um cliente específico digitando o nome dele na busca.
 - Ver rapidamente o histórico de cancelamentos.
 - Conferir a lista de atendimentos concluídos de um período.
 
