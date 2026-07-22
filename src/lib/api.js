@@ -30,7 +30,7 @@ api.interceptors.response.use(
     const original = error.config
 
     const isAuthEndpoint = original.url?.includes('/auth/')
-    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint && !original.skipSessionExpiredRedirect) {
       original._retry = true
 
       try {

@@ -121,6 +121,13 @@ export default function ConvidarProfissional() {
               </p>
             </div>
 
+            <div className="mt-1 p-3.5 bg-warning-soft rounded-lg border border-warning/30 mb-5 flex gap-2.5">
+              <Icon name="alertCircle" size={15} className="text-warning shrink-0 mt-0.5" />
+              <p className="text-[12px] text-ink-2 leading-relaxed">
+                O profissional tem <span className="font-medium">1 hora</span> para aceitar o convite. Após esse prazo, o link fica inválido e um novo convite precisa ser enviado.
+              </p>
+            </div>
+
             <Button type="submit" loading={loading} className="w-full justify-center">
               Enviar convite
             </Button>

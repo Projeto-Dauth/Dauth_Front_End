@@ -82,6 +82,10 @@ aside { scrollbar-width: none; }
 .nav-scroll::-webkit-scrollbar { display: none; }
 .nav-scroll { scrollbar-width: none; }
 
+/* Scrollbar invisível mas funcional — uso genérico */
+.scrollbar-hidden::-webkit-scrollbar { display: none; }
+.scrollbar-hidden { scrollbar-width: none; }
+
 /* ── Shepherd Tour — Dauth overrides ── */
 .shepherd-element {
   border-radius: 12px !important;
