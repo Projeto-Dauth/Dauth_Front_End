@@ -118,9 +118,9 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
 
 const navItems = navItemsByRole['Admin']
 
-// Slots de 30 em 30 min das 08:00 às 18:00
+// Slots de 30 em 30 min das 06:00 às 00:00
 const TIME_SLOTS = []
-for (let h = 8; h < 22; h++) {
+for (let h = 6; h < 24; h++) {
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`)
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`)
 }
@@ -1350,7 +1350,7 @@ export default function AdminAgenda() {
   const columnMap = new Map()
   profObjects.forEach(profObj => {
     const profAppts = appointments.filter(
-      a => a.Professional === profObj.Name && !a.Is_urgent
+      a => a.Professional_id === profObj.UUID && !a.Is_urgent
     )
     computeColumns(profAppts).forEach((data, uuid) => columnMap.set(uuid, data))
   })
@@ -1518,12 +1518,12 @@ export default function AdminAgenda() {
           <div data-tour="schedule-grid" className="bg-surface border border-line rounded-lg overflow-hidden">
             {/* Desktop */}
             <div
-              className="hidden md:grid"
+              className="hidden md:grid overflow-y-auto max-h-[70vh] scrollbar-hidden"
               style={{ gridTemplateColumns: `64px repeat(${profNames.length}, 1fr)` }}
             >
-              <div className="px-3 py-3 border-b border-r border-line bg-surface-2" />
+              <div className="sticky top-0 z-30 px-3 py-3 border-b border-r border-line bg-surface-2" />
               {profNames.map((name, idx) => (
-                <div key={name} className="px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5">
+                <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5">
                   <Avatar name={name} index={idx} size="sm" />
                   <div className="font-medium text-[13px] truncate">{name}</div>
                 </div>
@@ -1540,8 +1540,8 @@ export default function AdminAgenda() {
                     const profObj = profObjects[pi]
                     const wh = breakByProf[profObj?.UUID] ?? null
                     const leaves = leaveByProf[profObj?.UUID] ?? []
-                    const appts = appointments.filter((a) => a.Professional === prof && anchoredToSlot(a, slot))
-                    const occupied = appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado')
+                    const appts = appointments.filter((a) => a.Professional_id === profObj?.UUID && anchoredToSlot(a, slot))
+                    const occupied = appointments.some((a) => a.Professional_id === profObj?.UUID && coversSlot(a, slot) && a.Status !== 'cancelado')
                     const onBreak = coversBreak(wh, slot)
                     const onLeave = leaveCoversSlot(leaves, slot)
                     const leaveBlock = leaveStartsAt(leaves, slot)
@@ -1651,15 +1651,14 @@ export default function AdminAgenda() {
             </div>
 
             {/* Mobile: 1 profissional por vez */}
-            <div className="grid md:hidden" style={{ gridTemplateColumns: '56px 1fr' }}>
+            <div className="grid md:hidden overflow-y-auto max-h-[65vh] scrollbar-hidden" style={{ gridTemplateColumns: '56px 1fr' }}>
               {TIME_SLOTS.map((slot) => {
-                const prof = profNames[mobileProfIdx]
                 const profObj = profObjects[mobileProfIdx]
                 const wh = breakByProf[profObj?.UUID] ?? null
                 const isHour = slot.endsWith(':00')
                 const leaves = leaveByProf[profObj?.UUID] ?? []
-                const appts = prof ? appointments.filter((a) => a.Professional === prof && anchoredToSlot(a, slot)) : []
-                const occupied = prof ? appointments.some((a) => a.Professional === prof && coversSlot(a, slot) && a.Status !== 'cancelado') : false
+                const appts = profObj ? appointments.filter((a) => a.Professional_id === profObj.UUID && anchoredToSlot(a, slot)) : []
+                const occupied = profObj ? appointments.some((a) => a.Professional_id === profObj.UUID && coversSlot(a, slot) && a.Status !== 'cancelado') : false
                 const onBreak = coversBreak(wh, slot)
                 const onLeave = leaveCoversSlot(leaves, slot)
                 const leaveBlock = leaveStartsAt(leaves, slot)
@@ -1700,7 +1699,7 @@ export default function AdminAgenda() {
                               onTouchEnd={handleLongPressEnd}
                               onTouchMove={handleLongPressEnd}
                               style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56), width: w, left, right }}
-                              className={`absolute z-10 rounded-md px-2 py-1.5 text-left border cursor-pointer
+                              className={`absolute z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
                                 hover:opacity-80 transition-opacity overflow-hidden ${s.card}`}
                             >
                               <div className="flex items-center gap-1.5 leading-none">
@@ -1725,7 +1724,7 @@ export default function AdminAgenda() {
                               onTouchEnd={handleLongPressEnd}
                               onTouchMove={handleLongPressEnd}
                               style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56) }}
-                              className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-left border-2 border-warning cursor-pointer
+                              className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-center border-2 border-warning cursor-pointer flex flex-col justify-center items-center
                                 hover:opacity-90 transition-opacity overflow-hidden ${s.card} shadow-md`}
                             >
                               <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>
