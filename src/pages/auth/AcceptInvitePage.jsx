@@ -59,10 +59,18 @@ export default function AcceptInvitePage() {
         birthday,
         password,
       })
-      // Servidor setou os cookies — busca perfil e redireciona
-      const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
-      navigate('/profissional', { replace: true })
+
+      // Conta já foi ativada nesse ponto — se o perfil falhar ao carregar,
+      // o erro não é "sessão expirada" (nunca houve sessão), então essa
+      // chamada não deve disparar o redirect genérico do interceptor.
+      try {
+        const { data: perfil } = await api.get('/users/perfil/me', { skipSessionExpiredRedirect: true })
+        login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
+        navigate('/profissional', { replace: true })
+      } catch {
+        setErrors({ api: 'Conta ativada com sucesso! Não foi possível entrar automaticamente — faça login manualmente.' })
+        setTimeout(() => navigate('/login', { replace: true }), 2500)
+      }
     } catch (err) {
       setErrors({ api: err.response?.data?.error ?? 'Erro ao ativar conta. O link pode ter expirado.' })
     } finally {

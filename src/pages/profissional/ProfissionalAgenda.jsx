@@ -18,7 +18,7 @@ import { profissionalSteps } from '@/tours/profissionalTour'
 const navItems = navItemsByRole['Profissional']
 
 const TIME_SLOTS = []
-for (let h = 8; h < 22; h++) {
+for (let h = 6; h < 24; h++) {
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`)
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`)
 }
@@ -1139,10 +1139,10 @@ export default function ProfissionalAgenda() {
         <>
           {/* Grade — desktop: col de hora + col do profissional */}
           <div data-tour="schedule-grid" className="bg-surface border border-line rounded-lg overflow-hidden">
-            <div className="grid" style={{ gridTemplateColumns: '64px 1fr' }}>
+            <div className="grid overflow-y-auto max-h-[70vh] scrollbar-hidden" style={{ gridTemplateColumns: '64px 1fr' }}>
               {/* Cabeçalho */}
-              <div className="px-3 py-3 border-b border-r border-line bg-surface-2" />
-              <div className="px-4 py-3 border-b border-line bg-surface-2 flex items-center gap-2.5">
+              <div className="sticky top-0 z-30 px-3 py-3 border-b border-r border-line bg-surface-2" />
+              <div className="sticky top-0 z-30 px-4 py-3 border-b border-line bg-surface-2 flex items-center gap-2.5">
                 <Avatar name={user?.name ?? ''} index={0} size="sm" />
                 <div className="font-medium text-[13px] truncate">{user?.name}</div>
               </div>
