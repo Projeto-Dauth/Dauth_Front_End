@@ -18,6 +18,12 @@ function formatTime(t) {
   return t.slice(0, 5)
 }
 
+function formatDate(d) {
+  if (!d) return '—'
+  const [y, m, day] = d.split('-')
+  return `${day}/${m}/${y}`
+}
+
 export default function ModalFecharConta({ client, method, onMethodChange, paying, onClose, onConfirm }) {
   const [removedTabIds, setRemovedTabIds] = useState(new Set())
   const [orderQty, setOrderQty] = useState({}) // { [orderId]: quantidade a pagar agora }
@@ -53,8 +59,8 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="bg-surface border border-line rounded-[16px] w-full max-w-[400px] shadow-xl">
-        <div className="px-6 py-5 border-b border-line flex justify-between items-center">
+      <div className="bg-surface border border-line rounded-[16px] w-full max-w-[400px] max-h-[85vh] shadow-xl flex flex-col">
+        <div className="px-6 py-5 border-b border-line flex justify-between items-center shrink-0">
           <div>
             <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Fechar conta</span>
             <h4 className="font-display font-medium text-[18px] tracking-tight mt-1">{client.client_name}</h4>
@@ -63,26 +69,50 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
             <Icon name="x" size={18} />
           </button>
         </div>
-        <div className="px-6 py-5">
+        <div className="px-6 pt-5 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
           <div className="space-y-1.5 mb-5">
-            {client.tabs.map(t => {
-              const ativo = !removedTabIds.has(t.UUID)
-              return (
-                <div key={t.UUID} className={`flex items-center gap-2 text-[13px] transition-opacity ${ativo ? '' : 'opacity-40'}`}>
-                  <span className={`flex-1 min-w-0 truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>
-                    {t.Appointment?.Service} · {formatTime(t.Appointment?.Start_time)}
-                  </span>
-                  <span className="font-mono font-medium text-ink shrink-0">{formatCurrency(t.Value)}</span>
-                  <button
-                    onClick={() => toggleTab(t.UUID)}
-                    className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full border transition-colors cursor-pointer ${
-                      ativo ? 'border-danger/40 text-danger hover:bg-danger-soft' : 'border-success/40 text-success hover:bg-success/10'
-                    }`}>
-                    <Icon name={ativo ? 'x' : 'plus'} size={11} />
-                  </button>
-                </div>
-              )
-            })}
+            {(() => {
+              const groups = new Map() // Booking_group -> tabs[]
+              const solo = []
+              client.tabs.forEach(t => {
+                const g = t.Appointment?.Booking_group
+                if (!g) { solo.push(t); return }
+                if (!groups.has(g)) groups.set(g, [])
+                groups.get(g).push(t)
+              })
+
+              const renderTab = (t) => {
+                const ativo = !removedTabIds.has(t.UUID)
+                return (
+                  <div key={t.UUID} className={`flex items-center gap-2 text-[13px] transition-opacity ${ativo ? '' : 'opacity-40'}`}>
+                    <span className={`flex-1 min-w-0 truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>
+                      {t.Appointment?.Service} · {t.Appointment?.Professional} · {formatTime(t.Appointment?.Start_time)}
+                    </span>
+                    <span className="font-mono font-medium text-ink shrink-0">{formatCurrency(t.Value)}</span>
+                    <button
+                      onClick={() => toggleTab(t.UUID)}
+                      className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full border transition-colors cursor-pointer ${
+                        ativo ? 'border-danger/40 text-danger hover:bg-danger-soft' : 'border-success/40 text-success hover:bg-success/10'
+                      }`}>
+                      <Icon name={ativo ? 'x' : 'plus'} size={11} />
+                    </button>
+                  </div>
+                )
+              }
+
+              return <>
+                {[...groups.entries()].map(([groupId, tabs]) => (
+                  <div key={groupId} className="border border-line-2 rounded-lg p-2 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[9.5px] uppercase tracking-widest text-ink-4">Atendimento combinado</span>
+                      <span className="font-mono text-[9.5px] text-ink-4">{formatDate(tabs[0]?.Appointment?.Date)}</span>
+                    </div>
+                    {tabs.map(renderTab)}
+                  </div>
+                ))}
+                {solo.map(renderTab)}
+              </>
+            })()}
             {client.orders.length > 0 && (
               <>
                 <div className="pt-2 border-t border-dashed border-line-2">
@@ -131,6 +161,8 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
               <span className="font-display text-[20px] font-medium text-ink">{formatCurrency(total)}</span>
             </div>
           </div>
+        </div>
+        <div className="px-6 pb-6 pt-4 border-t border-line shrink-0">
           <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">Método de pagamento</div>
           <div className="grid grid-cols-2 gap-2 mb-2">
             {PAY_METHODS.map((m) => (
