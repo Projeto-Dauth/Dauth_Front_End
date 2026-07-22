@@ -689,24 +689,29 @@ function LeaveContextMenu({ leave, x, y, onClose, onRemove }) {
   )
 }
 
-function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
+function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClose, onSaved }) {
   const { addToast } = useToast()
-  const [servicos, setServicos] = useState([])
+  const [servicosByProf, setServicosByProf] = useState({}) // { [profUUID]: servico[] }
+  const [loadingProf, setLoadingProf] = useState({}) // { [profUUID]: boolean }
   const [clienteId, setClienteId] = useState('')
   const [clienteOption, setClienteOption] = useState(null)
-  const [itens, setItens] = useState([{ servicoId: '', startTime: slot, endTime: addMinutes(slot, 60) }])
+  const [itens, setItens] = useState([{ professionalId: professional.UUID, servicoId: '', startTime: slot, endTime: addMinutes(slot, 60) }])
   const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [loadingData, setLoadingData] = useState(true)
   const [modalCliente, setModalCliente] = useState(false)
   const [modalServico, setModalServico] = useState(false)
 
+  function loadServicosProf(profId) {
+    if (servicosByProf[profId] || loadingProf[profId]) return
+    setLoadingProf(prev => ({ ...prev, [profId]: true }))
+    api.get('/service', { params: { professional: profId, limit: 100 } })
+      .then(({ data }) => setServicosByProf(prev => ({ ...prev, [profId]: data.data ?? [] })))
+      .catch(() => setServicosByProf(prev => ({ ...prev, [profId]: [] })))
+      .finally(() => setLoadingProf(prev => ({ ...prev, [profId]: false })))
+  }
+
   useEffect(() => {
-    setLoadingData(true)
-    api.get('/service', { params: { professional: professional.UUID, limit: 100 } })
-      .then(({ data }) => setServicos(data.data ?? []))
-      .catch(() => { })
-      .finally(() => setLoadingData(false))
+    loadServicosProf(professional.UUID)
   }, [professional.UUID])
 
   function handleClienteCriado(cliente) {
@@ -715,10 +720,20 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   }
 
   function handleServicoCriado(servico) {
-    setServicos(prev => [...prev, servico])
-    handleServico(itens.length - 1, servico.UUID, [...servicos, servico])
-    // Vincula automaticamente o serviço criado ao profissional da agenda
-    api.post(`/service/${servico.UUID}/professionals`, { professional_id: professional.UUID }).catch(() => { })
+    const profId = itens[0].professionalId
+    setServicosByProf(prev => ({ ...prev, [profId]: [...(prev[profId] ?? []), servico] }))
+    handleServico(0, servico.UUID, [...(servicosByProf[profId] ?? []), servico])
+    // Vincula automaticamente o serviço criado ao profissional do primeiro item
+    api.post(`/service/${servico.UUID}/professionals`, { professional_id: profId }).catch(() => { })
+  }
+
+  function handleProfissional(index, profId) {
+    loadServicosProf(profId)
+    setItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], professionalId: profId, servicoId: '' }
+      return next
+    })
   }
 
   // Quando serviço muda, ajusta end_time pela duração e encadeia o início do próximo item
@@ -726,7 +741,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
     setItens(prev => {
       const next = [...prev]
       const item = { ...next[index], servicoId: id }
-      const svc = (lista ?? servicos).find(s => s.UUID === id)
+      const svc = (lista ?? servicosByProf[item.professionalId] ?? []).find(s => s.UUID === id)
       if (svc?.Duration) {
         const [h, m] = svc.Duration.split(':').map(Number)
         item.endTime = addMinutes(item.startTime, h * 60 + m)
@@ -757,7 +772,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   function addItem() {
     setItens(prev => {
       const last = prev[prev.length - 1]
-      return [...prev, { servicoId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
+      return [...prev, { professionalId: last.professionalId, servicoId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
     })
   }
 
@@ -766,19 +781,21 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   }
 
   async function handleSalvar() {
-    if (!clienteId || itens.some(it => !it.servicoId)) return addToast('Preencha cliente e todos os serviços', 'warning')
+    if (!clienteId || itens.some(it => !it.servicoId || !it.professionalId)) return addToast('Preencha cliente, profissional e serviço de todos os itens', 'warning')
     setSaving(true)
     try {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      const bookingGroup = itens.length > 1 ? crypto.randomUUID() : null
       for (const item of itens) {
         await api.post('/appointment', {
           Client: clienteId,
-          Professional: professional.UUID,
+          Professional: item.professionalId,
           Service: item.servicoId,
           Date: dateStr,
           Start_time: item.startTime,
           End_time: item.endTime,
           Is_urgent: isUrgent,
+          Booking_group: bookingGroup,
         })
       }
       addToast(itens.length > 1 ? `${itens.length} agendamentos criados!` : 'Agendamento criado!')
@@ -820,6 +837,7 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
             </div>
           </div>
 
+
           <div className="px-5 py-5 flex flex-col gap-4">
             {/* Cliente */}
             <div className="flex flex-col gap-1.5">
@@ -844,23 +862,37 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
             </div>
 
             {/* Serviços */}
-            {itens.map((item, i) => (
+            {itens.map((item, i) => {
+              const profServicos = servicosByProf[item.professionalId] ?? []
+              const profLoading = loadingProf[item.professionalId] ?? false
+              return (
               <div key={i} className="flex flex-col gap-3 pb-3 border-b border-line last:border-b-0 last:pb-0">
-                <div className="flex flex-col gap-1.5">
+                {itens.length > 1 && (
                   <div className="flex items-center justify-between">
-                    <label className="text-[12px] font-medium text-ink-2">
-                      {itens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
-                    </label>
-                    {itens.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeItem(i)}
-                        className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
-                      >
-                        <Icon name="x" size={14} />
-                      </button>
-                    )}
+                    <label className="text-[12px] font-medium text-ink-2">Serviço {i + 1}</label>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(i)}
+                      className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
                   </div>
+                )}
+
+                {/* Profissional do item */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12px] font-medium text-ink-2">Profissional</label>
+                  <SearchableSelect
+                    value={item.professionalId}
+                    onChange={(id) => handleProfissional(i, id)}
+                    options={professionals.map(p => ({ value: p.UUID, label: p.Name }))}
+                    placeholder="Selecionar profissional…"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12px] font-medium text-ink-2">Serviço</label>
                   <div className="flex items-center gap-2">
                     {i === 0 && (
                       <button
@@ -874,9 +906,9 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
                     <SearchableSelect
                       value={item.servicoId}
                       onChange={(id) => handleServico(i, id)}
-                      disabled={loadingData || servicos.length === 0}
-                      options={servicos.map(s => ({ value: s.UUID, label: s.Name }))}
-                      placeholder={loadingData ? 'Carregando…' : servicos.length === 0 ? 'Nenhum serviço vinculado' : 'Selecionar serviço…'}
+                      disabled={profLoading || profServicos.length === 0}
+                      options={profServicos.map(s => ({ value: s.UUID, label: s.Name }))}
+                      placeholder={profLoading ? 'Carregando…' : profServicos.length === 0 ? 'Nenhum serviço vinculado' : 'Selecionar serviço…'}
                       className="flex-1"
                     />
                   </div>
@@ -894,7 +926,8 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
 
             <button
               type="button"
@@ -904,15 +937,6 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
               <Icon name="plus" size={14} />
               Adicionar serviço
             </button>
-
-            {/* Profissional (read-only) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-medium text-ink-2">Profissional</label>
-              <div className="flex items-center gap-2.5 h-[42px] px-[14px] rounded-md border border-line bg-surface-2 text-ink-3 text-md">
-                <Avatar name={professional.Name} index={0} size="sm" />
-                {professional.Name}
-              </div>
-            </div>
 
             {/* Urgência */}
             <button
@@ -1404,6 +1428,7 @@ export default function AdminAgenda() {
         <NovoAgendamentoDrawer
           slot={newSlot.slot}
           professional={newSlot.professional}
+          professionals={professionals}
           date={date}
           onClose={() => setNewSlot(null)}
           onSaved={load}
