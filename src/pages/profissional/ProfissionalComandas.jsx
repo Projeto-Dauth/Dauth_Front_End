@@ -364,6 +364,111 @@ function TabPedidosProdutos() {
   )
 }
 
+function ComandaProdutosLateral({ tab, onOrderCreated }) {
+  const { addToast } = useToast()
+  const clientId = tab?.Appointment?.ClientId
+  const clientName = tab?.Appointment?.Client
+  const [products, setProducts] = useState([])
+  const [history, setHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [search, setSearch] = useState('')
+  const [addingId, setAddingId] = useState(null)
+
+  useEffect(() => {
+    api.get('/product', { params: { limit: 100 } })
+      .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
+      .catch(() => {})
+  }, [])
+
+  const loadHistory = useCallback(() => {
+    if (!clientId) { setHistory([]); return }
+    setLoadingHistory(true)
+    api.get('/product-order', { params: { client_id: clientId, limit: 10 } })
+      .then(({ data }) => setHistory(data.data ?? []))
+      .catch(() => setHistory([]))
+      .finally(() => setLoadingHistory(false))
+  }, [clientId])
+
+  useEffect(() => { loadHistory() }, [loadHistory])
+
+  async function handleAdd(product) {
+    if (!clientId) return
+    setAddingId(product.UUID)
+    try {
+      await api.post('/product-order', { Product_id: product.UUID, Client_id: clientId, Quantity: 1 })
+      addToast(`${product.Name} adicionado à conta de ${clientName}`, 'success')
+      loadHistory()
+      onOrderCreated?.()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao adicionar produto', 'error')
+    } finally {
+      setAddingId(null)
+    }
+  }
+
+  if (!clientId) return null
+
+  const filteredProducts = search
+    ? products.filter(p => p.Name.toLowerCase().includes(search.toLowerCase()))
+    : products
+
+  return (
+    <div data-tour="comanda-produtos" className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
+      <div className="px-5 py-4 border-b border-line">
+        <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Produtos</span>
+        <h4 className="font-display font-medium text-[15px] tracking-tight mt-1">Adicionar à conta de {clientName}</h4>
+      </div>
+      <div className="px-5 py-3 border-b border-line">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar produto..."
+          className={`${inputClsProd} h-[36px] text-[13px]`}
+        />
+      </div>
+      <div className="max-h-[220px] overflow-y-auto">
+        {filteredProducts.length === 0 ? (
+          <div className="px-5 py-6 text-center text-ink-3 text-[12.5px]">Nenhum produto encontrado</div>
+        ) : filteredProducts.map(p => (
+          <div key={p.UUID} className="flex items-center justify-between gap-2 px-5 py-2.5 border-b border-line-2 last:border-0">
+            <div className="min-w-0">
+              <div className="text-[12.5px] font-medium truncate">{p.Name}</div>
+              <div className="font-mono text-[11px] text-ink-3">{formatCurrency(p.Price)} · estoque {p.Stock}</div>
+            </div>
+            <button
+              onClick={() => handleAdd(p)}
+              disabled={addingId === p.UUID}
+              title="Adicionar à conta"
+              className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand text-white hover:bg-brand/90 disabled:opacity-50 transition-colors cursor-pointer">
+              <Icon name="plus" size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="px-5 py-2.5 border-b border-t border-line bg-surface-2">
+        <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Histórico deste cliente</span>
+      </div>
+      <div className="max-h-[240px] overflow-y-auto">
+        {loadingHistory ? (
+          <div className="px-5 py-6 text-center text-ink-3 text-[12.5px]">Carregando...</div>
+        ) : history.length === 0 ? (
+          <div className="px-5 py-6 text-center text-ink-3 text-[12.5px]">Nenhum pedido de produto ainda</div>
+        ) : history.map(o => (
+          <div key={o.UUID} className="flex items-center justify-between gap-2 px-5 py-2.5 border-b border-line-2 last:border-0">
+            <div className="min-w-0">
+              <div className="text-[12.5px] font-medium truncate">{o.Product?.Name}</div>
+              <div className="font-mono text-[10.5px] text-ink-3">{formatDate(o.Created_at)} · Qtd {o.Quantity}</div>
+            </div>
+            <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded shrink-0 ${PROD_STATUS_COLORS[o.Status]}`}>
+              {PROD_STATUS_LABELS[o.Status]}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function statusVariant(s) {
   if (s === 'Em aberto') return 'warning'
   if (s === 'Paga' || s === 'Pago') return 'success'
@@ -600,7 +705,7 @@ export default function ProfissionalComandas() {
       {loading ? <PageSpinner /> : tabs.length === 0 ? (
         <EmptyState icon="tag" title="Nenhuma comanda" description="Suas comandas aparecerão aqui após os atendimentos." />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
+        <div className={`grid grid-cols-1 gap-4 ${selected?.Appointment?.ClientId ? 'lg:grid-cols-[1fr_440px_320px]' : 'lg:grid-cols-[1fr_440px]'}`}>
 
           {/* Lista */}
           <div data-tour="comanda-lista" className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
@@ -697,6 +802,10 @@ export default function ProfissionalComandas() {
                 )}
               </div>
             </div>
+          )}
+
+          {selected?.Appointment?.ClientId && (
+            <ComandaProdutosLateral tab={selected} onOrderCreated={() => load(true)} />
           )}
         </div>
       )}

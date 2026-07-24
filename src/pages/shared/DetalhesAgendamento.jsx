@@ -67,6 +67,7 @@ export default function DetalhesAgendamento() {
   const [editDate, setEditDate] = useState('')
   const [editItens, setEditItens] = useState([])
   const [editIsUrgent, setEditIsUrgent] = useState(false)
+  const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
@@ -153,6 +154,7 @@ export default function DetalhesAgendamento() {
   function openEdit() {
     setEditDate(item.Date)
     setEditIsUrgent(false)
+    setEditNotes(item.Notes ?? '')
     setEditItens([{
       id: item.UUID,
       serviceId: item.Service_id ?? '',
@@ -223,6 +225,7 @@ export default function DetalhesAgendamento() {
             Date: editDate,
             Start_time: it.startTime,
             End_time: it.endTime,
+            Notes: editNotes.trim() || null,
             ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
           })
         } else {
@@ -233,6 +236,7 @@ export default function DetalhesAgendamento() {
             Date: editDate,
             Start_time: it.startTime,
             End_time: it.endTime,
+            Notes: editNotes.trim() || undefined,
             ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
           })
         }
@@ -371,6 +375,18 @@ export default function DetalhesAgendamento() {
                 </button>
               )}
 
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Observação <span className="text-ink-4 font-normal">(opcional)</span></label>
+                <textarea
+                  value={editNotes}
+                  onChange={e => setEditNotes(e.target.value)}
+                  placeholder="Ex: cliente prefere água morna, trouxe produto próprio…"
+                  rows={2}
+                  maxLength={1000}
+                  className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+                />
+              </div>
+
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" size="md" onClick={() => setEditing(false)} className="flex-1">
                   Cancelar
@@ -384,7 +400,25 @@ export default function DetalhesAgendamento() {
             <div className="px-6">
               <InfoRow label="Data" value={formatDate(item.Date)} />
               <InfoRow label="Horário" value={item.Start_time ? `${item.Start_time.slice(0,5)} → ${item.End_time?.slice(0,5)}` : null} />
-              <InfoRow label="Serviço" value={item.Service} />
+              <InfoRow
+                label={item.Services?.length > 1 ? 'Serviços' : 'Serviço'}
+                value={
+                  (item.Services?.length > 0 || item.Tab?.Products?.length > 0) ? (
+                    <div className="space-y-1">
+                      {(item.Services?.length > 0 ? item.Services : [{ UUID: 'fallback', Name: item.Service }]).map(s => (
+                        <div key={s.UUID}>{s.Name}</div>
+                      ))}
+                      {item.Tab?.Products?.map(p => (
+                        <div key={p.UUID} className="text-ink-3">
+                          + {p.Name}{p.Quantity > 1 ? ` ×${p.Quantity}` : ''}
+                          <span className="text-[11px] text-ink-4"> (produto)</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : item.Service
+                }
+              />
+              {item.Notes && <InfoRow label="Observação" value={item.Notes} />}
             </div>
           )}
         </div>

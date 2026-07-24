@@ -60,7 +60,7 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
       {/* Header do agendamento */}
       <div className="px-3.5 py-2 border-b border-line mb-1">
         <div className="font-medium text-[12.5px] truncate">{appt.Client}</div>
-        <div className="font-mono text-[10.5px] text-ink-3 truncate">{appt.Service} · {parseTime(appt.Start_time)}</div>
+        <div className="font-mono text-[10.5px] text-ink-3 truncate">{serviceLabel(appt)} · {parseTime(appt.Start_time)}</div>
       </div>
 
       {actions.map(({ label, icon, status, color }) => (
@@ -138,6 +138,12 @@ const STATUS_STYLE = {
 function parseTime(t) {
   // "09:00:00+00" | "09:00:00-03" → "09:00"
   return t.slice(0, 5)
+}
+
+// Bloco fundido tem N serviços (Services[]) — junta os nomes; agendamento normal cai no
+// fallback do campo singular Service.
+function serviceLabel(appt) {
+  return appt.Services?.length > 0 ? appt.Services.map(s => s.Name).join(' + ') : appt.Service
 }
 
 function toMinutes(t) {
@@ -697,6 +703,7 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
   const [clienteOption, setClienteOption] = useState(null)
   const [itens, setItens] = useState([{ professionalId: professional.UUID, servicoId: '', startTime: slot, endTime: addMinutes(slot, 60) }])
   const [isUrgent, setIsUrgent] = useState(false)
+  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [modalCliente, setModalCliente] = useState(false)
   const [modalServico, setModalServico] = useState(false)
@@ -785,20 +792,19 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
     setSaving(true)
     try {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-      const bookingGroup = itens.length > 1 ? crypto.randomUUID() : null
-      for (const item of itens) {
-        await api.post('/appointment', {
-          Client: clienteId,
+      await api.post('/appointment/batch', {
+        Client: clienteId,
+        Date: dateStr,
+        Is_urgent: isUrgent,
+        Notes: notes.trim() || undefined,
+        Items: itens.map(item => ({
           Professional: item.professionalId,
           Service: item.servicoId,
-          Date: dateStr,
           Start_time: item.startTime,
           End_time: item.endTime,
-          Is_urgent: isUrgent,
-          Booking_group: bookingGroup,
-        })
-      }
-      addToast(itens.length > 1 ? `${itens.length} agendamentos criados!` : 'Agendamento criado!')
+        })),
+      })
+      addToast(itens.length > 1 ? `${itens.length} serviços agendados!` : 'Agendamento criado!')
       onSaved()
       onClose()
     } catch (err) {
@@ -954,6 +960,19 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
                 <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
               </div>
             </button>
+
+            {/* Observação */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Observação <span className="text-ink-4 font-normal">(opcional)</span></label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Ex: cliente prefere água morna, trouxe produto próprio…"
+                rows={2}
+                maxLength={1000}
+                className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+              />
+            </div>
 
             <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
               Confirmar agendamento
@@ -1608,7 +1627,7 @@ export default function AdminAgenda() {
                                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
                                     <span className="font-semibold text-[11px] truncate">{a.Client}</span>
                                   </div>
-                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
                                   <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
                                     {parseTime(a.Start_time)} → {parseTime(a.End_time)}
                                   </div>
@@ -1634,7 +1653,7 @@ export default function AdminAgenda() {
                                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
                                     <span className="font-semibold text-[11px] truncate">{a.Client}</span>
                                   </div>
-                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
                                   <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
                                     {parseTime(a.Start_time)} → {parseTime(a.End_time)}
                                   </div>
@@ -1731,7 +1750,7 @@ export default function AdminAgenda() {
                                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
                                 <span className="font-semibold text-[11px] truncate">{a.Client}</span>
                               </div>
-                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
                               <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
                                 {parseTime(a.Start_time)} → {parseTime(a.End_time)}
                               </div>
@@ -1757,7 +1776,7 @@ export default function AdminAgenda() {
                                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
                                 <span className="font-semibold text-[11px] truncate">{a.Client}</span>
                               </div>
-                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
+                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
                               <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
                                 {parseTime(a.Start_time)} → {parseTime(a.End_time)}
                               </div>
