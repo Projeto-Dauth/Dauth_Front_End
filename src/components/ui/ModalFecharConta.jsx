@@ -30,6 +30,7 @@ function formatDate(d) {
 
 export default function ModalFecharConta({ client, method, onMethodChange, paying, onClose, onConfirm }) {
   const { addToast } = useToast()
+  const [visible, setVisible] = useState(false)
   const [removedTabIds, setRemovedTabIds] = useState(new Set())
   const [orderQty, setOrderQty] = useState({}) // { [orderId]: quantidade a pagar agora }
   const [clientData, setClientData] = useState(client)
@@ -52,6 +53,11 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
     api.get('/product', { params: { limit: 100 } })
       .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setVisible(true))
+    return () => cancelAnimationFrame(id)
   }, [])
 
   if (!clientData) return null
@@ -254,8 +260,12 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   const canConfirm = remainingTabIds.length + orderPayments.length > 0
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="bg-surface border border-line rounded-[16px] w-full max-w-[860px] max-h-[92vh] shadow-xl flex flex-col">
+    <div className="fixed inset-y-0 left-0 right-0 md:left-[240px] z-50 flex flex-col">
+      <div
+        className={`bg-surface w-full h-full shadow-2xl flex flex-col md:border-l border-line transition-transform duration-300 ease-out ${
+          visible ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
         <div className="px-6 py-5 border-b border-line flex justify-between items-center shrink-0">
           <div>
             <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Fechar conta</span>
@@ -268,54 +278,65 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
         <div className="flex flex-col md:flex-row flex-1 min-h-0">
         <div className="flex-1 min-w-0 flex flex-col md:border-r border-line">
         <div className="px-6 pt-5 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
+          <div className="grid grid-cols-[1.3fr_1fr_0.85fr_0.6fr_5rem_24px] gap-2 items-center mb-2 px-0.5 font-mono text-[9.5px] uppercase tracking-widest text-ink-4">
+            <span>Serviço</span>
+            <span>Profissional</span>
+            <span>Dia</span>
+            <span>Hora</span>
+            <span>Valor</span>
+            <span />
+          </div>
           <div className="space-y-1.5 mb-5">
-            {clientData.tabs.map(t => {
+            {clientData.tabs.flatMap(t => {
               const ativo = !removedTabIds.has(t.UUID)
               const items = t.Items ?? []
               const isCombo = items.length === 0 && t.Value === 0
-              const singleItem = items.length === 1 ? items[0] : null
-              return (
-                <div key={t.UUID} className={`${items.length > 1 ? 'border border-line-2 rounded-lg p-2 space-y-1' : ''} transition-opacity ${ativo ? '' : 'opacity-40'}`}>
-                  {items.length > 1 && (
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-[9.5px] uppercase tracking-widest text-ink-4">Atendimento combinado</span>
-                      <span className="font-mono text-[9.5px] text-ink-4">{formatDate(t.Appointment?.Date)}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-[13px]">
-                    <span className={`flex-1 min-w-0 truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>
-                      {isCombo
-                        ? 'Sessão de combo'
-                        : items.length > 0
-                          ? items.map(i => i.Item_type === 'product' && i.Quantity > 1 ? `${i.Name} ×${i.Quantity}` : i.Name).join(' + ')
-                          : `Comanda · ${formatTime(t.Appointment?.Start_time)}`}
-                    </span>
-                    {singleItem
-                      ? renderItemPrice(t.UUID, singleItem, 'font-mono font-medium text-ink shrink-0')
-                      : <span className="font-mono font-medium text-ink shrink-0">{formatCurrency(t.Value)}</span>}
-                    <button
-                      onClick={() => toggleTab(t.UUID)}
-                      className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full border transition-colors cursor-pointer ${
-                        ativo ? 'border-danger/40 text-danger hover:bg-danger-soft' : 'border-success/40 text-success hover:bg-success/10'
-                      }`}>
-                      <Icon name={ativo ? 'x' : 'plus'} size={11} />
-                    </button>
-                  </div>
-                  {items.length > 1 && (
-                    <div className="pl-2 space-y-0.5">
-                      {items.map(i => (
-                        <div key={i.UUID} className="flex items-center justify-between gap-2 text-[11.5px] text-ink-3">
-                          <span className="truncate">
-                            {i.Name}{i.Professional ? ` · ${i.Professional}` : ''}{i.Quantity > 1 ? ` ×${i.Quantity}` : ''}
-                          </span>
-                          {renderItemPrice(t.UUID, i)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              // Comanda inteira da cliente numa lista única — 1 linha por serviço/produto,
+              // sem distinguir visualmente "atendimento combinado" (Booking_group) de
+              // comanda solta: continuam sendo Tabs separadas no banco (preserva comissão
+              // por profissional), mas a exibição é uniforme. O toggle de remoção age
+              // sempre no nível da Tab inteira — cada linha de uma mesma Tab compartilha o
+              // mesmo estado ativo/inativo.
+              const rows = items.length > 0 ? items : [null]
+              return rows.map(it => ({ t, it, ativo, isCombo, isProduct: it?.Item_type === 'product' }))
+            })
+              // Produtos sempre por último — não têm dia/hora de atendimento próprios.
+              .sort((a, b) => (a.isProduct === b.isProduct ? 0 : a.isProduct ? 1 : -1))
+              .flatMap(({ t, it, ativo, isCombo, isProduct }, idx, arr) => {
+                const row = (
+                  <div
+                    key={it?.UUID ?? t.UUID}
+                    className={`grid grid-cols-[1.3fr_1fr_0.85fr_0.6fr_5rem_24px] gap-2 items-center text-[13px] transition-opacity ${ativo ? '' : 'opacity-40'}`}
+                  >
+                  <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>
+                    {it
+                      ? (it.Item_type === 'product' && it.Quantity > 1 ? `${it.Name} ×${it.Quantity}` : it.Name)
+                      : isCombo ? 'Sessão de combo' : t.Appointment?.Service ?? 'Comanda'}
+                  </span>
+                  <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>{it?.Professional ?? t.Appointment?.Professional ?? ''}</span>
+                  <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>{it?.Item_type === 'product' ? '—' : formatDate(t.Appointment?.Date)}</span>
+                  <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>{it?.Item_type === 'product' ? '—' : formatTime(it?.Start_time ?? t.Appointment?.Start_time)}</span>
+                  {it
+                    ? renderItemPrice(t.UUID, it, 'font-mono font-medium text-ink shrink-0')
+                    : <span className="font-mono font-medium text-ink shrink-0">{formatCurrency(t.Value)}</span>}
+                  <button
+                    onClick={() => toggleTab(t.UUID)}
+                    className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full border transition-colors cursor-pointer ${
+                      ativo ? 'border-danger/40 text-danger hover:bg-danger-soft' : 'border-success/40 text-success hover:bg-success/10'
+                    }`}>
+                    <Icon name={ativo ? 'x' : 'plus'} size={11} />
+                  </button>
                 </div>
-              )
-            })}
+                )
+                const isFirstProduct = isProduct && (idx === 0 || !arr[idx - 1].isProduct)
+                return isFirstProduct
+                  ? [(
+                    <div key={`${it?.UUID ?? t.UUID}-header`} className="pt-2 border-t border-dashed border-line-2">
+                      <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Produtos</span>
+                    </div>
+                  ), row]
+                  : [row]
+              })}
             {clientData.orders.length > 0 && (
               <>
                 <div className="pt-2 border-t border-dashed border-line-2">
@@ -367,38 +388,38 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
                 })}
               </>
             )}
-            <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
-              <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
-              <span className="font-display text-[20px] font-medium text-ink">{formatCurrency(total)}</span>
-            </div>
           </div>
         </div>
         <div className="px-6 pb-6 pt-4 border-t border-line shrink-0">
-          <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2.5">Método de pagamento</div>
-          <div className="grid grid-cols-2 gap-2 mb-2">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-dashed border-line-2">
+            <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
+            <span className="font-display text-[20px] font-medium text-ink">{formatCurrency(total)}</span>
+          </div>
+          <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Método de pagamento</div>
+          <div className="flex flex-wrap gap-1.5 mb-2">
             {PAY_METHODS.map((m) => (
               <button
                 key={m.id}
                 onClick={() => onMethodChange(m.id)}
-                className={`px-3 py-3 rounded-[10px] border flex flex-col items-center gap-1.5 text-[13px] cursor-pointer transition-colors
+                className={`px-2.5 py-1.5 rounded-full border flex items-center gap-1.5 text-[12px] cursor-pointer transition-colors
                   ${method === m.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink-3'}`}
               >
-                <Icon name={m.icon} size={18} />
+                <Icon name={m.icon} size={13} />
                 {m.label}
               </button>
             ))}
+            <button
+              onClick={() => onMethodChange('fiado')}
+              className={`px-2.5 py-1.5 rounded-full border flex items-center gap-1.5 text-[12px] cursor-pointer transition-colors
+                ${method === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
+            >
+              <Icon name="clock" size={13} />
+              Mensalista
+            </button>
           </div>
-          <button
-            onClick={() => onMethodChange('fiado')}
-            className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-5
-              ${method === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
-          >
-            <Icon name="clock" size={16} />
-            Mensalista — cobrar depois
-          </button>
           <Button
             variant="primary"
-            className="w-full justify-center"
+            className="w-full justify-center mt-3"
             onClick={() => onConfirm(remainingTabIds, orderPayments)}
             disabled={!canConfirm}
             loading={paying}

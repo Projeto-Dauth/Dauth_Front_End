@@ -9,7 +9,7 @@ import Icon from './Icons'
 export default function SearchableSelect({
   options = [],
   onSearch,
-  minChars = 0,
+  minChars = 1,
   injectOption = null,
   value,
   onChange,

@@ -146,6 +146,10 @@ function serviceLabel(appt) {
   return appt.Services?.length > 0 ? appt.Services.map(s => s.Name).join(' + ') : appt.Service
 }
 
+function serviceNames(appt) {
+  return appt.Services?.length > 0 ? appt.Services.map(s => s.Name) : [appt.Service]
+}
+
 function toMinutes(t) {
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
@@ -1055,27 +1059,21 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
     if (itens.some(it => !it.servicoId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     setSaving(true)
     try {
-      for (const item of itens) {
-        if (item.id) {
-          await api.patch(`/appointment/${item.id}`, {
-            Service: item.servicoId,
-            Date: newDate,
-            Start_time: item.startTime,
-            End_time: item.endTime,
-            Is_urgent: isUrgent,
-          })
-        } else {
-          await api.post('/appointment', {
-            Client: appt.Client_id,
-            Professional: appt.Professional_id,
-            Service: item.servicoId,
-            Date: newDate,
-            Start_time: item.startTime,
-            End_time: item.endTime,
-            Is_urgent: isUrgent,
-          })
-        }
-      }
+      // Itens novos adicionados na edição (sem id) sempre são da MESMA profissional (edição
+      // não tem seletor de profissional por item) — em vez de virar Appointments separados,
+      // são anexados ao bloco original (Add_services) no mesmo PATCH: 1 card só na Agenda,
+      // 1 Tab só ao concluir.
+      const [original, ...newItens] = itens
+      await api.patch(`/appointment/${original.id}`, {
+        Service: original.servicoId,
+        Date: newDate,
+        Start_time: original.startTime,
+        End_time: original.endTime,
+        Is_urgent: isUrgent,
+        ...(newItens.length > 0 ? {
+          Add_services: newItens.map(it => ({ Service: it.servicoId, Start_time: it.startTime, End_time: it.endTime }))
+        } : {}),
+      })
       addToast('Agendamento atualizado com sucesso', 'success')
       onSaved()
       onClose()
@@ -1326,7 +1324,7 @@ export default function AdminAgenda() {
       api.get('/users', { params: { Role: 'Admin' } }),
     ])
       .then(([profRes, adminRes]) => {
-        const list = [...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])]
+        const list = [...(adminRes.data.data ?? []), ...(profRes.data.data ?? [])]
         professionalsRef.current = list
         setProfessionals(list)
       })
@@ -1388,12 +1386,13 @@ export default function AdminAgenda() {
   const profNames = professionals.map((p) => p.Name)
   const profObjects = professionals
 
-  // Pré-computa layout de colunas para agendamentos sobrepostos (exceto urgentes)
+  // Pré-computa layout de colunas para agendamentos sobrepostos — inclui urgentes: um
+  // agendamento urgente sobreposto a outro divide largura como qualquer sobreposição
+  // normal, em vez de cobrir o outro por cima em largura total (bug real: escondia
+  // completamente o agendamento original, ex: coloração some atrás da manicure urgente).
   const columnMap = new Map()
   profObjects.forEach(profObj => {
-    const profAppts = appointments.filter(
-      a => a.Professional_id === profObj.UUID && !a.Is_urgent
-    )
+    const profAppts = appointments.filter(a => a.Professional_id === profObj.UUID)
     computeColumns(profAppts).forEach((data, uuid) => columnMap.set(uuid, data))
   })
 
@@ -1600,67 +1599,41 @@ export default function AdminAgenda() {
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                           ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
                           ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                        {(() => {
-                          const normalAppts = appts.filter(a => !a.Is_urgent)
-                          const urgentAppts = appts.filter(a => a.Is_urgent)
-                          return <>
-                            {normalAppts.map((a) => {
-                              const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                              const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
-                              const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
-                              const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
-                              const right = totalCols > 1 ? undefined : '3px'
-                              return (
-                                <button
-                                  key={a.UUID}
-                                  onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                                  onContextMenu={e => openContextMenu(e, a)}
-                                  onTouchStart={e => handleLongPressStart(e, a)}
-                                  onTouchEnd={handleLongPressEnd}
-                                  onTouchMove={handleLongPressEnd}
-                                  style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64), width: w, left, right }}
-                                  className={`absolute z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
-                                    hover:opacity-80 transition-opacity overflow-hidden ${s.card}`}
-                                >
-                                  <div className="flex items-center gap-1.5 leading-none">
-                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                    <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                                  </div>
-                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
-                                  <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                    {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                                  </div>
-                                </button>
-                              )
-                            })}
-                            {urgentAppts.map((a) => {
-                              const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                              return (
-                                <button
-                                  key={a.UUID}
-                                  onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                                  onContextMenu={e => openContextMenu(e, a)}
-                                  onTouchStart={e => handleLongPressStart(e, a)}
-                                  onTouchEnd={handleLongPressEnd}
-                                  onTouchMove={handleLongPressEnd}
-                                  style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64) }}
-                                  className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-center border-2 border-warning cursor-pointer flex flex-col justify-center items-center
-                                    hover:opacity-90 transition-opacity overflow-hidden ${s.card} shadow-md`}
-                                >
-                                  <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>
-                                  <div className="flex items-center gap-1.5 leading-none">
-                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                    <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                                  </div>
-                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
-                                  <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                    {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                                  </div>
-                                </button>
-                              )
-                            })}
-                          </>
-                        })()}
+                        {appts.map((a) => {
+                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                          const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
+                          const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
+                          const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
+                          const right = totalCols > 1 ? undefined : '3px'
+                          return (
+                            <button
+                              key={a.UUID}
+                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                              onContextMenu={e => openContextMenu(e, a)}
+                              onTouchStart={e => handleLongPressStart(e, a)}
+                              onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressEnd}
+                              style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64), width: w, left, right }}
+                              className={`absolute rounded-md px-2 py-1.5 text-center cursor-pointer flex flex-col justify-center items-center
+                                hover:opacity-80 transition-opacity overflow-hidden ${s.card}
+                                ${a.Is_urgent ? 'z-20 border-2 border-warning shadow-md' : 'z-10 border'}`}
+                            >
+                              {a.Is_urgent && <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>}
+                              <div className="flex items-center justify-center gap-1.5 leading-none w-full min-w-0">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                                <span className="font-semibold text-[11px] truncate min-w-0">{a.Client}</span>
+                              </div>
+                              <div className="w-full min-w-0 mt-0.5">
+                                {serviceNames(a).map((name, i) => (
+                                  <div key={i} className="font-mono text-[10px] opacity-75 truncate">{name}</div>
+                                ))}
+                              </div>
+                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                              </div>
+                            </button>
+                          )
+                        })}
                         {breakStart && (
                           <div
                             style={{ height: breakSpans * 64 - 4 }}
@@ -1723,67 +1696,41 @@ export default function AdminAgenda() {
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                       ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                    {(() => {
-                      const normalAppts = appts.filter(a => !a.Is_urgent)
-                      const urgentAppts = appts.filter(a => a.Is_urgent)
-                      return <>
-                        {normalAppts.map((a) => {
-                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                          const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
-                          const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
-                          const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
-                          const right = totalCols > 1 ? undefined : '3px'
-                          return (
-                            <button
-                              key={a.UUID}
-                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                              onContextMenu={e => openContextMenu(e, a)}
-                              onTouchStart={e => handleLongPressStart(e, a)}
-                              onTouchEnd={handleLongPressEnd}
-                              onTouchMove={handleLongPressEnd}
-                              style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56), width: w, left, right }}
-                              className={`absolute z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
-                                hover:opacity-80 transition-opacity overflow-hidden ${s.card}`}
-                            >
-                              <div className="flex items-center gap-1.5 leading-none">
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                              </div>
-                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
-                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                              </div>
-                            </button>
-                          )
-                        })}
-                        {urgentAppts.map((a) => {
-                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                          return (
-                            <button
-                              key={a.UUID}
-                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                              onContextMenu={e => openContextMenu(e, a)}
-                              onTouchStart={e => handleLongPressStart(e, a)}
-                              onTouchEnd={handleLongPressEnd}
-                              onTouchMove={handleLongPressEnd}
-                              style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56) }}
-                              className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-center border-2 border-warning cursor-pointer flex flex-col justify-center items-center
-                                hover:opacity-90 transition-opacity overflow-hidden ${s.card} shadow-md`}
-                            >
-                              <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>
-                              <div className="flex items-center gap-1.5 leading-none">
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                              </div>
-                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{serviceLabel(a)}</div>
-                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </>
-                    })()}
+                    {appts.map((a) => {
+                      const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                      const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
+                      const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
+                      const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
+                      const right = totalCols > 1 ? undefined : '3px'
+                      return (
+                        <button
+                          key={a.UUID}
+                          onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                          onContextMenu={e => openContextMenu(e, a)}
+                          onTouchStart={e => handleLongPressStart(e, a)}
+                          onTouchEnd={handleLongPressEnd}
+                          onTouchMove={handleLongPressEnd}
+                          style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56), width: w, left, right }}
+                          className={`absolute rounded-md px-2 py-1.5 text-center cursor-pointer flex flex-col justify-center items-center
+                            hover:opacity-80 transition-opacity overflow-hidden ${s.card}
+                            ${a.Is_urgent ? 'z-20 border-2 border-warning shadow-md' : 'z-10 border'}`}
+                        >
+                          {a.Is_urgent && <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>}
+                          <div className="flex items-center justify-center gap-1.5 leading-none w-full min-w-0">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                            <span className="font-semibold text-[11px] truncate min-w-0">{a.Client}</span>
+                          </div>
+                          <div className="w-full min-w-0 mt-0.5">
+                            {serviceNames(a).map((name, i) => (
+                              <div key={i} className="font-mono text-[10px] opacity-75 truncate">{name}</div>
+                            ))}
+                          </div>
+                          <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                            {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                          </div>
+                        </button>
+                      )
+                    })}
                     {breakStart && (
                       <div
                         style={{ height: breakSpans * 56 - 4 }}

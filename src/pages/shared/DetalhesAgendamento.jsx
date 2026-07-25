@@ -46,6 +46,41 @@ function InfoRow({ label, value }) {
   )
 }
 
+// 1 linha por profissional — usada tanto pro agendamento solo (lista de 1 item) quanto
+// pro atendimento combinado (Booking_group com N Appointments). Sem ação de status aqui:
+// os botões "Marcar como..." no rodapé já cobrem isso, aplicando o mesmo status a todos
+// os membros de uma vez (ver changeStatus).
+function GroupMemberRow({ member, isCurrent, onNavigate }) {
+  // Cada serviço do bloco (Appointment_services) tem seu próprio Start_time/End_time
+  // desde a migration appointment_services_item_times — não junta mais tudo numa linha
+  // só com o horário do bloco inteiro; blocos antigos sem horário salvo por item caem no
+  // fallback do member.Start_time/End_time (horário do Appointment inteiro).
+  const services = member.Services?.length > 0
+    ? member.Services
+    : [{ Name: member.Service, Start_time: member.Start_time, End_time: member.End_time }]
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-line-2 last:border-0">
+      <Avatar name={member.Professional ?? '?'} index={0} size="sm" />
+      <div className="flex-1 min-w-0 space-y-0.5">
+        {services.map((s, i) => (
+          <div key={s.UUID ?? i} className="flex items-center gap-2 min-w-0">
+            <span className="text-[13px] font-medium truncate">{s.Name ?? '—'}</span>
+            <span className="font-mono text-[11px] text-ink-3 truncate shrink-0">
+              {member.Professional} · {(s.Start_time ?? member.Start_time)?.slice(0, 5)} → {(s.End_time ?? member.End_time)?.slice(0, 5)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <Chip status={member.Status} dot>{STATUS_LABELS[member.Status] ?? member.Status}</Chip>
+      {!isCurrent && (
+        <button onClick={() => onNavigate(member.UUID)} title="Ver este item" className="shrink-0 text-ink-3 hover:text-ink transition-colors cursor-pointer">
+          <Icon name="chevronRight" size={14} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function DetalhesAgendamento() {
   const { id } = useParams()
   const { user } = useAuthStore()
@@ -99,10 +134,15 @@ export default function DetalhesAgendamento() {
   }, [id])
 
   async function changeStatus() {
+    // Atendimento combinado (Booking_group): todos os membros seguem o mesmo status junto
+    // — confirmar/cancelar/concluir o agendamento afeta todo mundo na tela de uma vez, não
+    // só o item que foi clicado pra chegar aqui.
+    const targetIds = item.Group?.length > 1 ? item.Group.map(m => m.UUID) : [id]
     setSaving(true)
     try {
-      await api.patch(`/appointment/${id}`, { Status: modal.status })
-      setItem(prev => ({ ...prev, Status: modal.status }))
+      await Promise.all(targetIds.map(tid => api.patch(`/appointment/${tid}`, { Status: modal.status })))
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
       addToast(`Status atualizado para "${STATUS_LABELS[modal.status]}"`)
       setModal({ open: false, status: '' })
     } catch (err) {
@@ -282,29 +322,22 @@ export default function DetalhesAgendamento() {
     if (editItens.some(it => !it.serviceId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     setSavingEdit(true)
     try {
-      for (const it of editItens) {
-        if (it.id) {
-          await api.patch(`/appointment/${it.id}`, {
-            Service: it.serviceId,
-            Date: editDate,
-            Start_time: it.startTime,
-            End_time: it.endTime,
-            Notes: editNotes.trim() || null,
-            ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
-          })
-        } else {
-          await api.post('/appointment', {
-            Client: item.Client_id,
-            Professional: item.Professional_id,
-            Service: it.serviceId,
-            Date: editDate,
-            Start_time: it.startTime,
-            End_time: it.endTime,
-            Notes: editNotes.trim() || undefined,
-            ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
-          })
-        }
-      }
+      // Itens novos adicionados na edição (sem id) sempre são da MESMA profissional (edição
+      // não tem seletor de profissional por item) — em vez de virar Appointments separados,
+      // são anexados ao bloco original (Add_services) no mesmo PATCH: 1 card só na Agenda,
+      // 1 Tab só ao concluir.
+      const [original, ...newItens] = editItens
+      await api.patch(`/appointment/${original.id}`, {
+        Service: original.serviceId,
+        Date: editDate,
+        Start_time: original.startTime,
+        End_time: original.endTime,
+        Notes: editNotes.trim() || null,
+        ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
+        ...(newItens.length > 0 ? {
+          Add_services: newItens.map(it => ({ Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
+        } : {}),
+      })
       const { data } = await api.get(`/appointment/${id}`)
       setItem(data.data ?? data)
       addToast('Agendamento atualizado com sucesso')
@@ -463,19 +496,19 @@ export default function DetalhesAgendamento() {
           ) : (
             <div className="px-6">
               <InfoRow label="Data" value={formatDate(item.Date)} />
-              <InfoRow label="Horário" value={item.Start_time ? `${item.Start_time.slice(0,5)} → ${item.End_time?.slice(0,5)}` : null} />
-              <InfoRow
-                label={item.Services?.length > 1 ? 'Serviços' : 'Serviço'}
-                value={
-                  item.Services?.length > 0 ? (
-                    <div className="space-y-1">
-                      {item.Services.map(s => (
-                        <div key={s.UUID}>{s.Name}</div>
-                      ))}
-                    </div>
-                  ) : item.Service
-                }
-              />
+              <div className="py-3 border-b border-line-2">
+                <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-1">
+                  Serviços
+                </div>
+                {(item.Group?.length > 1 ? item.Group : [item]).map(m => (
+                  <GroupMemberRow
+                    key={m.UUID}
+                    member={m}
+                    isCurrent={m.UUID === id}
+                    onNavigate={(uuid) => navigate(`/agendamento/${uuid}`)}
+                  />
+                ))}
+              </div>
               <InfoRow
                 label="Produtos"
                 value={
@@ -501,7 +534,7 @@ export default function DetalhesAgendamento() {
                   ) : '—'
                 }
               />
-              {item.Notes && <InfoRow label="Observação" value={item.Notes} />}
+              <InfoRow label="Observação" value={item.Notes} />
               {canEdit && item.Status !== 'cancelado' && (!item.Tab?.UUID || item.Tab.Status === 'Em aberto') && (
                 <div className="py-3.5">
                   <Button variant="ghost" size="sm" onClick={openAddProduct}>
@@ -526,16 +559,8 @@ export default function DetalhesAgendamento() {
             </div>
           </div>
 
-          {/* Professional */}
-          <div className="bg-surface border border-line rounded-xl p-5">
-            <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-3">Profissional</div>
-            <div className="flex items-center gap-3">
-              <Avatar name={item.Professional ?? '?'} index={1} size="md" />
-              <div>
-                <div className="font-medium text-[13.5px]">{item.Professional ?? '—'}</div>
-              </div>
-            </div>
-          </div>
+          {/* Professional — removido: o profissional já aparece na lista do card
+              "Informações" (GroupMemberRow), sempre, agrupado ou não */}
 
           {/* Histórico do cliente */}
           {(role === 'Profissional' || role === 'Admin') && history.length > 0 && (

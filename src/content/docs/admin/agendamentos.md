@@ -32,3 +32,7 @@ Use esta tela quando precisar:
 ## Detalhes do agendamento
 
 Clique em um item da lista para abrir a página de detalhes completa: informações do agendamento, ações de status, e um card **Últimas visitas** com o histórico recente do mesmo cliente — útil para lembrar preferências ou serviços anteriores antes de atender de novo.
+
+Quando o agendamento faz parte de um atendimento com **mais de uma profissional** (ex: unha com uma, cabelo com outra, no mesmo horário), a tela mostra todas as profissionais e serviços envolvidos numa lista só, não importa por qual delas você entrou. Os botões "Marcar como Confirmado/Concluído/Cancelado" no rodapé aplicam o novo status a todas de uma vez.
+
+O campo **Observação** aparece sempre (mostra "—" quando vazio) e pode ser preenchido ou editado a qualquer momento, mesmo depois de criado o agendamento.
