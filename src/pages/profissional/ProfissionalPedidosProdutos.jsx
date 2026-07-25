@@ -304,7 +304,6 @@ export default function ProfissionalPedidosProdutos() {
             </div>
             <div className="flex flex-col gap-3 mb-6">
               <InfoRow label="Cliente"       value={detailDrawer.Client?.Name} />
-              <InfoRow label="Telefone"      value={detailDrawer.Client?.Phone} mono />
               <InfoRow label="Produto"       value={detailDrawer.Product?.Name} />
               <InfoRow label="Preço unitário" value={formatPrice(detailDrawer.Unit_price)} mono />
               <InfoRow label="Quantidade"    value={detailDrawer.Quantity} mono />

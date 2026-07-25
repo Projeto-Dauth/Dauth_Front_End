@@ -1,3 +1,5 @@
+import { NAV_ITEM_MODULE } from './modules'
+
 export const navItemsByRole = {
   Admin: [
     { to: '/admin/dashboard', end: true, icon: 'chart', label: 'Dashboard' },
@@ -48,3 +50,7 @@ export const navItemsByRole = {
     { to: '/perfil', icon: 'users', label: 'Perfil e senha' },
   ],
 }
+
+navItemsByRole.Profissional = navItemsByRole.Profissional.map((item) =>
+  item.to && NAV_ITEM_MODULE[item.to] ? { ...item, module: NAV_ITEM_MODULE[item.to] } : item
+)
