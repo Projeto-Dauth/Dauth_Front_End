@@ -14,3 +14,5 @@ Cada card tem um botão **Fechar** quando o atendimento não está cancelado —
 ## 3. Ver detalhes de um agendamento
 
 Clique em um card para abrir a página de detalhes completa, com um card **Últimas visitas** mostrando o histórico recente do mesmo cliente.
+
+Quando o atendimento envolve mais de uma profissional (ex: unha com você, cabelo com outra colega, no mesmo horário), a tela mostra todas as profissionais e serviços numa lista só. O campo **Observação** aparece sempre (mostra "—" quando vazio) e pode ser editado a qualquer momento.

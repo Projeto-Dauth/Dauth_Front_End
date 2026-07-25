@@ -15,14 +15,14 @@ Clique em um horário vazio e preencha:
 | **Cliente** | Sim | Busca por nome, ou cadastre um cliente novo na hora |
 | **Serviço** | Sim | Pode adicionar mais de um serviço no mesmo agendamento |
 | **Horário de início e fim** | Sim | Preenchido automaticamente, mas editável |
-| **Urgente** | Não | Encaixa o cliente mesmo com conflito de horário |
+| **Urgente** | Não | Encaixa o cliente mesmo com conflito de horário. Se for a mesma cliente que você já está atendendo (ex: coloração agindo enquanto você faz a manicure dela), o sistema junta os dois automaticamente num atendimento só, em vez de criar dois agendamentos brigando por espaço na sua agenda |
 
 ## 3. Ações em um agendamento
 
 Clique com o botão direito (ou toque e segure no celular):
 
 - **Marcar como Confirmado / Concluído / Cancelado**.
-- **Editar** — muda data, horários e até os serviços do agendamento (mesma lógica da criação, pode adicionar/remover serviços). Só funciona enquanto o status for Pendente ou Confirmado.
+- **Editar** — muda data, horários e até os serviços do agendamento. Pode adicionar mais serviços a qualquer momento, inclusive com horário sobreposto ao que já existe — útil para o caso de "produto agindo enquanto faz outro serviço" — sem virar um agendamento separado. Só funciona enquanto o status for Pendente ou Confirmado.
 - **Abrir comanda** — vai direto para Comandas com o cliente selecionado.
 - **Fechar comanda** — disponível depois que o atendimento é Concluído.
 - **Ver detalhes**.
