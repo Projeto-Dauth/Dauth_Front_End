@@ -70,6 +70,13 @@ export default function DetalhesAgendamento() {
   const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
 
+  const [addingProduct, setAddingProduct] = useState(false)
+  const [products, setProducts] = useState([])
+  const [newProductId, setNewProductId] = useState('')
+  const [newProductQty, setNewProductQty] = useState(1)
+  const [savingProduct, setSavingProduct] = useState(false)
+  const [removingProductId, setRemovingProductId] = useState(null)
+
   useEffect(() => {
     api.get(`/appointment/${id}`)
       .then(({ data }) => {
@@ -148,6 +155,63 @@ export default function DetalhesAgendamento() {
       addToast(err.response?.data?.error ?? 'Erro ao fechar conta', 'error')
     } finally {
       setFecharPaying(false)
+    }
+  }
+
+  function openAddProduct() {
+    setNewProductId('')
+    setNewProductQty(1)
+    setAddingProduct(true)
+    if (products.length === 0) {
+      api.get('/product', { params: { limit: 100 } })
+        .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
+        .catch(() => {})
+    }
+  }
+
+  async function handleAddProduct() {
+    if (!newProductId) return addToast('Selecione um produto', 'warning')
+    setSavingProduct(true)
+    try {
+      // Antes de concluído, o agendamento ainda não tem comanda (Tab só é criada
+      // automaticamente ao marcar como "Concluído") — se o cliente quiser incluir um
+      // produto antes disso, criamos a comanda agora mesmo, vazia, e anexamos o item nela.
+      let tabId = item.Tab?.UUID
+      if (!tabId) {
+        const { data: newTab } = await api.post('/tab', { Value: 0, Status: 'Em aberto', Appointment: item.UUID })
+        tabId = newTab.UUID
+      }
+
+      await api.post(`/tab/${tabId}/items`, {
+        Product_id: newProductId,
+        Quantity: newProductQty,
+      })
+      const product = products.find(p => p.UUID === newProductId)
+      // O backend agrupa produtos repetidos por Product_id na leitura (ver
+      // appointmentController.getById) — rebusca o agendamento em vez de tentar montar o
+      // merge no cliente, garante que a tela sempre reflita o agrupamento real.
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
+      addToast(`${product?.Name ?? 'Produto'} adicionado à comanda`)
+      setAddingProduct(false)
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao adicionar produto', 'error')
+    } finally {
+      setSavingProduct(false)
+    }
+  }
+
+  async function handleRemoveProduct(productItemId) {
+    setRemovingProductId(productItemId)
+    try {
+      await api.delete(`/tab/${item.Tab.UUID}/items/${productItemId}`)
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
+      addToast('Produto removido da comanda')
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao remover produto', 'error')
+    } finally {
+      setRemovingProductId(null)
     }
   }
 
@@ -403,22 +467,48 @@ export default function DetalhesAgendamento() {
               <InfoRow
                 label={item.Services?.length > 1 ? 'Serviços' : 'Serviço'}
                 value={
-                  (item.Services?.length > 0 || item.Tab?.Products?.length > 0) ? (
+                  item.Services?.length > 0 ? (
                     <div className="space-y-1">
-                      {(item.Services?.length > 0 ? item.Services : [{ UUID: 'fallback', Name: item.Service }]).map(s => (
+                      {item.Services.map(s => (
                         <div key={s.UUID}>{s.Name}</div>
-                      ))}
-                      {item.Tab?.Products?.map(p => (
-                        <div key={p.UUID} className="text-ink-3">
-                          + {p.Name}{p.Quantity > 1 ? ` ×${p.Quantity}` : ''}
-                          <span className="text-[11px] text-ink-4"> (produto)</span>
-                        </div>
                       ))}
                     </div>
                   ) : item.Service
                 }
               />
+              <InfoRow
+                label="Produtos"
+                value={
+                  item.Tab?.Products?.length > 0 ? (
+                    <div className="space-y-1">
+                      {item.Tab.Products.map(p => (
+                        <div key={p.UUID} className="flex items-center gap-2">
+                          <span>{p.Quantity}x {p.Name}</span>
+                          {canEdit && item.Tab.Status === 'Em aberto' && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProduct(p.UUID)}
+                              disabled={removingProductId === p.UUID}
+                              title="Remover produto"
+                              className="flex items-center justify-center w-6 h-6 -m-1 rounded text-ink-3 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                            >
+                              <Icon name="x" size={15} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : '—'
+                }
+              />
               {item.Notes && <InfoRow label="Observação" value={item.Notes} />}
+              {canEdit && item.Status !== 'cancelado' && (!item.Tab?.UUID || item.Tab.Status === 'Em aberto') && (
+                <div className="py-3.5">
+                  <Button variant="ghost" size="sm" onClick={openAddProduct}>
+                    <Icon name="plus" size={13} />Adicionar produto
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -533,6 +623,47 @@ export default function DetalhesAgendamento() {
           onClose={() => setFecharConta(null)}
           onConfirm={handleConfirmFechar}
         />
+      )}
+
+      {addingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={() => setAddingProduct(false)} />
+          <div className="relative bg-surface rounded-xl p-6 w-full max-w-sm shadow-md border border-line mx-4">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <h3 className="font-display font-medium text-lg tracking-tight">Adicionar produto</h3>
+              <button
+                onClick={() => setAddingProduct(false)}
+                className="text-ink-3 hover:text-ink transition-colors mt-0.5 cursor-pointer"
+              >
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 mb-5">
+              <SearchableSelect
+                options={products.map(p => ({ value: p.UUID, label: p.Name }))}
+                value={newProductId}
+                onChange={setNewProductId}
+                placeholder={products.length === 0 ? 'Carregando…' : 'Selecione o produto'}
+                disabled={products.length === 0}
+              />
+              <Input
+                label="Quantidade"
+                type="number"
+                min={1}
+                value={newProductQty}
+                onChange={(e) => setNewProductQty(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </div>
+            <div className="flex gap-2.5 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setAddingProduct(false)} disabled={savingProduct}>
+                Cancelar
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleAddProduct} disabled={savingProduct}>
+                {savingProduct ? 'Aguarde...' : 'Adicionar'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       <Modal

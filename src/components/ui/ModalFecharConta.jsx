@@ -38,6 +38,9 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   const [addingProductId, setAddingProductId] = useState(null)
   const [editingItemId, setEditingItemId] = useState(null)
   const [updatingItemId, setUpdatingItemId] = useState(null)
+  const [editingOrderId, setEditingOrderId] = useState(null)
+  const [updatingOrderId, setUpdatingOrderId] = useState(null)
+  const [removingOrderId, setRemovingOrderId] = useState(null)
 
   useEffect(() => {
     setClientData(client)
@@ -127,11 +130,14 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
       return (
         <input
           autoFocus
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
+          inputMode="decimal"
           defaultValue={item.Unit_price}
-          onBlur={e => handleUpdateItemPrice(tabId, item, e.target.value)}
+          onInput={e => {
+            const cleaned = e.target.value.replace(/[^0-9.,]/g, '')
+            if (cleaned !== e.target.value) e.target.value = cleaned
+          }}
+          onBlur={e => handleUpdateItemPrice(tabId, item, e.target.value.replace(',', '.'))}
           onKeyDown={e => {
             if (e.key === 'Enter') e.target.blur()
             if (e.key === 'Escape') { e.target.value = item.Unit_price; e.target.blur() }
@@ -151,6 +157,83 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
         className={`${displayClassName} text-left hover:text-brand hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors`}
       >
         {formatCurrency(item.Unit_price * item.Quantity)}
+      </button>
+    )
+  }
+
+  // Edita o Unit_price de um pedido de produto pendente (ProductOrder) — mesmo padrão do
+  // handleUpdateItemPrice, mas via PATCH /product-order/:id (endpoint só aceita editar
+  // valor enquanto o pedido está 'encomendado', backend recusa com 409 se já pago).
+  const handleUpdateOrderPrice = async (order, rawValue) => {
+    setEditingOrderId(null)
+    const newPrice = parseFloat(String(rawValue).replace(',', '.'))
+    if (!Number.isFinite(newPrice) || newPrice < 0 || newPrice === order.Unit_price) return
+    setUpdatingOrderId(order.UUID)
+    try {
+      const { data: updatedOrder } = await api.patch(`/product-order/${order.UUID}`, { Unit_price: newPrice })
+      setClientData(prev => ({
+        ...prev,
+        orders: prev.orders.map(o => o.UUID === order.UUID ? { ...o, Unit_price: updatedOrder.Unit_price } : o)
+      }))
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao atualizar valor do produto', 'error')
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
+  // Remove de vez um pedido de produto pendente da comanda do cliente (DELETE /product-order/:id)
+  // — diferente do botão x/+ ao lado, que só exclui o item do pagamento atual sem apagá-lo.
+  const handleDeleteOrder = async (order) => {
+    setRemovingOrderId(order.UUID)
+    try {
+      await api.delete(`/product-order/${order.UUID}`)
+      setClientData(prev => ({ ...prev, orders: prev.orders.filter(o => o.UUID !== order.UUID) }))
+      setOrderQty(prev => {
+        const next = { ...prev }
+        delete next[order.UUID]
+        return next
+      })
+      addToast(`${order.Product?.Name} removido da comanda`, 'success')
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao remover produto', 'error')
+    } finally {
+      setRemovingOrderId(null)
+    }
+  }
+
+  const renderOrderPrice = (order) => {
+    if (editingOrderId === order.UUID) {
+      return (
+        <input
+          autoFocus
+          type="text"
+          inputMode="decimal"
+          defaultValue={order.Unit_price}
+          onInput={e => {
+            const cleaned = e.target.value.replace(/[^0-9.,]/g, '')
+            if (cleaned !== e.target.value) e.target.value = cleaned
+          }}
+          onBlur={e => handleUpdateOrderPrice(order, e.target.value.replace(',', '.'))}
+          onKeyDown={e => {
+            if (e.key === 'Enter') e.target.blur()
+            if (e.key === 'Escape') { e.target.value = order.Unit_price; e.target.blur() }
+          }}
+          onClick={e => e.stopPropagation()}
+          className="w-16 h-6 px-1.5 rounded border border-brand bg-surface text-ink text-[12.5px] font-mono text-right focus:outline-none shrink-0"
+        />
+      )
+    }
+    const isUpdating = updatingOrderId === order.UUID
+    return (
+      <button
+        type="button"
+        onClick={() => setEditingOrderId(order.UUID)}
+        disabled={isUpdating}
+        title="Editar valor do produto"
+        className="font-mono font-medium text-ink shrink-0 w-16 text-right hover:text-brand hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
+      >
+        {formatCurrency((orderQty[order.UUID] ?? 0) * order.Unit_price)}
       </button>
     )
   }
@@ -263,13 +346,21 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
                           </button>
                         </div>
                       )}
-                      <span className="font-mono font-medium text-ink shrink-0 w-16 text-right">{formatCurrency(qty * o.Unit_price)}</span>
+                      {renderOrderPrice(o)}
                       <button
                         onClick={() => setQty(o, ativo ? 0 : o.Quantity)}
+                        title={ativo ? 'Excluir da cobrança atual' : 'Incluir na cobrança atual'}
                         className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full border transition-colors cursor-pointer ${
                           ativo ? 'border-danger/40 text-danger hover:bg-danger-soft' : 'border-success/40 text-success hover:bg-success/10'
                         }`}>
                         <Icon name={ativo ? 'x' : 'plus'} size={11} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteOrder(o)}
+                        disabled={removingOrderId === o.UUID}
+                        title="Remover produto da comanda"
+                        className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full border border-line text-ink-3 hover:border-danger/40 hover:text-danger disabled:opacity-50 disabled:cursor-wait cursor-pointer transition-colors">
+                        <Icon name="trash" size={11} />
                       </button>
                     </div>
                   )

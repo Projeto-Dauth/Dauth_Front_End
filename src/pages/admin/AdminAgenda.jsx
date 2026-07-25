@@ -706,7 +706,7 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [modalCliente, setModalCliente] = useState(false)
-  const [modalServico, setModalServico] = useState(false)
+  const [modalServicoIndex, setModalServicoIndex] = useState(null)
 
   function loadServicosProf(profId) {
     if (servicosByProf[profId] || loadingProf[profId]) return
@@ -727,10 +727,11 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
   }
 
   function handleServicoCriado(servico) {
-    const profId = itens[0].professionalId
+    const index = modalServicoIndex ?? 0
+    const profId = itens[index].professionalId
     setServicosByProf(prev => ({ ...prev, [profId]: [...(prev[profId] ?? []), servico] }))
-    handleServico(0, servico.UUID, [...(servicosByProf[profId] ?? []), servico])
-    // Vincula automaticamente o serviço criado ao profissional do primeiro item
+    handleServico(index, servico.UUID, [...(servicosByProf[profId] ?? []), servico])
+    // Vincula automaticamente o serviço criado ao profissional do item que abriu o modal
     api.post(`/service/${servico.UUID}/professionals`, { professional_id: profId }).catch(() => { })
   }
 
@@ -821,8 +822,8 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
       {modalCliente && (
         <ModalNovoCliente onClose={() => setModalCliente(false)} onCreated={handleClienteCriado} />
       )}
-      {modalServico && (
-        <ModalNovoServico onClose={() => setModalServico(false)} onCreated={handleServicoCriado} />
+      {modalServicoIndex !== null && (
+        <ModalNovoServico onClose={() => setModalServicoIndex(null)} onCreated={handleServicoCriado} />
       )}
       <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
         <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -900,15 +901,13 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[12px] font-medium text-ink-2">Serviço</label>
                   <div className="flex items-center gap-2">
-                    {i === 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setModalServico(true)}
-                        className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
-                      >
-                        <Icon name="plus" size={16} />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setModalServicoIndex(i)}
+                      className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
+                    >
+                      <Icon name="plus" size={16} />
+                    </button>
                     <SearchableSelect
                       value={item.servicoId}
                       onChange={(id) => handleServico(i, id)}
