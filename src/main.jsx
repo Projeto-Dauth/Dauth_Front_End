@@ -11,6 +11,10 @@ import CookieBanner from './components/ui/CookieBanner'
 async function bootstrap() {
   try {
     const { data } = await api.get('/users/perfil/me')
+    let permissions = null
+    if (data.Role === 'Profissional') {
+      permissions = await api.get(`/professional/${data.UUID}/permissions`).then(r => r.data.data).catch(() => null)
+    }
     useAuthStore.getState().restoreSession({
       id: data.UUID,
       publicId: data.UUID,
@@ -18,6 +22,7 @@ async function bootstrap() {
       name: data.Name,
       role: data.Role,
       must_change_password: data.Must_change_password,
+      permissions,
     })
     // Populate localStorage from backend so returning users don't see tours again
     const toursCompleted = data.Tours_completed ?? {}

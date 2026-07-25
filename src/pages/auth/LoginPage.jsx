@@ -44,7 +44,11 @@ export default function LoginPage() {
         password: data.password,
       })
       const { data: perfil } = await api.get('/users/perfil/me')
-      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role, must_change_password: perfil.Must_change_password ?? false })
+      let permissions = null
+      if (perfil.Role === 'Profissional') {
+        permissions = await api.get(`/professional/${perfil.UUID}/permissions`).then(r => r.data.data).catch(() => null)
+      }
+      login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role, must_change_password: perfil.Must_change_password ?? false, permissions })
       if (perfil.Must_change_password) {
         navigate('/trocar-senha', { replace: true })
       } else {

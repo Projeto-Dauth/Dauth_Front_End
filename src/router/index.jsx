@@ -46,6 +46,7 @@ import MeuPerfil from '@/pages/shared/MeuPerfil'
 import TrocarSenha from '@/pages/shared/TrocarSenha'
 import DetalhesAgendamento from '@/pages/shared/DetalhesAgendamento'
 import DocsPage from '@/pages/shared/DocsPage'
+import { NAV_ITEM_MODULE } from '@/config/modules'
 
 // Página de erro
 import NaoAutorizado from '@/pages/NaoAutorizado'
@@ -139,7 +140,7 @@ const router = createBrowserRouter([
   {
     path: '/profissional',
     element: (
-      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['/profissional']}>
         <ProfissionalAgenda />
       </ProtectedRoute>
     ),
@@ -147,7 +148,7 @@ const router = createBrowserRouter([
   {
     path: '/profissional/agendamentos',
     element: (
-      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['/profissional/agendamentos']}>
         <MinhaAgenda />
       </ProtectedRoute>
     ),
@@ -155,7 +156,7 @@ const router = createBrowserRouter([
   {
     path: '/profissional/comandas',
     element: (
-      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['/profissional/comandas']}>
         <ProfissionalComandas />
       </ProtectedRoute>
     ),
@@ -163,7 +164,7 @@ const router = createBrowserRouter([
   {
     path: '/profissional/produtos',
     element: (
-      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['/profissional/produtos']}>
         <ProfissionalProdutos />
       </ProtectedRoute>
     ),
@@ -171,7 +172,7 @@ const router = createBrowserRouter([
   {
     path: '/profissional/pedidos-produtos',
     element: (
-      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['/profissional/pedidos-produtos']}>
         <ProfissionalPedidosProdutos />
       </ProtectedRoute>
     ),
@@ -187,7 +188,7 @@ const router = createBrowserRouter([
   {
     path: '/profissional/horarios',
     element: (
-      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['/profissional/horarios']}>
         <ProfissionalHorarios />
       </ProtectedRoute>
     ),
@@ -195,7 +196,7 @@ const router = createBrowserRouter([
   {
     path: '/profissional/comissoes',
     element: (
-      <ProtectedRoute allowedRoles={['Profissional', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['/profissional/comissoes']}>
         <ProfissionalComissoes />
       </ProtectedRoute>
     ),
