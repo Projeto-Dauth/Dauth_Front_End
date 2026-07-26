@@ -338,7 +338,7 @@ function TabComandas({ user, initialAppointmentId }) {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
 
           {/* Lista */}
-          <div data-tour="comanda-lista" className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
+          <div data-tour="comanda-lista" className={`bg-surface border border-line rounded-[14px] overflow-hidden h-fit ${selectedId ? 'hidden lg:block' : ''}`}>
             <div className="px-5 py-3.5 border-b border-line flex justify-between items-center">
               <div className="font-display font-medium text-[16px]">Comandas</div>
               <span className="font-mono text-[11px] text-ink-3">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
@@ -376,6 +376,10 @@ function TabComandas({ user, initialAppointmentId }) {
           {/* Painel de pagamento */}
           {selected && (
             <div data-tour="comanda-painel" className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
+              <button onClick={() => setSelectedId(null)} className="lg:hidden w-full flex items-center gap-1.5 px-6 pt-4 text-[12px] text-ink-3 hover:text-brand transition-colors cursor-pointer">
+                <Icon name="arrowLeft" size={14} />
+                Voltar para a lista
+              </button>
               <div className="px-6 py-5 border-b border-line">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Comanda selecionada</span>
                 <h4 className="font-display font-medium text-[19px] tracking-tight mt-1.5">
@@ -567,7 +571,7 @@ function TabPedidosProdutos() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
           {/* Lista */}
-          <div className="bg-surface border border-line rounded-[14px] overflow-hidden h-fit">
+          <div className={`bg-surface border border-line rounded-[14px] overflow-hidden h-fit ${selectedId ? 'hidden lg:block' : ''}`}>
             <div className="px-5 py-3.5 border-b border-line flex justify-between items-center">
               <div className="font-display font-medium text-[16px]">Pedidos</div>
               <span className="font-mono text-[11px] text-ink-3">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
@@ -598,6 +602,10 @@ function TabPedidosProdutos() {
           {/* Painel de pagamento */}
           {selected && (
             <div className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
+              <button onClick={() => setSelectedId(null)} className="lg:hidden w-full flex items-center gap-1.5 px-6 pt-4 text-[12px] text-ink-3 hover:text-brand transition-colors cursor-pointer">
+                <Icon name="arrowLeft" size={14} />
+                Voltar para a lista
+              </button>
               <div className="px-6 py-5 border-b border-line">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Pedido selecionado</span>
                 <h4 className="font-display font-medium text-[19px] tracking-tight mt-1.5">
