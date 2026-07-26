@@ -100,13 +100,13 @@ aside { scrollbar-width: none; }
   border-bottom: none !important;
 }
 .shepherd-title {
-  font-family: 'Space Grotesk', sans-serif !important;
+  font-family: theme('fontFamily.display') !important;
   font-weight: 500 !important;
   font-size: 15px !important;
   color: #2a1e18 !important;
 }
 .shepherd-text {
-  font-family: 'Inter', sans-serif !important;
+  font-family: theme('fontFamily.body') !important;
   font-size: 13px !important;
   color: #5b463c !important;
   line-height: 1.55 !important;
@@ -121,7 +121,7 @@ aside { scrollbar-width: none; }
   color: #fff !important;
   border: none !important;
   border-radius: 8px !important;
-  font-family: 'Inter', sans-serif !important;
+  font-family: theme('fontFamily.body') !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   padding: 8px 16px !important;
@@ -132,7 +132,7 @@ aside { scrollbar-width: none; }
   background: transparent !important;
   color: #8d7b6f !important;
   border: none !important;
-  font-family: 'Inter', sans-serif !important;
+  font-family: theme('fontFamily.body') !important;
   font-size: 13px !important;
   padding: 8px 12px !important;
   cursor: pointer !important;
@@ -165,7 +165,7 @@ aside { scrollbar-width: none; }
 .prose-dauth ul li { margin-bottom: 0.25rem; }
 .prose-dauth strong { color: #2a1e18; font-weight: 600; }
 .prose-dauth em { font-style: italic; }
-.prose-dauth code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #f3ede9; border-radius: 4px; padding: 1px 5px; color: #8b4a2b; }
+.prose-dauth code { font-family: theme('fontFamily.mono'); font-size: 12px; background: #f3ede9; border-radius: 4px; padding: 1px 5px; color: #8b4a2b; }
 .prose-dauth table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0.75rem 0; }
 .prose-dauth th { text-align: left; font-weight: 600; color: #2a1e18; border-bottom: 1px solid #e8ddd8; padding: 6px 10px; }
 .prose-dauth td { color: #5c4a42; border-bottom: 1px solid #f0e8e4; padding: 6px 10px; }

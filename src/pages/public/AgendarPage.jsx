@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import Button from '@/components/ui/Button'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
+import Modal from '@/components/ui/Modal'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -74,6 +75,7 @@ export default function AgendarPage() {
   // Step 4
   const [confirming, setConfirming] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
+  const [sameDayConflict, setSameDayConflict] = useState(null)
 
   const svc = services.find((s) => s.UUID === selectedServiceId)
 
@@ -203,10 +205,29 @@ export default function AgendarPage() {
     }
   }
 
-  async function handleConfirm() {
+  async function handleConfirm(skipConflictCheck = false) {
     if (!user) return
-    setConfirming(true)
     const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+
+    if (!skipConflictCheck) {
+      try {
+        const { data } = await api.get(`/appointment/client/${user.publicId}`, { params: { date: dateStr, limit: 50 } })
+        const overlapping = (data.data ?? []).find((a) =>
+          a.Status !== 'cancelado' &&
+          a.Professional_id !== selectedProf.professional_id &&
+          (a.Start_time ?? '').slice(0, 5) < selectedSlot.end_time &&
+          (a.End_time ?? '').slice(0, 5) > selectedSlot.start_time
+        )
+        if (overlapping) {
+          setSameDayConflict(overlapping)
+          return
+        }
+      } catch {
+        // se a checagem falhar, não bloqueia o agendamento — segue direto para a confirmação
+      }
+    }
+
+    setConfirming(true)
     try {
       await api.post('/appointment', {
         Client: user.publicId,
@@ -217,6 +238,7 @@ export default function AgendarPage() {
         End_time: selectedSlot.end_time,
       })
       setConfirmed(true)
+      setSameDayConflict(null)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao confirmar agendamento', 'error')
     } finally {
@@ -230,6 +252,16 @@ export default function AgendarPage() {
 
   return (
     <div className="min-h-screen bg-bg text-ink">
+      <Modal
+        isOpen={!!sameDayConflict}
+        onClose={() => setSameDayConflict(null)}
+        onConfirm={() => handleConfirm(true)}
+        title="Você já tem um agendamento nesse horário"
+        message={sameDayConflict ? `Você já tem um agendamento às ${(sameDayConflict.Start_time ?? '').slice(0, 5)} com ${sameDayConflict.Professional ?? 'outro profissional'} nesse mesmo dia. Deseja continuar mesmo assim?` : ''}
+        confirmLabel="Continuar mesmo assim"
+        loading={confirming}
+      />
+
       {/* Top bar */}
       <div className="flex justify-between items-center px-4 md:px-10 py-4 md:py-[22px] border-b border-line bg-surface sticky top-0 z-10">
         <div className="flex items-center gap-2.5">
@@ -301,7 +333,7 @@ export default function AgendarPage() {
               </button>
             ) : (
               <button
-                onClick={handleConfirm}
+                onClick={() => handleConfirm()}
                 disabled={confirming}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-white font-medium text-[14px] shrink-0 active:bg-[#72391f] transition-colors disabled:opacity-60"
               >
@@ -658,7 +690,10 @@ export default function AgendarPage() {
                 const dest = user?.role === 'Admin' ? '/admin' : user?.role === 'Profissional' ? '/profissional' : '/cliente'
                 navigate(dest)
               }}>Ver minha conta</Button>
-              <Button variant="ghost" onClick={() => navigate('/')}>Voltar ao início</Button>
+              <Button variant="ghost" onClick={() => {
+                const dest = user?.role === 'Admin' ? '/admin' : user?.role === 'Profissional' ? '/profissional' : '/cliente'
+                navigate(dest)
+              }}>Voltar ao início</Button>
             </div>
           </div>
         )}
@@ -676,7 +711,7 @@ export default function AgendarPage() {
                 Continuar <Icon name="arrowRight" size={14} />
               </Button>
             ) : (
-              <Button variant="primary" onClick={handleConfirm} disabled={confirming}>
+              <Button variant="primary" onClick={() => handleConfirm()} disabled={confirming}>
                 <Icon name="check" size={14} />{confirming ? 'Confirmando...' : 'Confirmar agendamento'}
               </Button>
             )}

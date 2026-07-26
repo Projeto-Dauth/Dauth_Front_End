@@ -118,6 +118,9 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
 
 const navItems = navItemsByRole['Admin']
 
+// Máximo de profissionais visíveis por vez na grade desktop — acima disso, pagina em vez de espremer colunas / gerar scroll lateral
+const DESK_PAGE_SIZE = 5
+
 // Slots de 30 em 30 min das 06:00 às 00:00
 const TIME_SLOTS = []
 for (let h = 6; h < 24; h++) {
@@ -1229,6 +1232,7 @@ export default function AdminAgenda() {
   const [loading, setLoading] = useState(true)
   const { restartTour } = useTour('admin', adminSteps, !loading)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
+  const [deskProfPage, setDeskProfPage] = useState(0)
   const [newSlot, setNewSlot] = useState(null)
   const [contextMenu, setContextMenu] = useState(null) // { appt, x, y }
   const [leaveMenu, setLeaveMenu] = useState(null) // { leave, x, y }
@@ -1385,6 +1389,14 @@ export default function AdminAgenda() {
   // Profissionais ativos — coluna sempre visível mesmo sem agendamentos
   const profNames = professionals.map((p) => p.Name)
   const profObjects = professionals
+
+  // Desktop: acima de DESK_PAGE_SIZE profissionais, pagina em blocos em vez de espremer
+  // colunas ou depender de scroll lateral — mesmo princípio do seletor mobile (1 por vez),
+  // só que aqui mostra um bloco de até 5 por página.
+  const deskTotalPages = Math.max(1, Math.ceil(profObjects.length / DESK_PAGE_SIZE))
+  const deskPageClamped = Math.min(deskProfPage, deskTotalPages - 1)
+  const deskVisibleProfs = profObjects.slice(deskPageClamped * DESK_PAGE_SIZE, deskPageClamped * DESK_PAGE_SIZE + DESK_PAGE_SIZE)
+  const deskVisibleNames = deskVisibleProfs.map((p) => p.Name)
 
   // Pré-computa layout de colunas para agendamentos sobrepostos — inclui urgentes: um
   // agendamento urgente sobreposto a outro divide largura como qualquer sobreposição
@@ -1556,18 +1568,41 @@ export default function AdminAgenda() {
             </div>
           )}
 
-          {/* Grade — desktop: todos profissionais · mobile: profissional selecionado */}
+          {/* Desktop: paginação de profissionais quando há mais de DESK_PAGE_SIZE */}
+          {deskTotalPages > 1 && (
+            <div className="hidden md:flex items-center gap-2 mb-3">
+              <button
+                onClick={() => setDeskProfPage((p) => Math.max(0, p - 1))}
+                disabled={deskPageClamped === 0}
+                className="w-[32px] h-[32px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center disabled:opacity-30 hover:border-ink-3 transition-colors"
+              >
+                <Icon name="arrowLeft" size={13} />
+              </button>
+              <div className="text-[12.5px] text-ink-3">
+                Profissionais {deskPageClamped * DESK_PAGE_SIZE + 1}–{Math.min((deskPageClamped + 1) * DESK_PAGE_SIZE, profObjects.length)} de {profObjects.length}
+              </div>
+              <button
+                onClick={() => setDeskProfPage((p) => Math.min(deskTotalPages - 1, p + 1))}
+                disabled={deskPageClamped === deskTotalPages - 1}
+                className="w-[32px] h-[32px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center disabled:opacity-30 hover:border-ink-3 transition-colors"
+              >
+                <Icon name="arrowRight" size={13} />
+              </button>
+            </div>
+          )}
+
+          {/* Grade — desktop: página atual de profissionais · mobile: profissional selecionado */}
           <div data-tour="schedule-grid" className="bg-surface border border-line rounded-lg overflow-hidden">
             {/* Desktop */}
             <div
               className="hidden md:grid overflow-y-auto max-h-[70vh] scrollbar-hidden"
-              style={{ gridTemplateColumns: `64px repeat(${profNames.length}, 1fr)` }}
+              style={{ gridTemplateColumns: `64px repeat(${deskVisibleNames.length}, minmax(0, 1fr))` }}
             >
               <div className="sticky top-0 z-30 px-3 py-3 border-b border-r border-line bg-surface-2" />
-              {profNames.map((name, idx) => (
-                <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5">
+              {deskVisibleNames.map((name, idx) => (
+                <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5 min-w-0">
                   <Avatar name={name} index={idx} size="sm" />
-                  <div className="font-medium text-[13px] truncate">{name}</div>
+                  <div className="font-medium text-[13px] truncate min-w-0">{name}</div>
                 </div>
               ))}
               {TIME_SLOTS.map((slot) => {
@@ -1578,8 +1613,8 @@ export default function AdminAgenda() {
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2 border-dashed'}`}>
                     {isHour ? slot : ''}
                   </div>,
-                  ...profNames.map((prof, pi) => {
-                    const profObj = profObjects[pi]
+                  ...deskVisibleNames.map((prof, pi) => {
+                    const profObj = deskVisibleProfs[pi]
                     const wh = breakByProf[profObj?.UUID] ?? null
                     const leaves = leaveByProf[profObj?.UUID] ?? []
                     const appts = appointments.filter((a) => a.Professional_id === profObj?.UUID && anchoredToSlot(a, slot))
