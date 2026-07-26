@@ -1,3 +1,7 @@
+// Fonte global do sistema — trocar só aqui para testar/aplicar uma fonte nova em tudo.
+// Lembrar de atualizar também o <link> do Google Fonts em index.html se a fonte mudar.
+const FONT_FAMILY = 'Inter'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
@@ -45,10 +49,10 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        body: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
-        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        display: [FONT_FAMILY, 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        body: [FONT_FAMILY, 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: [FONT_FAMILY, 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+        serif: [FONT_FAMILY, 'Georgia', 'serif'],
       },
       borderRadius: {
         sm: '6px',

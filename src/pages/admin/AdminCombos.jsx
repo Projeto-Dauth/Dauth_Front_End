@@ -35,6 +35,7 @@ export default function AdminCombos() {
   const [packages, setPackages] = useState([])  // [{ ...pkg, items: [] }]
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
+  const [pkgTab, setPkgTab] = useState('ativos')  // 'ativos' | 'desativados'
 
   // Drawer pacote
   const [pkgDrawer, setPkgDrawer] = useState(false)  // false | 'create' | uuid
@@ -138,6 +139,16 @@ export default function AdminCombos() {
     }
   }
 
+  async function handleToggleActive(pkg) {
+    try {
+      await api.patch(`/package/${pkg.UUID}`, { Active: !pkg.Active })
+      addToast(pkg.Active ? 'Pacote desativado' : 'Pacote ativado', 'success')
+      loadAll()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao atualizar pacote', 'error')
+    }
+  }
+
   async function handleDeletePkg() {
     if (!deletePkg) return
     setDeletingPkg(true)
@@ -147,7 +158,11 @@ export default function AdminCombos() {
       setDeletePkg(null)
       loadAll()
     } catch (err) {
-      addToast(err.response?.data?.error || 'Erro ao excluir pacote', 'error')
+      if (err.response?.data?.code === 'FK_VIOLATION') {
+        addToast('Este pacote já foi vendido para algum cliente e não pode ser excluído — use "Desativar" para escondê-lo da venda.', 'error')
+      } else {
+        addToast(err.response?.data?.error || 'Erro ao excluir pacote', 'error')
+      }
     } finally {
       setDeletingPkg(false)
     }
@@ -212,6 +227,9 @@ export default function AdminCombos() {
   }
 
   const currentPkg = packages.find((p) => p.UUID === itemsDrawer)
+  const activePackages = packages.filter((p) => p.Active !== false)
+  const inactivePackages = packages.filter((p) => p.Active === false)
+  const visiblePackages = pkgTab === 'ativos' ? activePackages : inactivePackages
 
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
@@ -229,15 +247,35 @@ export default function AdminCombos() {
         </Button>
       </div>
 
-      {loading ? <PageSpinner /> : packages.length === 0 ? (
-        <EmptyState icon="package" title="Nenhum pacote" description="Crie o primeiro combo do salão." action={openCreate} actionLabel="Novo pacote" />
+      <div className="flex gap-2 mb-5">
+        <button onClick={() => setPkgTab('ativos')}
+          className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ${pkgTab === 'ativos' ? 'bg-brand text-bg' : 'bg-surface-2 text-ink-3 hover:text-ink'}`}>
+          Ativos
+          <span className="ml-1.5 font-mono text-[10.5px]">{activePackages.length}</span>
+        </button>
+        <button onClick={() => setPkgTab('desativados')}
+          className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ${pkgTab === 'desativados' ? 'bg-brand text-bg' : 'bg-surface-2 text-ink-3 hover:text-ink'}`}>
+          Desativados
+          <span className="ml-1.5 font-mono text-[10.5px]">{inactivePackages.length}</span>
+        </button>
+      </div>
+
+      {loading ? <PageSpinner /> : visiblePackages.length === 0 ? (
+        <EmptyState icon="package" title={pkgTab === 'ativos' ? 'Nenhum pacote ativo' : 'Nenhum pacote desativado'}
+          description={pkgTab === 'ativos' ? 'Crie o primeiro combo do salão.' : 'Pacotes desativados aparecem aqui.'}
+          action={pkgTab === 'ativos' ? openCreate : undefined} actionLabel={pkgTab === 'ativos' ? 'Novo pacote' : undefined} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {packages.map((pkg) => (
-            <div key={pkg.UUID} className="bg-surface border border-line rounded-2xl p-6 flex flex-col">
+          {visiblePackages.map((pkg) => (
+            <div key={pkg.UUID} className={`bg-surface border border-line rounded-2xl p-6 flex flex-col ${pkg.Active === false ? 'opacity-60' : ''}`}>
               <div className="flex justify-between items-start pb-4 border-b border-line-2 mb-4">
                 <div className="flex-1 min-w-0 pr-3">
-                  <div className="font-mono text-[10.5px] uppercase tracking-widest text-brand mb-1">Pacote</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="font-mono text-[10.5px] uppercase tracking-widest text-brand">Pacote</div>
+                    {pkg.Active === false && (
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-ink-3 bg-surface-2 px-1.5 py-[1px] rounded">Desativado</div>
+                    )}
+                  </div>
                   <h3 className="font-display font-medium text-[18px] tracking-tight leading-snug">{pkg.Name}</h3>
                   {pkg.Available_until && (
                     <div className="font-mono text-[11px] text-ink-3 mt-1">Válido até {formatDate(pkg.Available_until)}</div>
@@ -259,7 +297,7 @@ export default function AdminCombos() {
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-line-2">
-                <Button variant="primary" size="sm" className="flex-1 justify-center" onClick={() => { setSellPkg(pkg); setSellClientId('') }}>
+                <Button variant="primary" size="sm" className="flex-1 justify-center" disabled={pkg.Active === false} onClick={() => { setSellPkg(pkg); setSellClientId('') }}>
                   Vender
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => openItems(pkg)}>
@@ -267,6 +305,9 @@ export default function AdminCombos() {
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => openEdit(pkg)}>
                   <Icon name="edit" size={13} />
+                </Button>
+                <Button variant="ghost" size="sm" title={pkg.Active === false ? 'Ativar pacote' : 'Desativar pacote'} onClick={() => handleToggleActive(pkg)}>
+                  <Icon name={pkg.Active === false ? 'eyeOff' : 'eye'} size={13} />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setDeletePkg(pkg)}>
                   <Icon name="trash" size={13} />
@@ -276,11 +317,13 @@ export default function AdminCombos() {
           ))}
 
           {/* Card criar */}
-          <button onClick={openCreate}
-            className="border border-dashed border-line rounded-2xl flex flex-col items-center justify-center gap-2.5 min-h-[200px] text-ink-3 hover:border-ink-3 transition-colors cursor-pointer bg-transparent">
-            <Icon name="plus" size={26} />
-            <div className="font-display text-[15px]">Criar novo pacote</div>
-          </button>
+          {pkgTab === 'ativos' && (
+            <button onClick={openCreate}
+              className="border border-dashed border-line rounded-2xl flex flex-col items-center justify-center gap-2.5 min-h-[200px] text-ink-3 hover:border-ink-3 transition-colors cursor-pointer bg-transparent">
+              <Icon name="plus" size={26} />
+              <div className="font-display text-[15px]">Criar novo pacote</div>
+            </button>
+          )}
         </div>
       )}
 
@@ -338,6 +381,7 @@ export default function AdminCombos() {
                   <DrawerField label="Serviço">
                     <select value={draftItem.service_id}
                       onChange={(e) => setDraftItem((f) => ({ ...f, service_id: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
                       className={inputCls}>
                       <option value="">Selecione...</option>
                       {services.map((s) => (
@@ -348,6 +392,7 @@ export default function AdminCombos() {
                   <DrawerField label="Quantidade">
                     <input type="number" min="1" value={draftItem.quantity}
                       onChange={(e) => setDraftItem((f) => ({ ...f, quantity: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDraftItem() } }}
                       className={inputCls} />
                   </DrawerField>
                   <Button type="button" variant="outline" size="sm" className="w-full justify-center" onClick={addDraftItem}>

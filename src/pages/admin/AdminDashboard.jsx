@@ -81,11 +81,14 @@ const CustomTooltipBar = ({ active, payload }) => {
 }
 
 const PRESETS = [
-  { id: 'mes', label: 'Este mês' },
-  { id: '7d', label: 'Últimos 7 dias' },
-  { id: '90d', label: 'Últimos 90 dias' },
+  { id: '7d', label: '7 dias' },
+  { id: '30d', label: '30 dias' },
+  { id: '60d', label: '60 dias' },
+  { id: '90d', label: '90 dias' },
   { id: 'custom', label: 'Personalizado' },
 ]
+
+const PRESET_DAYS = { '7d': 6, '30d': 29, '60d': 59, '90d': 89 }
 
 function toLocalDateStringFE(date) {
   return date.toLocaleDateString('en-CA')
@@ -93,13 +96,8 @@ function toLocalDateStringFE(date) {
 
 function rangeForPreset(preset) {
   const now = new Date()
-  if (preset === 'mes') {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1)
-    return { from: toLocalDateStringFE(from), to: toLocalDateStringFE(now) }
-  }
-  const days = preset === '7d' ? 6 : 89
   const from = new Date(now)
-  from.setDate(from.getDate() - days)
+  from.setDate(from.getDate() - PRESET_DAYS[preset])
   return { from: toLocalDateStringFE(from), to: toLocalDateStringFE(now) }
 }
 
@@ -107,14 +105,14 @@ export default function AdminDashboard() {
   const { user } = useAuthStore()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [preset, setPreset] = useState('mes')
+  const [preset, setPreset] = useState('7d')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 
   useEffect(() => {
     if (preset === 'custom' && (!customFrom || !customTo)) return
     setLoading(true)
-    const params = preset === 'mes' ? {} : preset === 'custom' ? { from: customFrom, to: customTo } : rangeForPreset(preset)
+    const params = preset === 'custom' ? { from: customFrom, to: customTo } : rangeForPreset(preset)
     api.get('/dashboard', { params })
       .then(res => setData(res.data))
       .catch(() => setData(null))

@@ -146,7 +146,7 @@ function daysUntil(dateStr) {
   return Math.round((target - today) / 86400000)
 }
 
-function ClienteSidebar({ user, sinceYear, onClose }) {
+function ClienteSidebar({ user, sinceLabel, onClose }) {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
 
@@ -171,7 +171,7 @@ function ClienteSidebar({ user, sinceYear, onClose }) {
         <Avatar name={user?.name ?? ''} index={2} size="xl" className="mx-auto mb-2" />
         <div className="font-display font-medium text-[15px]">{user?.name ?? '—'}</div>
         <div className="font-mono text-[11px] text-ink-3">
-          {sinceYear ? `cliente desde ${sinceYear}` : 'cliente'}
+          {sinceLabel ? `cliente desde ${sinceLabel}` : 'cliente'}
         </div>
       </div>
       {navItems.map((item) => (
@@ -215,7 +215,7 @@ export default function ClienteDashboard() {
   const [loading, setLoading] = useState(true)
   const { restartTour } = useTour('cliente', clienteSteps, !loading)
   const [appointments, setAppointments] = useState([])
-  const [sinceYear, setSinceYear] = useState(null)
+  const [sinceLabel, setSinceLabel] = useState(null)
   const [combos, setCombos] = useState([])
   const [selectedId, setSelectedId] = useState(null)
 
@@ -229,7 +229,9 @@ export default function ClienteDashboard() {
       .then(([apptRes, perfilRes, combosRes]) => {
         setAppointments(apptRes.data.data ?? [])
         if (perfilRes.data.created_at) {
-          setSinceYear(new Date(perfilRes.data.created_at).getFullYear())
+          const d = new Date(perfilRes.data.created_at)
+          const month = d.toLocaleDateString('pt-BR', { month: 'long' })
+          setSinceLabel(`${month.charAt(0).toUpperCase()}${month.slice(1)} ${d.getFullYear()}`)
         }
         setCombos(combosRes.data.data ?? [])
       })
@@ -268,7 +270,7 @@ export default function ClienteDashboard() {
   const firstName = user?.name?.split(' ')[0] ?? ''
 
   return (
-    <AppLayout sidebar={<ClienteSidebar user={user} sinceYear={sinceYear} />}>
+    <AppLayout sidebar={<ClienteSidebar user={user} sinceLabel={sinceLabel} />}>
       {selectedId && (
         <AppointmentPanel id={selectedId} onClose={() => setSelectedId(null)} />
       )}

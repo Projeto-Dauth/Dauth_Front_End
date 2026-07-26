@@ -17,6 +17,7 @@ import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminUsuariosSteps } from '@/tours/adminUsuariosTour'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { MODULES } from '@/config/modules'
 
 const navItems = navItemsByRole['Admin']
 
@@ -266,6 +267,9 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const [fecharMethod, setFecharMethod] = useState('pix')
   const [fecharPaying, setFecharPaying] = useState(false)
 
+  const [permissions, setPermissions] = useState(null)
+  const [savingPermissions, setSavingPermissions] = useState(false)
+
   useEffect(() => {
     setLoading(true)
     Promise.all([
@@ -278,7 +282,37 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [client.UUID])
+
+    if (client.Role === 'Profissional') {
+      api.get(`/professional/${client.UUID}/permissions`)
+        .then(res => setPermissions(res.data.data))
+        .catch(() => setPermissions(null))
+    } else {
+      setPermissions(null)
+    }
+  }, [client.UUID, client.Role])
+
+  function togglePermission(module, field) {
+    setPermissions(prev => prev.map(p => {
+      if (p.module !== module) return p
+      const next = { ...p, [field]: !p[field] }
+      if (field === 'canView' && !next.canView) next.canManage = false
+      return next
+    }))
+  }
+
+  async function handleSavePermissions() {
+    setSavingPermissions(true)
+    try {
+      const { data } = await api.put(`/professional/${client.UUID}/permissions`, { permissions })
+      setPermissions(data.data)
+      addToast('Permissões atualizadas com sucesso', 'success')
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao atualizar permissões', 'error')
+    } finally {
+      setSavingPermissions(false)
+    }
+  }
 
   const openTabs = tabs.filter(t => t.Status === 'Em aberto')
   const paidTabs = tabs.filter(t => (t.Status === 'Paga' || t.Status === 'Pago') && t.Value > 0)
@@ -481,6 +515,41 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                   </div>
                 )}
               </div>
+
+              {/* Permissões por módulo */}
+              {client.Role === 'Profissional' && permissions && (
+                <div>
+                  <h5 className="font-medium text-[13.5px] mb-3">Permissões</h5>
+                  <div className="space-y-2 mb-3">
+                    {MODULES.map(({ key, label }) => {
+                      const perm = permissions.find(p => p.module === key)
+                      return (
+                        <div key={key} className="flex items-center justify-between bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
+                          <span className="text-ink-2">{label}</span>
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
+                              <input type="checkbox" checked={perm?.canView ?? true} onChange={() => togglePermission(key, 'canView')} />
+                              Visualizar
+                            </label>
+                            <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={perm?.canManage ?? true}
+                                disabled={!(perm?.canView ?? true)}
+                                onChange={() => togglePermission(key, 'canManage')}
+                              />
+                              Gerenciar
+                            </label>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full justify-center" onClick={handleSavePermissions} loading={savingPermissions}>
+                    Salvar permissões
+                  </Button>
+                </div>
+              )}
 
               <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="hidden md:flex justify-center">
                 <Icon name="edit" size={13} />

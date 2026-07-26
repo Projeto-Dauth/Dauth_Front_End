@@ -60,7 +60,7 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
       {/* Header do agendamento */}
       <div className="px-3.5 py-2 border-b border-line mb-1">
         <div className="font-medium text-[12.5px] truncate">{appt.Client}</div>
-        <div className="font-mono text-[10.5px] text-ink-3 truncate">{appt.Service} · {parseTime(appt.Start_time)}</div>
+        <div className="font-mono text-[10.5px] text-ink-3 truncate">{serviceLabel(appt)} · {parseTime(appt.Start_time)}</div>
       </div>
 
       {actions.map(({ label, icon, status, color }) => (
@@ -118,6 +118,9 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
 
 const navItems = navItemsByRole['Admin']
 
+// Máximo de profissionais visíveis por vez na grade desktop — acima disso, pagina em vez de espremer colunas / gerar scroll lateral
+const DESK_PAGE_SIZE = 5
+
 // Slots de 30 em 30 min das 06:00 às 00:00
 const TIME_SLOTS = []
 for (let h = 6; h < 24; h++) {
@@ -138,6 +141,16 @@ const STATUS_STYLE = {
 function parseTime(t) {
   // "09:00:00+00" | "09:00:00-03" → "09:00"
   return t.slice(0, 5)
+}
+
+// Bloco fundido tem N serviços (Services[]) — junta os nomes; agendamento normal cai no
+// fallback do campo singular Service.
+function serviceLabel(appt) {
+  return appt.Services?.length > 0 ? appt.Services.map(s => s.Name).join(' + ') : appt.Service
+}
+
+function serviceNames(appt) {
+  return appt.Services?.length > 0 ? appt.Services.map(s => s.Name) : [appt.Service]
 }
 
 function toMinutes(t) {
@@ -697,9 +710,10 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
   const [clienteOption, setClienteOption] = useState(null)
   const [itens, setItens] = useState([{ professionalId: professional.UUID, servicoId: '', startTime: slot, endTime: addMinutes(slot, 60) }])
   const [isUrgent, setIsUrgent] = useState(false)
+  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [modalCliente, setModalCliente] = useState(false)
-  const [modalServico, setModalServico] = useState(false)
+  const [modalServicoIndex, setModalServicoIndex] = useState(null)
 
   function loadServicosProf(profId) {
     if (servicosByProf[profId] || loadingProf[profId]) return
@@ -720,10 +734,11 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
   }
 
   function handleServicoCriado(servico) {
-    const profId = itens[0].professionalId
+    const index = modalServicoIndex ?? 0
+    const profId = itens[index].professionalId
     setServicosByProf(prev => ({ ...prev, [profId]: [...(prev[profId] ?? []), servico] }))
-    handleServico(0, servico.UUID, [...(servicosByProf[profId] ?? []), servico])
-    // Vincula automaticamente o serviço criado ao profissional do primeiro item
+    handleServico(index, servico.UUID, [...(servicosByProf[profId] ?? []), servico])
+    // Vincula automaticamente o serviço criado ao profissional do item que abriu o modal
     api.post(`/service/${servico.UUID}/professionals`, { professional_id: profId }).catch(() => { })
   }
 
@@ -785,20 +800,19 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
     setSaving(true)
     try {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-      const bookingGroup = itens.length > 1 ? crypto.randomUUID() : null
-      for (const item of itens) {
-        await api.post('/appointment', {
-          Client: clienteId,
+      await api.post('/appointment/batch', {
+        Client: clienteId,
+        Date: dateStr,
+        Is_urgent: isUrgent,
+        Notes: notes.trim() || undefined,
+        Items: itens.map(item => ({
           Professional: item.professionalId,
           Service: item.servicoId,
-          Date: dateStr,
           Start_time: item.startTime,
           End_time: item.endTime,
-          Is_urgent: isUrgent,
-          Booking_group: bookingGroup,
-        })
-      }
-      addToast(itens.length > 1 ? `${itens.length} agendamentos criados!` : 'Agendamento criado!')
+        })),
+      })
+      addToast(itens.length > 1 ? `${itens.length} serviços agendados!` : 'Agendamento criado!')
       onSaved()
       onClose()
     } catch (err) {
@@ -815,8 +829,8 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
       {modalCliente && (
         <ModalNovoCliente onClose={() => setModalCliente(false)} onCreated={handleClienteCriado} />
       )}
-      {modalServico && (
-        <ModalNovoServico onClose={() => setModalServico(false)} onCreated={handleServicoCriado} />
+      {modalServicoIndex !== null && (
+        <ModalNovoServico onClose={() => setModalServicoIndex(null)} onCreated={handleServicoCriado} />
       )}
       <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
         <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -894,15 +908,13 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[12px] font-medium text-ink-2">Serviço</label>
                   <div className="flex items-center gap-2">
-                    {i === 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setModalServico(true)}
-                        className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
-                      >
-                        <Icon name="plus" size={16} />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setModalServicoIndex(i)}
+                      className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
+                    >
+                      <Icon name="plus" size={16} />
+                    </button>
                     <SearchableSelect
                       value={item.servicoId}
                       onChange={(id) => handleServico(i, id)}
@@ -954,6 +966,19 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
                 <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
               </div>
             </button>
+
+            {/* Observação */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-ink-2">Observação <span className="text-ink-4 font-normal">(opcional)</span></label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Ex: cliente prefere água morna, trouxe produto próprio…"
+                rows={2}
+                maxLength={1000}
+                className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+              />
+            </div>
 
             <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
               Confirmar agendamento
@@ -1037,27 +1062,21 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
     if (itens.some(it => !it.servicoId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     setSaving(true)
     try {
-      for (const item of itens) {
-        if (item.id) {
-          await api.patch(`/appointment/${item.id}`, {
-            Service: item.servicoId,
-            Date: newDate,
-            Start_time: item.startTime,
-            End_time: item.endTime,
-            Is_urgent: isUrgent,
-          })
-        } else {
-          await api.post('/appointment', {
-            Client: appt.Client_id,
-            Professional: appt.Professional_id,
-            Service: item.servicoId,
-            Date: newDate,
-            Start_time: item.startTime,
-            End_time: item.endTime,
-            Is_urgent: isUrgent,
-          })
-        }
-      }
+      // Itens novos adicionados na edição (sem id) sempre são da MESMA profissional (edição
+      // não tem seletor de profissional por item) — em vez de virar Appointments separados,
+      // são anexados ao bloco original (Add_services) no mesmo PATCH: 1 card só na Agenda,
+      // 1 Tab só ao concluir.
+      const [original, ...newItens] = itens
+      await api.patch(`/appointment/${original.id}`, {
+        Service: original.servicoId,
+        Date: newDate,
+        Start_time: original.startTime,
+        End_time: original.endTime,
+        Is_urgent: isUrgent,
+        ...(newItens.length > 0 ? {
+          Add_services: newItens.map(it => ({ Service: it.servicoId, Start_time: it.startTime, End_time: it.endTime }))
+        } : {}),
+      })
       addToast('Agendamento atualizado com sucesso', 'success')
       onSaved()
       onClose()
@@ -1213,6 +1232,7 @@ export default function AdminAgenda() {
   const [loading, setLoading] = useState(true)
   const { restartTour } = useTour('admin', adminSteps, !loading)
   const [mobileProfIdx, setMobileProfIdx] = useState(0)
+  const [deskProfPage, setDeskProfPage] = useState(0)
   const [newSlot, setNewSlot] = useState(null)
   const [contextMenu, setContextMenu] = useState(null) // { appt, x, y }
   const [leaveMenu, setLeaveMenu] = useState(null) // { leave, x, y }
@@ -1308,7 +1328,7 @@ export default function AdminAgenda() {
       api.get('/users', { params: { Role: 'Admin' } }),
     ])
       .then(([profRes, adminRes]) => {
-        const list = [...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])]
+        const list = [...(adminRes.data.data ?? []), ...(profRes.data.data ?? [])]
         professionalsRef.current = list
         setProfessionals(list)
       })
@@ -1370,12 +1390,21 @@ export default function AdminAgenda() {
   const profNames = professionals.map((p) => p.Name)
   const profObjects = professionals
 
-  // Pré-computa layout de colunas para agendamentos sobrepostos (exceto urgentes)
+  // Desktop: acima de DESK_PAGE_SIZE profissionais, pagina em blocos em vez de espremer
+  // colunas ou depender de scroll lateral — mesmo princípio do seletor mobile (1 por vez),
+  // só que aqui mostra um bloco de até 5 por página.
+  const deskTotalPages = Math.max(1, Math.ceil(profObjects.length / DESK_PAGE_SIZE))
+  const deskPageClamped = Math.min(deskProfPage, deskTotalPages - 1)
+  const deskVisibleProfs = profObjects.slice(deskPageClamped * DESK_PAGE_SIZE, deskPageClamped * DESK_PAGE_SIZE + DESK_PAGE_SIZE)
+  const deskVisibleNames = deskVisibleProfs.map((p) => p.Name)
+
+  // Pré-computa layout de colunas para agendamentos sobrepostos — inclui urgentes: um
+  // agendamento urgente sobreposto a outro divide largura como qualquer sobreposição
+  // normal, em vez de cobrir o outro por cima em largura total (bug real: escondia
+  // completamente o agendamento original, ex: coloração some atrás da manicure urgente).
   const columnMap = new Map()
   profObjects.forEach(profObj => {
-    const profAppts = appointments.filter(
-      a => a.Professional_id === profObj.UUID && !a.Is_urgent
-    )
+    const profAppts = appointments.filter(a => a.Professional_id === profObj.UUID)
     computeColumns(profAppts).forEach((data, uuid) => columnMap.set(uuid, data))
   })
 
@@ -1539,18 +1568,41 @@ export default function AdminAgenda() {
             </div>
           )}
 
-          {/* Grade — desktop: todos profissionais · mobile: profissional selecionado */}
+          {/* Desktop: paginação de profissionais quando há mais de DESK_PAGE_SIZE */}
+          {deskTotalPages > 1 && (
+            <div className="hidden md:flex items-center gap-2 mb-3">
+              <button
+                onClick={() => setDeskProfPage((p) => Math.max(0, p - 1))}
+                disabled={deskPageClamped === 0}
+                className="w-[32px] h-[32px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center disabled:opacity-30 hover:border-ink-3 transition-colors"
+              >
+                <Icon name="arrowLeft" size={13} />
+              </button>
+              <div className="text-[12.5px] text-ink-3">
+                Profissionais {deskPageClamped * DESK_PAGE_SIZE + 1}–{Math.min((deskPageClamped + 1) * DESK_PAGE_SIZE, profObjects.length)} de {profObjects.length}
+              </div>
+              <button
+                onClick={() => setDeskProfPage((p) => Math.min(deskTotalPages - 1, p + 1))}
+                disabled={deskPageClamped === deskTotalPages - 1}
+                className="w-[32px] h-[32px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center disabled:opacity-30 hover:border-ink-3 transition-colors"
+              >
+                <Icon name="arrowRight" size={13} />
+              </button>
+            </div>
+          )}
+
+          {/* Grade — desktop: página atual de profissionais · mobile: profissional selecionado */}
           <div data-tour="schedule-grid" className="bg-surface border border-line rounded-lg overflow-hidden">
             {/* Desktop */}
             <div
               className="hidden md:grid overflow-y-auto max-h-[70vh] scrollbar-hidden"
-              style={{ gridTemplateColumns: `64px repeat(${profNames.length}, 1fr)` }}
+              style={{ gridTemplateColumns: `64px repeat(${deskVisibleNames.length}, minmax(0, 1fr))` }}
             >
               <div className="sticky top-0 z-30 px-3 py-3 border-b border-r border-line bg-surface-2" />
-              {profNames.map((name, idx) => (
-                <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5">
+              {deskVisibleNames.map((name, idx) => (
+                <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5 min-w-0">
                   <Avatar name={name} index={idx} size="sm" />
-                  <div className="font-medium text-[13px] truncate">{name}</div>
+                  <div className="font-medium text-[13px] truncate min-w-0">{name}</div>
                 </div>
               ))}
               {TIME_SLOTS.map((slot) => {
@@ -1561,8 +1613,8 @@ export default function AdminAgenda() {
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2 border-dashed'}`}>
                     {isHour ? slot : ''}
                   </div>,
-                  ...profNames.map((prof, pi) => {
-                    const profObj = profObjects[pi]
+                  ...deskVisibleNames.map((prof, pi) => {
+                    const profObj = deskVisibleProfs[pi]
                     const wh = breakByProf[profObj?.UUID] ?? null
                     const leaves = leaveByProf[profObj?.UUID] ?? []
                     const appts = appointments.filter((a) => a.Professional_id === profObj?.UUID && anchoredToSlot(a, slot))
@@ -1582,67 +1634,41 @@ export default function AdminAgenda() {
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                           ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
                           ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                        {(() => {
-                          const normalAppts = appts.filter(a => !a.Is_urgent)
-                          const urgentAppts = appts.filter(a => a.Is_urgent)
-                          return <>
-                            {normalAppts.map((a) => {
-                              const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                              const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
-                              const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
-                              const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
-                              const right = totalCols > 1 ? undefined : '3px'
-                              return (
-                                <button
-                                  key={a.UUID}
-                                  onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                                  onContextMenu={e => openContextMenu(e, a)}
-                                  onTouchStart={e => handleLongPressStart(e, a)}
-                                  onTouchEnd={handleLongPressEnd}
-                                  onTouchMove={handleLongPressEnd}
-                                  style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64), width: w, left, right }}
-                                  className={`absolute z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
-                                    hover:opacity-80 transition-opacity overflow-hidden ${s.card}`}
-                                >
-                                  <div className="flex items-center gap-1.5 leading-none">
-                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                    <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                                  </div>
-                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
-                                  <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                    {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                                  </div>
-                                </button>
-                              )
-                            })}
-                            {urgentAppts.map((a) => {
-                              const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                              return (
-                                <button
-                                  key={a.UUID}
-                                  onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                                  onContextMenu={e => openContextMenu(e, a)}
-                                  onTouchStart={e => handleLongPressStart(e, a)}
-                                  onTouchEnd={handleLongPressEnd}
-                                  onTouchMove={handleLongPressEnd}
-                                  style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64) }}
-                                  className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-center border-2 border-warning cursor-pointer flex flex-col justify-center items-center
-                                    hover:opacity-90 transition-opacity overflow-hidden ${s.card} shadow-md`}
-                                >
-                                  <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>
-                                  <div className="flex items-center gap-1.5 leading-none">
-                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                    <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                                  </div>
-                                  <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
-                                  <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                    {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                                  </div>
-                                </button>
-                              )
-                            })}
-                          </>
-                        })()}
+                        {appts.map((a) => {
+                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                          const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
+                          const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
+                          const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
+                          const right = totalCols > 1 ? undefined : '3px'
+                          return (
+                            <button
+                              key={a.UUID}
+                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                              onContextMenu={e => openContextMenu(e, a)}
+                              onTouchStart={e => handleLongPressStart(e, a)}
+                              onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressEnd}
+                              style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64), width: w, left, right }}
+                              className={`absolute rounded-md px-2 py-1.5 text-center cursor-pointer flex flex-col justify-center items-center
+                                hover:opacity-80 transition-opacity overflow-hidden ${s.card}
+                                ${a.Is_urgent ? 'z-20 border-2 border-warning shadow-md' : 'z-10 border'}`}
+                            >
+                              {a.Is_urgent && <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>}
+                              <div className="flex items-center justify-center gap-1.5 leading-none w-full min-w-0">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                                <span className="font-semibold text-[11px] truncate min-w-0">{a.Client}</span>
+                              </div>
+                              <div className="w-full min-w-0 mt-0.5">
+                                {serviceNames(a).map((name, i) => (
+                                  <div key={i} className="font-mono text-[10px] opacity-75 truncate">{name}</div>
+                                ))}
+                              </div>
+                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                              </div>
+                            </button>
+                          )
+                        })}
                         {breakStart && (
                           <div
                             style={{ height: breakSpans * 64 - 4 }}
@@ -1705,67 +1731,41 @@ export default function AdminAgenda() {
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
                       ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
-                    {(() => {
-                      const normalAppts = appts.filter(a => !a.Is_urgent)
-                      const urgentAppts = appts.filter(a => a.Is_urgent)
-                      return <>
-                        {normalAppts.map((a) => {
-                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                          const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
-                          const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
-                          const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
-                          const right = totalCols > 1 ? undefined : '3px'
-                          return (
-                            <button
-                              key={a.UUID}
-                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                              onContextMenu={e => openContextMenu(e, a)}
-                              onTouchStart={e => handleLongPressStart(e, a)}
-                              onTouchEnd={handleLongPressEnd}
-                              onTouchMove={handleLongPressEnd}
-                              style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56), width: w, left, right }}
-                              className={`absolute z-10 rounded-md px-2 py-1.5 text-center border cursor-pointer flex flex-col justify-center items-center
-                                hover:opacity-80 transition-opacity overflow-hidden ${s.card}`}
-                            >
-                              <div className="flex items-center gap-1.5 leading-none">
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                              </div>
-                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
-                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                              </div>
-                            </button>
-                          )
-                        })}
-                        {urgentAppts.map((a) => {
-                          const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                          return (
-                            <button
-                              key={a.UUID}
-                              onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                              onContextMenu={e => openContextMenu(e, a)}
-                              onTouchStart={e => handleLongPressStart(e, a)}
-                              onTouchEnd={handleLongPressEnd}
-                              onTouchMove={handleLongPressEnd}
-                              style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56) }}
-                              className={`absolute inset-x-[3px] z-20 rounded-md px-2 py-1.5 text-center border-2 border-warning cursor-pointer flex flex-col justify-center items-center
-                                hover:opacity-90 transition-opacity overflow-hidden ${s.card} shadow-md`}
-                            >
-                              <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>
-                              <div className="flex items-center gap-1.5 leading-none">
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                                <span className="font-semibold text-[11px] truncate">{a.Client}</span>
-                              </div>
-                              <div className="font-mono text-[10px] opacity-75 truncate mt-0.5">{a.Service}</div>
-                              <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
-                                {parseTime(a.Start_time)} → {parseTime(a.End_time)}
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </>
-                    })()}
+                    {appts.map((a) => {
+                      const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
+                      const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
+                      const w = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
+                      const left = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
+                      const right = totalCols > 1 ? undefined : '3px'
+                      return (
+                        <button
+                          key={a.UUID}
+                          onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                          onContextMenu={e => openContextMenu(e, a)}
+                          onTouchStart={e => handleLongPressStart(e, a)}
+                          onTouchEnd={handleLongPressEnd}
+                          onTouchMove={handleLongPressEnd}
+                          style={{ height: apptHeight(a, 56), top: apptTop(a, slot, 56), width: w, left, right }}
+                          className={`absolute rounded-md px-2 py-1.5 text-center cursor-pointer flex flex-col justify-center items-center
+                            hover:opacity-80 transition-opacity overflow-hidden ${s.card}
+                            ${a.Is_urgent ? 'z-20 border-2 border-warning shadow-md' : 'z-10 border'}`}
+                        >
+                          {a.Is_urgent && <div className="font-mono text-[9px] uppercase tracking-widest opacity-75 mb-0.5">⚡ Urgente</div>}
+                          <div className="flex items-center justify-center gap-1.5 leading-none w-full min-w-0">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                            <span className="font-semibold text-[11px] truncate min-w-0">{a.Client}</span>
+                          </div>
+                          <div className="w-full min-w-0 mt-0.5">
+                            {serviceNames(a).map((name, i) => (
+                              <div key={i} className="font-mono text-[10px] opacity-75 truncate">{name}</div>
+                            ))}
+                          </div>
+                          <div className="font-mono text-[10px] opacity-60 truncate mt-0.5">
+                            {parseTime(a.Start_time)} → {parseTime(a.End_time)}
+                          </div>
+                        </button>
+                      )
+                    })}
                     {breakStart && (
                       <div
                         style={{ height: breakSpans * 56 - 4 }}

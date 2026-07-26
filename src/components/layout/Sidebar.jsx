@@ -6,6 +6,7 @@ import Icon from '@/components/ui/Icons'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
 import useNotificationStore from '@/store/notificationStore'
+import { usePermission } from '@/hooks/usePermission'
 
 function NavGroup({ item, onClose }) {
   const location = useLocation()
@@ -59,6 +60,8 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { unreadCount, openDrawer } = useNotificationStore()
+  const { can } = usePermission()
+  const visibleNavItems = navItems.filter((item) => can(item.module, 'view'))
   const navScrollRef = useRef(null)
 
   useEffect(() => {
@@ -101,7 +104,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
 
       {/* Nav items */}
       <div ref={navScrollRef} className="nav-scroll flex-1 overflow-y-auto flex flex-col gap-0.5 min-h-0">
-      {navItems.map((item, i) => {
+      {visibleNavItems.map((item, i) => {
         if (item.type === 'label') {
           return (
             <div key={i} className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 px-2.5 pt-3.5 pb-1">

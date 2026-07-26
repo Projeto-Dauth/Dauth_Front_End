@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
+import ClienteSidebar from '@/components/layout/ClienteSidebar'
 import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Avatar from '@/components/ui/Avatar'
@@ -46,6 +47,41 @@ function InfoRow({ label, value }) {
   )
 }
 
+// 1 linha por profissional — usada tanto pro agendamento solo (lista de 1 item) quanto
+// pro atendimento combinado (Booking_group com N Appointments). Sem ação de status aqui:
+// os botões "Marcar como..." no rodapé já cobrem isso, aplicando o mesmo status a todos
+// os membros de uma vez (ver changeStatus).
+function GroupMemberRow({ member, isCurrent, onNavigate }) {
+  // Cada serviço do bloco (Appointment_services) tem seu próprio Start_time/End_time
+  // desde a migration appointment_services_item_times — não junta mais tudo numa linha
+  // só com o horário do bloco inteiro; blocos antigos sem horário salvo por item caem no
+  // fallback do member.Start_time/End_time (horário do Appointment inteiro).
+  const services = member.Services?.length > 0
+    ? member.Services
+    : [{ Name: member.Service, Start_time: member.Start_time, End_time: member.End_time }]
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-line-2 last:border-0">
+      <Avatar name={member.Professional ?? '?'} index={0} size="sm" />
+      <div className="flex-1 min-w-0 space-y-0.5">
+        {services.map((s, i) => (
+          <div key={s.UUID ?? i} className="flex items-center gap-2 min-w-0">
+            <span className="text-[13px] font-medium truncate">{s.Name ?? '—'}</span>
+            <span className="font-mono text-[11px] text-ink-3 truncate shrink-0">
+              {member.Professional} · {(s.Start_time ?? member.Start_time)?.slice(0, 5)} → {(s.End_time ?? member.End_time)?.slice(0, 5)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <Chip status={member.Status} dot>{STATUS_LABELS[member.Status] ?? member.Status}</Chip>
+      {!isCurrent && (
+        <button onClick={() => onNavigate(member.UUID)} title="Ver este item" className="shrink-0 text-ink-3 hover:text-ink transition-colors cursor-pointer">
+          <Icon name="chevronRight" size={14} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function DetalhesAgendamento() {
   const { id } = useParams()
   const { user } = useAuthStore()
@@ -67,7 +103,15 @@ export default function DetalhesAgendamento() {
   const [editDate, setEditDate] = useState('')
   const [editItens, setEditItens] = useState([])
   const [editIsUrgent, setEditIsUrgent] = useState(false)
+  const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+
+  const [addingProduct, setAddingProduct] = useState(false)
+  const [products, setProducts] = useState([])
+  const [newProductId, setNewProductId] = useState('')
+  const [newProductQty, setNewProductQty] = useState(1)
+  const [savingProduct, setSavingProduct] = useState(false)
+  const [removingProductId, setRemovingProductId] = useState(null)
 
   useEffect(() => {
     api.get(`/appointment/${id}`)
@@ -91,10 +135,15 @@ export default function DetalhesAgendamento() {
   }, [id])
 
   async function changeStatus() {
+    // Atendimento combinado (Booking_group): todos os membros seguem o mesmo status junto
+    // — confirmar/cancelar/concluir o agendamento afeta todo mundo na tela de uma vez, não
+    // só o item que foi clicado pra chegar aqui.
+    const targetIds = item.Group?.length > 1 ? item.Group.map(m => m.UUID) : [id]
     setSaving(true)
     try {
-      await api.patch(`/appointment/${id}`, { Status: modal.status })
-      setItem(prev => ({ ...prev, Status: modal.status }))
+      await Promise.all(targetIds.map(tid => api.patch(`/appointment/${tid}`, { Status: modal.status })))
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
       addToast(`Status atualizado para "${STATUS_LABELS[modal.status]}"`)
       setModal({ open: false, status: '' })
     } catch (err) {
@@ -150,9 +199,67 @@ export default function DetalhesAgendamento() {
     }
   }
 
+  function openAddProduct() {
+    setNewProductId('')
+    setNewProductQty(1)
+    setAddingProduct(true)
+    if (products.length === 0) {
+      api.get('/product', { params: { limit: 100 } })
+        .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
+        .catch(() => {})
+    }
+  }
+
+  async function handleAddProduct() {
+    if (!newProductId) return addToast('Selecione um produto', 'warning')
+    setSavingProduct(true)
+    try {
+      // Antes de concluído, o agendamento ainda não tem comanda (Tab só é criada
+      // automaticamente ao marcar como "Concluído") — se o cliente quiser incluir um
+      // produto antes disso, criamos a comanda agora mesmo, vazia, e anexamos o item nela.
+      let tabId = item.Tab?.UUID
+      if (!tabId) {
+        const { data: newTab } = await api.post('/tab', { Value: 0, Status: 'Em aberto', Appointment: item.UUID })
+        tabId = newTab.UUID
+      }
+
+      await api.post(`/tab/${tabId}/items`, {
+        Product_id: newProductId,
+        Quantity: newProductQty,
+      })
+      const product = products.find(p => p.UUID === newProductId)
+      // O backend agrupa produtos repetidos por Product_id na leitura (ver
+      // appointmentController.getById) — rebusca o agendamento em vez de tentar montar o
+      // merge no cliente, garante que a tela sempre reflita o agrupamento real.
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
+      addToast(`${product?.Name ?? 'Produto'} adicionado à comanda`)
+      setAddingProduct(false)
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao adicionar produto', 'error')
+    } finally {
+      setSavingProduct(false)
+    }
+  }
+
+  async function handleRemoveProduct(productItemId) {
+    setRemovingProductId(productItemId)
+    try {
+      await api.delete(`/tab/${item.Tab.UUID}/items/${productItemId}`)
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
+      addToast('Produto removido da comanda')
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao remover produto', 'error')
+    } finally {
+      setRemovingProductId(null)
+    }
+  }
+
   function openEdit() {
     setEditDate(item.Date)
     setEditIsUrgent(false)
+    setEditNotes(item.Notes ?? '')
     setEditItens([{
       id: item.UUID,
       serviceId: item.Service_id ?? '',
@@ -216,27 +323,22 @@ export default function DetalhesAgendamento() {
     if (editItens.some(it => !it.serviceId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     setSavingEdit(true)
     try {
-      for (const it of editItens) {
-        if (it.id) {
-          await api.patch(`/appointment/${it.id}`, {
-            Service: it.serviceId,
-            Date: editDate,
-            Start_time: it.startTime,
-            End_time: it.endTime,
-            ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
-          })
-        } else {
-          await api.post('/appointment', {
-            Client: item.Client_id,
-            Professional: item.Professional_id,
-            Service: it.serviceId,
-            Date: editDate,
-            Start_time: it.startTime,
-            End_time: it.endTime,
-            ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
-          })
-        }
-      }
+      // Itens novos adicionados na edição (sem id) sempre são da MESMA profissional (edição
+      // não tem seletor de profissional por item) — em vez de virar Appointments separados,
+      // são anexados ao bloco original (Add_services) no mesmo PATCH: 1 card só na Agenda,
+      // 1 Tab só ao concluir.
+      const [original, ...newItens] = editItens
+      await api.patch(`/appointment/${original.id}`, {
+        Service: original.serviceId,
+        Date: editDate,
+        Start_time: original.startTime,
+        End_time: original.endTime,
+        Notes: editNotes.trim() || null,
+        ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
+        ...(newItens.length > 0 ? {
+          Add_services: newItens.map(it => ({ Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
+        } : {}),
+      })
       const { data } = await api.get(`/appointment/${id}`)
       setItem(data.data ?? data)
       addToast('Agendamento atualizado com sucesso')
@@ -263,9 +365,10 @@ export default function DetalhesAgendamento() {
   const canEdit = role === 'Admin' || role === 'Profissional'
   const canReschedule = ['pendente', 'confirmado'].includes(item?.Status)
 
-  const sidebar = (
-    <Sidebar navItems={navItems} footerUser={user?.name} footerRole={role}>{role}</Sidebar>
-  )
+  const sidebar = role === 'Usuario'
+    ? <ClienteSidebar user={user} />
+    : <Sidebar navItems={navItems} footerUser={user?.name} footerRole={role}>{role}</Sidebar>
+
 
   if (loading) {
     return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
@@ -371,6 +474,18 @@ export default function DetalhesAgendamento() {
                 </button>
               )}
 
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] font-medium text-ink-2">Observação <span className="text-ink-4 font-normal">(opcional)</span></label>
+                <textarea
+                  value={editNotes}
+                  onChange={e => setEditNotes(e.target.value)}
+                  placeholder="Ex: cliente prefere água morna, trouxe produto próprio…"
+                  rows={2}
+                  maxLength={1000}
+                  className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+                />
+              </div>
+
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" size="md" onClick={() => setEditing(false)} className="flex-1">
                   Cancelar
@@ -383,8 +498,52 @@ export default function DetalhesAgendamento() {
           ) : (
             <div className="px-6">
               <InfoRow label="Data" value={formatDate(item.Date)} />
-              <InfoRow label="Horário" value={item.Start_time ? `${item.Start_time.slice(0,5)} → ${item.End_time?.slice(0,5)}` : null} />
-              <InfoRow label="Serviço" value={item.Service} />
+              <div className="py-3 border-b border-line-2">
+                <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-1">
+                  Serviços
+                </div>
+                {(item.Group?.length > 1 ? item.Group : [item]).map(m => (
+                  <GroupMemberRow
+                    key={m.UUID}
+                    member={m}
+                    isCurrent={m.UUID === id}
+                    onNavigate={(uuid) => navigate(`/agendamento/${uuid}`)}
+                  />
+                ))}
+              </div>
+              <InfoRow
+                label="Produtos"
+                value={
+                  item.Tab?.Products?.length > 0 ? (
+                    <div className="space-y-1">
+                      {item.Tab.Products.map(p => (
+                        <div key={p.UUID} className="flex items-center gap-2">
+                          <span>{p.Quantity}x {p.Name}</span>
+                          {canEdit && item.Tab.Status === 'Em aberto' && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProduct(p.UUID)}
+                              disabled={removingProductId === p.UUID}
+                              title="Remover produto"
+                              className="flex items-center justify-center w-6 h-6 -m-1 rounded text-ink-3 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                            >
+                              <Icon name="x" size={15} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : '—'
+                }
+              />
+              <InfoRow label="Observação" value={item.Notes} />
+              {canEdit && item.Status !== 'cancelado' && (!item.Tab?.UUID || item.Tab.Status === 'Em aberto') && (
+                <div className="py-3.5">
+                  <Button variant="ghost" size="sm" onClick={openAddProduct}>
+                    <Icon name="plus" size={13} />Adicionar produto
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -402,16 +561,8 @@ export default function DetalhesAgendamento() {
             </div>
           </div>
 
-          {/* Professional */}
-          <div className="bg-surface border border-line rounded-xl p-5">
-            <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-3">Profissional</div>
-            <div className="flex items-center gap-3">
-              <Avatar name={item.Professional ?? '?'} index={1} size="md" />
-              <div>
-                <div className="font-medium text-[13.5px]">{item.Professional ?? '—'}</div>
-              </div>
-            </div>
-          </div>
+          {/* Professional — removido: o profissional já aparece na lista do card
+              "Informações" (GroupMemberRow), sempre, agrupado ou não */}
 
           {/* Histórico do cliente */}
           {(role === 'Profissional' || role === 'Admin') && history.length > 0 && (
@@ -499,6 +650,47 @@ export default function DetalhesAgendamento() {
           onClose={() => setFecharConta(null)}
           onConfirm={handleConfirmFechar}
         />
+      )}
+
+      {addingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={() => setAddingProduct(false)} />
+          <div className="relative bg-surface rounded-xl p-6 w-full max-w-sm shadow-md border border-line mx-4">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <h3 className="font-display font-medium text-lg tracking-tight">Adicionar produto</h3>
+              <button
+                onClick={() => setAddingProduct(false)}
+                className="text-ink-3 hover:text-ink transition-colors mt-0.5 cursor-pointer"
+              >
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 mb-5">
+              <SearchableSelect
+                options={products.map(p => ({ value: p.UUID, label: p.Name }))}
+                value={newProductId}
+                onChange={setNewProductId}
+                placeholder={products.length === 0 ? 'Carregando…' : 'Selecione o produto'}
+                disabled={products.length === 0}
+              />
+              <Input
+                label="Quantidade"
+                type="number"
+                min={1}
+                value={newProductQty}
+                onChange={(e) => setNewProductQty(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </div>
+            <div className="flex gap-2.5 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setAddingProduct(false)} disabled={savingProduct}>
+                Cancelar
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleAddProduct} disabled={savingProduct}>
+                {savingProduct ? 'Aguarde...' : 'Adicionar'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       <Modal

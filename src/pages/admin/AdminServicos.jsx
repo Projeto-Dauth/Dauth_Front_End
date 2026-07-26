@@ -72,6 +72,8 @@ export default function AdminServicos() {
   const [linkingProf, setLinkingProf] = useState(false)
   const [unlinkProf, setUnlinkProf] = useState(null)    // { linkId, name }
   const [unlinkingProf, setUnlinkingProf] = useState(false)
+  const [editingProfCommissionId, setEditingProfCommissionId] = useState(null)
+  const [updatingProfCommissionId, setUpdatingProfCommissionId] = useState(null)
 
   const loadServices = useCallback(async () => {
     setLoadingServices(true)
@@ -217,6 +219,28 @@ export default function AdminServicos() {
       addToast(err.response?.data?.error || 'Erro ao remover vínculo', 'error')
     } finally {
       setUnlinkingProf(false)
+    }
+  }
+
+  // Comissão específica de um profissional para este serviço (Commission_override) — se
+  // vazio/limpo, volta a usar a comissão padrão do serviço (Service.Commission).
+  async function handleUpdateProfCommission(prof, rawValue) {
+    setEditingProfCommissionId(null)
+    const trimmed = String(rawValue).trim().replace(',', '.')
+    const newValue = trimmed === '' ? null : parseFloat(trimmed)
+    if (newValue !== null && (!Number.isFinite(newValue) || newValue < 0 || newValue > 100)) {
+      addToast('Comissão deve ser entre 0 e 100', 'warning')
+      return
+    }
+    if (newValue === (prof.commission_override ?? null)) return
+    setUpdatingProfCommissionId(prof.id)
+    try {
+      await api.patch(`/service/professionals/${prof.id}`, { Commission_override: newValue })
+      setLinkedProfs(prev => prev.map(p => p.id === prof.id ? { ...p, commission_override: newValue } : p))
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao atualizar comissão', 'error')
+    } finally {
+      setUpdatingProfCommissionId(null)
     }
   }
 
@@ -572,17 +596,50 @@ export default function AdminServicos() {
               ) : linkedProfs.length === 0 ? (
                 <div className="text-[13px] text-ink-3 italic">Nenhuma profissional vinculada</div>
               ) : linkedProfs.map((prof) => (
-                <div key={prof.id} className="flex justify-between items-center py-2.5 border-b border-line-2 last:border-0">
-                  <div>
-                    <div className="text-[13px] font-medium">{prof.name}</div>
+                <div key={prof.id} className="flex justify-between items-center gap-2 py-2.5 border-b border-line-2 last:border-0">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium truncate">{prof.name}</div>
                     {prof.phone && <div className="font-mono text-[11px] text-ink-3">{prof.phone}</div>}
                   </div>
-                  <button
-                    onClick={() => setUnlinkProf({ linkId: prof.id, name: prof.name })}
-                    className="text-ink-3 hover:text-danger transition-colors cursor-pointer p-1"
-                  >
-                    <Icon name="trash" size={14} />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {editingProfCommissionId === prof.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        inputMode="decimal"
+                        defaultValue={prof.commission_override ?? ''}
+                        placeholder={String(profsDrawer.Commission)}
+                        onInput={e => {
+                          const cleaned = e.target.value.replace(/[^0-9.,]/g, '')
+                          if (cleaned !== e.target.value) e.target.value = cleaned
+                        }}
+                        onBlur={e => handleUpdateProfCommission(prof, e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') e.target.blur()
+                          if (e.key === 'Escape') { e.target.value = prof.commission_override ?? ''; e.target.blur() }
+                        }}
+                        className="w-16 h-7 px-1.5 rounded border border-brand bg-surface text-ink text-[12.5px] font-mono text-right focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditingProfCommissionId(prof.id)}
+                        disabled={updatingProfCommissionId === prof.id}
+                        title="Editar comissão deste profissional neste serviço"
+                        className={`font-mono text-[12.5px] px-1.5 hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors ${
+                          prof.commission_override != null ? 'text-brand font-medium' : 'text-ink-3'
+                        }`}
+                      >
+                        {prof.commission_override != null ? `${prof.commission_override}%` : `${profsDrawer.Commission}% (padrão)`}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setUnlinkProf({ linkId: prof.id, name: prof.name })}
+                      className="text-ink-3 hover:text-danger transition-colors cursor-pointer p-1"
+                    >
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

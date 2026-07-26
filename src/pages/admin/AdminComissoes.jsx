@@ -95,8 +95,11 @@ function groupByProfessional(transactions) {
   return Object.values(map)
 }
 
-function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPagarTodas, preparando = false, paid = false }) {
-  const totalRows = groups.reduce((s, g) => s + g.rows.length, 0)
+function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPagarTodas, preparando = false, paid = false, totalsByProf = {} }) {
+  const totalRows = groups.reduce((s, g) => {
+    const real = totalsByProf[g.professional_id]
+    return s + (real !== undefined ? (paid ? real.count_repassado : real.count_pendente) : g.rows.length)
+  }, 0)
   return (
     <>
       <div className="flex items-center gap-3 mb-4">
@@ -105,14 +108,22 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
         <div className="flex-1 border-t border-line-2" />
       </div>
       <div className="space-y-5">
-        {groups.map((g, gi) => (
+        {groups.map((g, gi) => {
+          const realTotal = totalsByProf[g.professional_id]
+          const totalToShow = realTotal !== undefined
+            ? (paid ? realTotal.total_repassado : realTotal.total_pendente)
+            : g.rows.reduce((s, r) => s + r.commission_amount, 0)
+          const countToShow = realTotal !== undefined
+            ? (paid ? realTotal.count_repassado : realTotal.count_pendente)
+            : g.rows.length
+          return (
           <div key={g.professional_id} className="bg-surface border border-line rounded-[14px] overflow-hidden">
             <div className="px-5 py-3 bg-surface-2 border-b border-line">
               <div className="flex items-center gap-2.5">
                 <Avatar name={g.name} index={gi} size="sm" />
                 <span className="font-medium text-[13.5px] text-ink flex-1 min-w-0 truncate">{g.name}</span>
                 <span className={`font-mono text-[13px] font-semibold shrink-0 ${paid ? 'text-ink-3' : 'text-brand'}`}>
-                  {formatCurrency(g.rows.reduce((s, r) => s + r.commission_amount, 0))}
+                  {formatCurrency(totalToShow)}
                 </span>
                 {!paid && (
                   <button
@@ -125,7 +136,7 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
                 )}
               </div>
               <div className="flex items-center justify-between mt-2 pl-[38px]">
-                <span className="font-mono text-[11px] text-ink-4">{g.rows.length} atendimento{g.rows.length !== 1 ? 's' : ''}</span>
+                <span className="font-mono text-[11px] text-ink-4">{countToShow} atendimento{countToShow !== 1 ? 's' : ''}</span>
                 {!paid && (
                   <button
                     onClick={() => onPagarTodas(g)}
@@ -217,7 +228,7 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
               ))}
             </div>
           </div>
-        ))}
+        )})}
       </div>
     </>
   )
@@ -458,9 +469,22 @@ export default function AdminComissoes() {
   const [pagarModal, setPagarModal] = useState(null)
   const [pagando, setPagando] = useState(false)
   const [totals, setTotals] = useState({ totalPendente: 0, totalReceita: 0 })
+  const [totalsByProf, setTotalsByProf] = useState({})
   const [preparandoModal, setPreparandoModal] = useState(false)
 
   const { from, to } = getDateRange(preset)
+
+  useEffect(() => {
+    api.get('/transaction/commissions/totals-by-professional', {
+      params: { ...(from && { from }), ...(to && { to }), ...(profFilter && { professional_id: profFilter }) },
+    }).then(res => {
+      const map = {}
+      for (const row of res.data.data ?? []) {
+        map[row.professional_id] = row
+      }
+      setTotalsByProf(map)
+    }).catch(() => setTotalsByProf({}))
+  }, [from, to, profFilter])
 
   const {
     items: transactions,
@@ -471,12 +495,19 @@ export default function AdminComissoes() {
     loadMore,
   } = usePaginatedList(
     (page, limit) => api.get('/transaction/all-commissions', {
-      params: { ...(from && { from }), ...(to && { to }), ...(profFilter && { professional_id: profFilter }), page, limit },
+      params: {
+        ...(from && { from }),
+        ...(to && { to }),
+        ...(profFilter && { professional_id: profFilter }),
+        commission_paid: commissionTab === 'repassada',
+        page,
+        limit,
+      },
     }).then(res => {
       setTotals(res.data.totals ?? { totalPendente: 0, totalReceita: 0 })
       return res.data
     }),
-    [from, to, profFilter]
+    [from, to, profFilter, commissionTab]
   )
 
   const { restartTour } = useTour('admin_caixa_comissoes', adminCaixaComissoesSteps, !loading)
@@ -545,8 +576,8 @@ export default function AdminComissoes() {
     }
   }
 
-  const pendentes = transactions.filter(tx => !tx.commission_paid)
-  const repassadas = transactions.filter(tx => tx.commission_paid)
+  const pendentes = commissionTab === 'pendente' ? transactions : []
+  const repassadas = commissionTab === 'repassada' ? transactions : []
   const totalPendente = totals.totalPendente
   const totalReceita = totals.totalReceita
   const groupsPendentes = groupByProfessional(pendentes)
@@ -662,9 +693,11 @@ export default function AdminComissoes() {
                       : 'bg-surface text-ink-3 border-line hover:border-ink-3'
                   }`}>
                   A repassar
-                  <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded-full ${commissionTab === 'pendente' ? 'bg-warning/20 text-warning' : 'bg-line text-ink-4'}`}>
-                    {pendentes.length}
-                  </span>
+                  {commissionTab === 'pendente' && (
+                    <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning">
+                      {pendentes.length}{hasMore ? '+' : ''}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => setCommissionTab('repassada')}
@@ -674,9 +707,11 @@ export default function AdminComissoes() {
                       : 'bg-surface text-ink-3 border-line hover:border-ink-3'
                   }`}>
                   Repassadas
-                  <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded-full ${commissionTab === 'repassada' ? 'bg-success/20 text-success' : 'bg-line text-ink-4'}`}>
-                    {repassadas.length}
-                  </span>
+                  {commissionTab === 'repassada' && (
+                    <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-full bg-success/20 text-success">
+                      {repassadas.length}{hasMore ? '+' : ''}
+                    </span>
+                  )}
                 </button>
               </div>
 
@@ -690,11 +725,12 @@ export default function AdminComissoes() {
                       onMarcarRepassado={handleMarcarRepassado}
                       onPagarTodas={abrirModalPagarTodas}
                       preparando={preparandoModal}
+                      totalsByProf={totalsByProf}
                     />
               ) : (
                 groupsRepassadas.length === 0
                   ? <EmptyState icon="cash" title="Nenhum repasse" description="Nenhuma comissão repassada neste período." />
-                  : <CommissionSection title="Repassadas" groups={groupsRepassadas} paid />
+                  : <CommissionSection title="Repassadas" groups={groupsRepassadas} paid totalsByProf={totalsByProf} />
               )}
 
               {hasMore && <LoadMoreButton onClick={loadMore} loading={loadingMore} />}
