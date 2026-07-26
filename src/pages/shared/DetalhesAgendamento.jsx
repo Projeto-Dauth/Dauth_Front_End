@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
+import ClienteSidebar from '@/components/layout/ClienteSidebar'
 import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Avatar from '@/components/ui/Avatar'
@@ -364,9 +365,10 @@ export default function DetalhesAgendamento() {
   const canEdit = role === 'Admin' || role === 'Profissional'
   const canReschedule = ['pendente', 'confirmado'].includes(item?.Status)
 
-  const sidebar = (
-    <Sidebar navItems={navItems} footerUser={user?.name} footerRole={role}>{role}</Sidebar>
-  )
+  const sidebar = role === 'Usuario'
+    ? <ClienteSidebar user={user} />
+    : <Sidebar navItems={navItems} footerUser={user?.name} footerRole={role}>{role}</Sidebar>
+
 
   if (loading) {
     return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
