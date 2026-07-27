@@ -802,7 +802,7 @@ export default function AdminUsuarios() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  {['Cliente', 'Role', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
+                  {['Cliente', 'Função', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
                     <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
                       {h}
                     </th>
@@ -828,7 +828,7 @@ export default function AdminUsuarios() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  {['Cliente', 'Role', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
+                  {['Cliente', 'Função', 'Telefone', 'Nascimento', 'Status', ''].map((h) => (
                     <th key={h} className="px-3.5 py-3 text-left font-mono text-[10.5px] uppercase tracking-widest text-ink-3 border-b border-line-2">
                       {h}
                     </th>
