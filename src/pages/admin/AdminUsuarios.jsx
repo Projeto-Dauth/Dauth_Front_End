@@ -270,6 +270,22 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const [permissions, setPermissions] = useState(null)
   const [savingPermissions, setSavingPermissions] = useState(false)
 
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetting, setResetting] = useState(false)
+
+  async function handleResetPassword() {
+    setResetting(true)
+    try {
+      await api.patch(`/users/${client.UUID}/reset-password`)
+      addToast(`Senha de ${client.Name} redefinida para 123456789`, 'success')
+      setConfirmReset(false)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao redefinir senha', 'error')
+    } finally {
+      setResetting(false)
+    }
+  }
+
   useEffect(() => {
     setLoading(true)
     Promise.all([
@@ -556,10 +572,25 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                 Editar cliente
               </Button>
 
+              <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)} className="justify-center">
+                <Icon name="lock" size={13} />
+                Redefinir senha
+              </Button>
+
             </div>
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={confirmReset}
+        onClose={() => setConfirmReset(false)}
+        onConfirm={handleResetPassword}
+        title="Redefinir senha"
+        message={`A senha de ${client.Name} será redefinida para 123456789. No próximo login, será exigida a troca de senha.`}
+        confirmLabel="Redefinir"
+        loading={resetting}
+      />
 
       {fecharConta && (
         <ModalFecharConta
