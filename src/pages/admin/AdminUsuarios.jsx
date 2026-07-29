@@ -391,7 +391,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
             <button
               onClick={() => setEditing((v) => !v)}
               className="md:hidden p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
-              title="Editar cliente"
+              title={client.Role === 'Profissional' ? 'Editar profissional' : 'Editar cliente'}
             >
               <Icon name="edit" size={16} />
             </button>
@@ -569,7 +569,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
 
               <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="hidden md:flex justify-center">
                 <Icon name="edit" size={13} />
-                Editar cliente
+                {client.Role === 'Profissional' ? 'Editar profissional' : 'Editar cliente'}
               </Button>
 
               <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)} className="justify-center">
