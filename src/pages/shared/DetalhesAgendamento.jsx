@@ -260,12 +260,22 @@ export default function DetalhesAgendamento() {
     setEditDate(item.Date)
     setEditIsUrgent(false)
     setEditNotes(item.Notes ?? '')
-    setEditItens([{
-      id: item.UUID,
-      serviceId: item.Service_id ?? '',
-      startTime: item.Start_time?.slice(0, 5) ?? '',
-      endTime: item.End_time?.slice(0, 5) ?? '',
-    }])
+    const itemServices = item.Services?.length > 0
+      ? item.Services
+      : [{ UUID: item.Service_id, Start_time: item.Start_time, End_time: item.End_time }]
+    setEditItens(itemServices.map((s, i) => ({
+      // 1º item: id = UUID do Appointment (alvo do PATCH principal). Demais itens já
+      // existentes no bloco fundido: itemId = UUID da linha Appointment_services (usado
+      // em Update_services no save, pra persistir a edição num item que já existia — sem
+      // isso a edição "não salvava"). isNew só fica true pra itens adicionados agora via
+      // "+ Adicionar serviço" (vão em Add_services).
+      id: i === 0 ? item.UUID : null,
+      itemId: i === 0 ? null : (s.Item_id ?? null),
+      isNew: false,
+      serviceId: s.UUID ?? '',
+      startTime: (s.Start_time ?? item.Start_time)?.slice(0, 5) ?? '',
+      endTime: (s.End_time ?? item.End_time)?.slice(0, 5) ?? '',
+    })))
     setEditing(true)
     if (services.length === 0 && item.Professional_id) {
       setLoadingServices(true)
@@ -311,7 +321,7 @@ export default function DetalhesAgendamento() {
   function addEditItem() {
     setEditItens(prev => {
       const last = prev[prev.length - 1]
-      return [...prev, { id: null, serviceId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
+      return [...prev, { id: null, itemId: null, isNew: true, serviceId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
     })
   }
 
@@ -327,7 +337,9 @@ export default function DetalhesAgendamento() {
       // não tem seletor de profissional por item) — em vez de virar Appointments separados,
       // são anexados ao bloco original (Add_services) no mesmo PATCH: 1 card só na Agenda,
       // 1 Tab só ao concluir.
-      const [original, ...newItens] = editItens
+      const [original, ...rest] = editItens
+      const newItens = rest.filter(it => it.isNew)
+      const updateItens = rest.filter(it => !it.isNew && it.itemId)
       await api.patch(`/appointment/${original.id}`, {
         Service: original.serviceId,
         Date: editDate,
@@ -337,6 +349,9 @@ export default function DetalhesAgendamento() {
         ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
         ...(newItens.length > 0 ? {
           Add_services: newItens.map(it => ({ Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
+        } : {}),
+        ...(updateItens.length > 0 ? {
+          Update_services: updateItens.map(it => ({ Id: it.itemId, Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
       })
       const { data } = await api.get(`/appointment/${id}`)
@@ -417,7 +432,7 @@ export default function DetalhesAgendamento() {
                     <label className="text-[12px] text-ink-3 font-medium">
                       {editItens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
                     </label>
-                    {editItens.length > 1 && !it.id && (
+                    {editItens.length > 1 && it.isNew && (
                       <button type="button" onClick={() => removeEditItem(i)} className="text-ink-3 hover:text-danger transition-colors cursor-pointer">
                         <Icon name="x" size={14} />
                       </button>
