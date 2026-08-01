@@ -506,7 +506,7 @@ export default function DetalhesAgendamento() {
                 <div key={i} className="flex flex-col gap-3 pb-4 border-b border-line-2 last:border-0 last:pb-0">
                   <div className="flex items-center justify-between">
                     <label className="text-[12px] text-ink-3 font-medium">
-                      {editItens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
+                      {editItens.length > 1 ? `Item ${i + 1}` : 'Item'}
                     </label>
                     {editItens.length > 1 && it.isNew && (
                       <button type="button" onClick={() => removeEditItem(i)} className="text-ink-3 hover:text-danger transition-colors cursor-pointer">
@@ -515,21 +515,27 @@ export default function DetalhesAgendamento() {
                     )}
                   </div>
                   {canEdit && (
-                    <SearchableSelect
-                      value={it.professionalId}
-                      onChange={(pid) => handleEditProfessional(i, pid)}
-                      disabled={itemMeta[i]?.loadingProfessionals || !(itemMeta[i]?.professionalOptions?.length > 0)}
-                      options={(itemMeta[i]?.professionalOptions ?? []).map(p => ({ value: p.professional_id, label: p.name }))}
-                      placeholder={itemMeta[i]?.loadingProfessionals ? 'Carregando…' : 'Selecione a profissional'}
-                    />
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[12px] font-medium text-ink-2">Profissional</label>
+                      <SearchableSelect
+                        value={it.professionalId}
+                        onChange={(pid) => handleEditProfessional(i, pid)}
+                        disabled={itemMeta[i]?.loadingProfessionals || !(itemMeta[i]?.professionalOptions?.length > 0)}
+                        options={(itemMeta[i]?.professionalOptions ?? []).map(p => ({ value: p.professional_id, label: p.name }))}
+                        placeholder={itemMeta[i]?.loadingProfessionals ? 'Carregando…' : 'Selecione a profissional'}
+                      />
+                    </div>
                   )}
-                  <SearchableSelect
-                    options={(itemMeta[i]?.services ?? []).map(s => ({ value: s.UUID, label: s.Name }))}
-                    value={it.serviceId}
-                    onChange={(sid) => handleEditService(i, sid)}
-                    disabled={itemMeta[i]?.loadingServices || !(itemMeta[i]?.services?.length > 0)}
-                    placeholder={itemMeta[i]?.loadingServices ? 'Carregando…' : 'Selecione o serviço'}
-                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[12px] font-medium text-ink-2">Serviço</label>
+                    <SearchableSelect
+                      options={(itemMeta[i]?.services ?? []).map(s => ({ value: s.UUID, label: s.Name }))}
+                      value={it.serviceId}
+                      onChange={(sid) => handleEditService(i, sid)}
+                      disabled={itemMeta[i]?.loadingServices || !(itemMeta[i]?.services?.length > 0)}
+                      placeholder={itemMeta[i]?.loadingServices ? 'Carregando…' : 'Selecione o serviço'}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Input
                       label="Início"

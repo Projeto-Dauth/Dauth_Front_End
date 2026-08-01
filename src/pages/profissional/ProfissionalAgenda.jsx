@@ -1358,7 +1358,7 @@ export default function ProfissionalAgenda() {
                       const right = totalCols > 1 ? undefined : '3px'
                       return (
                         <button key={a._segKey ?? a.UUID}
-                          onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
+                          onClick={e => { e.stopPropagation(); openContextMenu(e, a._original ?? a) }}
                           onContextMenu={e => openContextMenu(e, a._original ?? a)}
                           onTouchStart={e => handleLongPressStart(e, a._original ?? a)}
                           onTouchEnd={handleLongPressEnd}
@@ -1398,8 +1398,9 @@ export default function ProfissionalAgenda() {
                     {leaveBlock && (
                       <div
                         style={{ height: lSpans * 64 - 4 }}
+                        onClick={e => { e.stopPropagation(); openLeaveMenu(e, leaveBlock) }}
                         onContextMenu={e => openLeaveMenu(e, leaveBlock)}
-                        className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-danger/30 bg-danger-soft flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-context-menu"
+                        className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-danger/30 bg-danger-soft flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-pointer"
                       >
                         <Icon name="x" size={11} className="text-danger" />
                         <span className="font-mono text-[9.5px] text-danger font-medium">Folga</span>
