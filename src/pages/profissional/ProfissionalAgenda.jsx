@@ -359,7 +359,7 @@ function ModalNovoCliente({ onClose, onCreated }) {
   )
 }
 
-function LeaveContextMenu({ leave, x, y, onClose, onRemove }) {
+function LeaveContextMenu({ leave, x, y, onClose, onEdit, onRemove }) {
   const menuRef = useRef(null)
   useEffect(() => {
     function handle(e) {
@@ -370,7 +370,7 @@ function LeaveContextMenu({ leave, x, y, onClose, onRemove }) {
     document.addEventListener('keydown', handle)
     return () => { document.removeEventListener('mousedown', handle); document.removeEventListener('keydown', handle) }
   }, [onClose])
-  const menuW = 180, menuH = 80
+  const menuW = 180, menuH = 116
   const adjX = x + menuW > window.innerWidth ? x - menuW : x
   const adjY = y + menuH > window.innerHeight ? y - menuH : y
   return (
@@ -379,6 +379,13 @@ function LeaveContextMenu({ leave, x, y, onClose, onRemove }) {
         <div className="font-medium text-[12.5px]">Folga</div>
         {leave.Reason && <div className="text-[11px] text-ink-3 truncate">{leave.Reason}</div>}
       </div>
+      <button
+        onClick={() => { onEdit(leave); onClose() }}
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer"
+      >
+        <Icon name="edit" size={13} />
+        Editar folga
+      </button>
       <button
         onClick={() => { onRemove(leave); onClose() }}
         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-danger hover:bg-surface-2 transition-colors cursor-pointer"
@@ -696,24 +703,41 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
   )
 }
 
-function FolgaDrawer({ date, professionalId, onClose, onSaved }) {
+function FolgaDrawer({ date, professionalId, leave, onClose, onSaved }) {
   const { addToast } = useToast()
+  const isEdit = !!leave
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-  const [form, setForm] = useState({ date: dateStr, all_day: true, start_time: '08:00', end_time: '12:00', reason: '' })
+  const [form, setForm] = useState(isEdit
+    ? {
+      date: leave.Date,
+      all_day: leave.All_day,
+      start_time: leave.Start_time?.slice(0, 5) ?? '08:00',
+      end_time: leave.End_time?.slice(0, 5) ?? '12:00',
+      reason: leave.Reason ?? ''
+    }
+    : { date: dateStr, all_day: true, start_time: '08:00', end_time: '12:00', reason: '' })
   const [saving, setSaving] = useState(false)
 
   async function handleSalvar(e) {
     e.preventDefault()
     setSaving(true)
     try {
-      const body = { professional_id: professionalId, date: form.date, all_day: form.all_day, reason: form.reason || null }
-      if (!form.all_day) { body.start_time = form.start_time; body.end_time = form.end_time }
-      await api.post('/professional-leave', body)
-      addToast('Folga registrada', 'success')
+      if (isEdit) {
+        const body = { date: form.date, all_day: form.all_day, reason: form.reason || null }
+        if (!form.all_day) { body.start_time = form.start_time; body.end_time = form.end_time }
+        else { body.start_time = null; body.end_time = null }
+        await api.patch(`/professional-leave/${leave.UUID}`, body)
+        addToast('Folga atualizada', 'success')
+      } else {
+        const body = { professional_id: professionalId, date: form.date, all_day: form.all_day, reason: form.reason || null }
+        if (!form.all_day) { body.start_time = form.start_time; body.end_time = form.end_time }
+        await api.post('/professional-leave', body)
+        addToast('Folga registrada', 'success')
+      }
       onSaved()
       onClose()
     } catch (err) {
-      addToast(err.response?.data?.error ?? 'Erro ao registrar folga', 'error')
+      addToast(err.response?.data?.error ?? 'Erro ao salvar folga', 'error')
     } finally {
       setSaving(false)
     }
@@ -726,7 +750,7 @@ function FolgaDrawer({ date, professionalId, onClose, onSaved }) {
         <div className="flex justify-center pt-3 pb-1 md:hidden"><div className="w-10 h-1 rounded-full bg-line-2" /></div>
         <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
           <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer"><Icon name="x" size={18} /></button>
-          <h4 className="font-display font-medium text-[15px] tracking-tight">Registrar folga</h4>
+          <h4 className="font-display font-medium text-[15px] tracking-tight">{isEdit ? 'Editar folga' : 'Registrar folga'}</h4>
         </div>
         <form onSubmit={handleSalvar} className="px-5 py-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -772,7 +796,7 @@ function FolgaDrawer({ date, professionalId, onClose, onSaved }) {
           </div>
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="ghost" className="flex-1 justify-center" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" className="flex-1 justify-center" loading={saving}>Registrar</Button>
+            <Button type="submit" className="flex-1 justify-center" loading={saving}>{isEdit ? 'Salvar' : 'Registrar'}</Button>
           </div>
         </form>
       </div>
@@ -1178,6 +1202,7 @@ export default function ProfissionalAgenda() {
           x={leaveMenu.x}
           y={leaveMenu.y}
           onClose={() => setLeaveMenu(null)}
+          onEdit={setFolgaDrawer}
           onRemove={handleRemoveLeave}
         />
       )}
@@ -1213,6 +1238,7 @@ export default function ProfissionalAgenda() {
         <FolgaDrawer
           date={date}
           professionalId={user.id}
+          leave={typeof folgaDrawer === 'object' ? folgaDrawer : null}
           onClose={() => setFolgaDrawer(false)}
           onSaved={() => load(true)}
         />
