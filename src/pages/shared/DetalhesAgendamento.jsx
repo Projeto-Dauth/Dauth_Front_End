@@ -60,7 +60,11 @@ function GroupMemberRow({ member, isCurrent, onNavigate }) {
     ? member.Services
     : [{ Name: member.Service, Start_time: member.Start_time, End_time: member.End_time }]
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-line-2 last:border-0">
+    <div
+      onClick={!isCurrent ? () => onNavigate(member.UUID) : undefined}
+      className={`flex items-center gap-3 py-3 border-b border-line-2 last:border-0
+        ${!isCurrent ? 'cursor-pointer hover:bg-surface-2 transition-colors -mx-1 px-1 rounded-md' : ''}`}
+    >
       <Avatar name={member.Professional ?? '?'} index={0} size="sm" />
       <div className="flex-1 min-w-0 space-y-0.5">
         {services.map((s, i) => (
@@ -74,9 +78,7 @@ function GroupMemberRow({ member, isCurrent, onNavigate }) {
       </div>
       <Chip status={member.Status} dot>{STATUS_LABELS[member.Status] ?? member.Status}</Chip>
       {!isCurrent && (
-        <button onClick={() => onNavigate(member.UUID)} title="Ver este item" className="shrink-0 text-ink-3 hover:text-ink transition-colors cursor-pointer">
-          <Icon name="chevronRight" size={14} />
-        </button>
+        <Icon name="chevronRight" size={14} className="shrink-0 text-ink-3" />
       )}
     </div>
   )
@@ -88,6 +90,9 @@ export default function DetalhesAgendamento() {
   const { addToast } = useToast()
   const navigate = useNavigate()
 
+  const role = user?.role ?? 'Usuario'
+  const canEdit = role === 'Admin' || role === 'Profissional'
+
   const [item, setItem] = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
@@ -98,13 +103,13 @@ export default function DetalhesAgendamento() {
   const [fecharPaying, setFecharPaying] = useState(false)
 
   const [editing, setEditing] = useState(false)
-  const [services, setServices] = useState([])
-  const [loadingServices, setLoadingServices] = useState(false)
   const [editDate, setEditDate] = useState('')
   const [editItens, setEditItens] = useState([])
   const [editIsUrgent, setEditIsUrgent] = useState(false)
   const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  // Por item: { services, loadingServices, professionalOptions, loadingProfessionals }
+  const [itemMeta, setItemMeta] = useState({})
 
   const [addingProduct, setAddingProduct] = useState(false)
   const [products, setProducts] = useState([])
@@ -268,35 +273,76 @@ export default function DetalhesAgendamento() {
       // existentes no bloco fundido: itemId = UUID da linha Appointment_services (usado
       // em Update_services no save, pra persistir a edição num item que já existia — sem
       // isso a edição "não salvava"). isNew só fica true pra itens adicionados agora via
-      // "+ Adicionar serviço" (vão em Add_services).
+      // "+ Adicionar serviço" (vão em Add_services). professionalId por item — todos
+      // herdam a profissional atual do bloco pra começar (é o que realmente são hoje, já
+      // que Appointment_services não guarda profissional própria); trocar a de um item
+      // específico faz ele sair do bloco e virar Appointment próprio ao salvar.
       id: i === 0 ? item.UUID : null,
       itemId: i === 0 ? null : (s.Item_id ?? null),
       isNew: false,
       serviceId: s.UUID ?? '',
       startTime: (s.Start_time ?? item.Start_time)?.slice(0, 5) ?? '',
       endTime: (s.End_time ?? item.End_time)?.slice(0, 5) ?? '',
+      professionalId: item.Professional_id ?? '',
     })))
+    setItemMeta({})
     setEditing(true)
-    if (services.length === 0 && item.Professional_id) {
-      setLoadingServices(true)
-      api.get('/service', { params: { professional: item.Professional_id, limit: 100 } })
-        .then(({ data }) => setServices(data.data ?? []))
-        .catch(() => setServices([]))
-        .finally(() => setLoadingServices(false))
-    }
   }
+
+  // Por item: serviços disponíveis pra profissional escolhida NAQUELE item, e profissionais
+  // que atendem o serviço já escolhido naquele item (pra permitir reatribuir).
+  useEffect(() => {
+    if (!editing) return
+    let cancelled = false
+    editItens.forEach((it, i) => {
+      if (it.professionalId) {
+        setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingServices: true } }))
+        api.get('/service', { params: { professional: it.professionalId, limit: 100 } })
+          .then(({ data }) => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], services: data.data ?? [], loadingServices: false } }))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], services: [], loadingServices: false } }))
+          })
+      }
+      if (canEdit && it.serviceId) {
+        setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingProfessionals: true } }))
+        api.get(`/service/${it.serviceId}/professionals`)
+          .then(({ data }) => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: data.data ?? [], loadingProfessionals: false } }))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: [], loadingProfessionals: false } }))
+          })
+      }
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, canEdit, editItens.map(it => `${it.professionalId}|${it.serviceId}`).join(',')])
 
   function handleEditService(index, serviceId) {
     setEditItens(prev => {
       const next = [...prev]
       const it = { ...next[index], serviceId }
-      const svc = services.find(s => s.UUID === serviceId)
+      const svc = itemMeta[index]?.services?.find(s => s.UUID === serviceId)
       if (svc?.Duration) {
         const [h, m] = svc.Duration.split(':').map(Number)
         it.endTime = addMinutes(it.startTime, h * 60 + m)
       }
       next[index] = it
       if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: it.endTime }
+      return next
+    })
+  }
+
+  function handleEditProfessional(index, professionalId) {
+    setEditItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], professionalId }
       return next
     })
   }
@@ -321,7 +367,7 @@ export default function DetalhesAgendamento() {
   function addEditItem() {
     setEditItens(prev => {
       const last = prev[prev.length - 1]
-      return [...prev, { id: null, itemId: null, isNew: true, serviceId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
+      return [...prev, { id: null, itemId: null, isNew: true, serviceId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60), professionalId: last.professionalId }]
     })
   }
 
@@ -331,29 +377,61 @@ export default function DetalhesAgendamento() {
 
   async function handleSaveEdit() {
     if (editItens.some(it => !it.serviceId)) return addToast('Selecione o serviço em todos os itens', 'warning')
+    if (canEdit && editItens.some(it => !it.professionalId)) return addToast('Selecione a profissional em todos os itens', 'warning')
     setSavingEdit(true)
     try {
-      // Itens novos adicionados na edição (sem id) sempre são da MESMA profissional (edição
-      // não tem seletor de profissional por item) — em vez de virar Appointments separados,
-      // são anexados ao bloco original (Add_services) no mesmo PATCH: 1 card só na Agenda,
-      // 1 Tab só ao concluir.
       const [original, ...rest] = editItens
-      const newItens = rest.filter(it => it.isNew)
-      const updateItens = rest.filter(it => !it.isNew && it.itemId)
+      const anchorProf = original.professionalId
+      // Itens que ficam na MESMA profissional do bloco: fundidos no mesmo Appointment
+      // (Add_services p/ novos, Update_services p/ já existentes) — 1 card só na Agenda,
+      // 1 Tab só ao concluir. Itens com profissional DIFERENTE saem do bloco (removidos via
+      // Remove_services quando já existiam) e viram Appointments próprios, ligados pelo
+      // mesmo Booking_group — cobre o caso de 1 serviço do atendimento precisar de outra
+      // profissional (ex: enquanto um produto age).
+      const sameProf = canEdit ? rest.filter(it => it.professionalId === anchorProf) : rest
+      const diffProf = canEdit ? rest.filter(it => it.professionalId !== anchorProf) : []
+
+      const newItens = sameProf.filter(it => it.isNew)
+      const updateItens = sameProf.filter(it => !it.isNew && it.itemId)
+      const newStandalone = diffProf.filter(it => it.isNew)
+      const removedStandalone = diffProf.filter(it => !it.isNew && it.itemId)
+
+      let bookingGroup = item.Booking_group
+      if ((newStandalone.length > 0 || removedStandalone.length > 0) && !bookingGroup) {
+        bookingGroup = crypto.randomUUID()
+      }
+
       await api.patch(`/appointment/${original.id}`, {
         Service: original.serviceId,
         Date: editDate,
         Start_time: original.startTime,
         End_time: original.endTime,
         Notes: editNotes.trim() || null,
-        ...(canEdit ? { Is_urgent: editIsUrgent } : {}),
+        ...(canEdit ? { Is_urgent: editIsUrgent, Professional: anchorProf } : {}),
         ...(newItens.length > 0 ? {
           Add_services: newItens.map(it => ({ Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
         ...(updateItens.length > 0 ? {
           Update_services: updateItens.map(it => ({ Id: it.itemId, Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
+        ...(removedStandalone.length > 0 ? {
+          Remove_services: removedStandalone.map(it => it.itemId)
+        } : {}),
+        ...(bookingGroup && bookingGroup !== item.Booking_group ? { Booking_group: bookingGroup } : {}),
       })
+
+      for (const it of [...newStandalone, ...removedStandalone]) {
+        await api.post('/appointment', {
+          Client: item.Client_id,
+          Professional: it.professionalId,
+          Service: it.serviceId,
+          Date: editDate,
+          Start_time: it.startTime,
+          End_time: it.endTime,
+          Is_urgent: editIsUrgent,
+          Booking_group: bookingGroup,
+        })
+      }
       const { data } = await api.get(`/appointment/${id}`)
       setItem(data.data ?? data)
       addToast('Agendamento atualizado com sucesso')
@@ -374,10 +452,8 @@ export default function DetalhesAgendamento() {
     }
   }
 
-  const role = user?.role ?? 'Usuario'
   const navItems = navItemsByRole[role] ?? []
   const allowedTransitions = STATUS_TRANSITIONS[role]?.[item?.Status] ?? []
-  const canEdit = role === 'Admin' || role === 'Profissional'
   const canReschedule = ['pendente', 'confirmado'].includes(item?.Status)
 
   const sidebar = role === 'Usuario'
@@ -438,12 +514,21 @@ export default function DetalhesAgendamento() {
                       </button>
                     )}
                   </div>
+                  {canEdit && (
+                    <SearchableSelect
+                      value={it.professionalId}
+                      onChange={(pid) => handleEditProfessional(i, pid)}
+                      disabled={itemMeta[i]?.loadingProfessionals || !(itemMeta[i]?.professionalOptions?.length > 0)}
+                      options={(itemMeta[i]?.professionalOptions ?? []).map(p => ({ value: p.professional_id, label: p.name }))}
+                      placeholder={itemMeta[i]?.loadingProfessionals ? 'Carregando…' : 'Selecione a profissional'}
+                    />
+                  )}
                   <SearchableSelect
-                    options={services.map(s => ({ value: s.UUID, label: s.Name }))}
+                    options={(itemMeta[i]?.services ?? []).map(s => ({ value: s.UUID, label: s.Name }))}
                     value={it.serviceId}
                     onChange={(sid) => handleEditService(i, sid)}
-                    disabled={loadingServices || services.length === 0}
-                    placeholder={loadingServices ? 'Carregando…' : 'Selecione o serviço'}
+                    disabled={itemMeta[i]?.loadingServices || !(itemMeta[i]?.services?.length > 0)}
+                    placeholder={itemMeta[i]?.loadingServices ? 'Carregando…' : 'Selecione o serviço'}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <Input
