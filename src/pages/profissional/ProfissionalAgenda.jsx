@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
@@ -46,6 +46,45 @@ function serviceNames(appt) {
 function toMinutes(t) {
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
+}
+
+// Um Appointment pode ter um "buraco" no meio de Services[] (ex: o serviço do meio foi
+// reatribuído a outra profissional na edição — sai do bloco via Remove_services, mas
+// Appointment.Start_time/End_time continuam sendo o menor início e o maior fim dos itens
+// que sobraram, então ainda cobrem o horário do item removido). Sem isso, o bloco desenha
+// um retângulo único e contínuo mostrando tempo ocioso que na verdade é de outra
+// profissional. splitIntoSegments quebra o appt em N blocos visuais contíguos a partir dos
+// horários reais de Services[]; sem buraco (ou sem Services[], formato singular antigo)
+// continua virando 1 segmento só, idêntico ao comportamento anterior.
+function splitIntoSegments(appt) {
+  if (!appt.Services?.length) return [appt]
+  const sorted = [...appt.Services].sort((a, b) =>
+    toMinutes(parseTime(a.Start_time ?? appt.Start_time)) - toMinutes(parseTime(b.Start_time ?? appt.Start_time))
+  )
+  const groups = []
+  for (const s of sorted) {
+    const start = s.Start_time ?? appt.Start_time
+    const end = s.End_time ?? appt.End_time
+    const last = groups[groups.length - 1]
+    if (last && toMinutes(parseTime(start)) <= toMinutes(parseTime(last.End_time))) {
+      last.Services.push(s)
+      if (toMinutes(parseTime(end)) > toMinutes(parseTime(last.End_time))) last.End_time = end
+    } else {
+      groups.push({ Start_time: start, End_time: end, Services: [s] })
+    }
+  }
+  if (groups.length <= 1) return [appt]
+  // _original preserva o Appointment inteiro (Start_time/End_time/Services completos) —
+  // ações que operam sobre o registro real (editar, excluir, mudar status, fechar comanda)
+  // devem usar isso, não os campos truncados do segmento visual.
+  return groups.map((g, i) => ({
+    ...appt,
+    Start_time: g.Start_time,
+    End_time: g.End_time,
+    Services: g.Services,
+    _segKey: `${appt.UUID}::${i}`,
+    _original: appt,
+  }))
 }
 
 function coversSlot(appt, slot) {
@@ -147,11 +186,12 @@ function computeColumns(appts) {
   const colEnds = []
   const colMap  = new Map()
   sorted.forEach(appt => {
+    const key = appt._segKey ?? appt.UUID
     const start = toMinutes(parseTime(appt.Start_time))
     const end   = toMinutes(parseTime(appt.End_time))
     let col = colEnds.findIndex(e => e <= start)
     if (col === -1) { col = colEnds.length; colEnds.push(end) } else colEnds[col] = end
-    colMap.set(appt.UUID, { col, start, end })
+    colMap.set(key, { col, start, end })
   })
   const result = new Map()
   colMap.forEach((data, uuid) => {
@@ -743,38 +783,77 @@ function FolgaDrawer({ date, professionalId, onClose, onSaved }) {
 function TransferirDrawer({ appt, onClose, onSaved }) {
   const { addToast } = useToast()
 
-  const [services, setServices] = useState([])
-  const [loadingServices, setLoadingServices] = useState(true)
   const [newDate, setNewDate] = useState(appt.Date)
-  const [itens, setItens] = useState([{
-    id: appt.UUID,
-    servicoId: appt.Service_id ?? '',
-    startTime: appt.Start_time.slice(0, 5),
-    endTime: appt.End_time.slice(0, 5),
-  }])
+  const [itens, setItens] = useState(() => {
+    const apptServices = appt.Services?.length > 0
+      ? appt.Services
+      : [{ UUID: appt.Service_id, Start_time: appt.Start_time, End_time: appt.End_time }]
+    return apptServices.map((s, i) => ({
+      id: i === 0 ? appt.UUID : null,
+      itemId: i === 0 ? null : (s.Item_id ?? null),
+      isNew: false,
+      servicoId: s.UUID ?? '',
+      startTime: (s.Start_time ?? appt.Start_time).slice(0, 5),
+      endTime: (s.End_time ?? appt.End_time).slice(0, 5),
+      professionalId: appt.Professional_id ?? '',
+    }))
+  })
   const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Por item: { services, loadingServices, professionalOptions, loadingProfessionals }
+  const [itemMeta, setItemMeta] = useState({})
 
   useEffect(() => {
-    if (!appt.Professional_id) return
-    setLoadingServices(true)
-    api.get('/service', { params: { professional: appt.Professional_id, limit: 100 } })
-      .then(({ data }) => setServices(data.data ?? []))
-      .catch(() => setServices([]))
-      .finally(() => setLoadingServices(false))
-  }, [appt.Professional_id])
+    let cancelled = false
+    itens.forEach((it, i) => {
+      if (it.professionalId) {
+        setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingServices: true } }))
+        api.get('/service', { params: { professional: it.professionalId, limit: 100 } })
+          .then(({ data }) => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], services: data.data ?? [], loadingServices: false } }))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], services: [], loadingServices: false } }))
+          })
+      }
+      if (it.servicoId) {
+        setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingProfessionals: true } }))
+        api.get(`/service/${it.servicoId}/professionals`)
+          .then(({ data }) => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: data.data ?? [], loadingProfessionals: false } }))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: [], loadingProfessionals: false } }))
+          })
+      }
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens.map(it => `${it.professionalId}|${it.servicoId}`).join(',')])
 
   function handleServico(index, id) {
     setItens(prev => {
       const next = [...prev]
       const item = { ...next[index], servicoId: id }
-      const svc = services.find(s => s.UUID === id)
+      const svc = itemMeta[index]?.services?.find(s => s.UUID === id)
       if (svc?.Duration) {
         const [h, m] = svc.Duration.split(':').map(Number)
         item.endTime = addMinutes(item.startTime, h * 60 + m)
       }
       next[index] = item
       if (next[index + 1]) next[index + 1] = { ...next[index + 1], startTime: item.endTime }
+      return next
+    })
+  }
+
+  function handleProfissional(index, professionalId) {
+    setItens(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], professionalId }
       return next
     })
   }
@@ -799,7 +878,7 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
   function addItem() {
     setItens(prev => {
       const last = prev[prev.length - 1]
-      return [...prev, { id: null, servicoId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60) }]
+      return [...prev, { id: null, itemId: null, isNew: true, servicoId: '', startTime: last.endTime, endTime: addMinutes(last.endTime, 60), professionalId: last.professionalId }]
     })
   }
 
@@ -809,15 +888,32 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
 
   async function handleSalvar() {
     if (itens.some(it => !it.servicoId)) return addToast('Selecione o serviço em todos os itens', 'warning')
+    if (itens.some(it => !it.professionalId)) return addToast('Selecione a profissional em todos os itens', 'warning')
     setSaving(true)
     try {
-      // Itens novos adicionados na edição (sem id) sempre são da MESMA profissional (edição
-      // não tem seletor de profissional por item) — em vez de virar Appointments separados,
-      // são anexados ao bloco original (Add_services) no mesmo PATCH: 1 card só na Agenda,
-      // 1 Tab só ao concluir.
-      const [original, ...newItens] = itens
+      const [original, ...rest] = itens
+      const anchorProf = original.professionalId
+      // Itens que ficam na MESMA profissional do bloco: fundidos no mesmo Appointment
+      // (Add_services p/ novos, Update_services p/ já existentes) — 1 card só na Agenda,
+      // 1 Tab só ao concluir. Itens com profissional DIFERENTE saem do bloco (Remove_services
+      // quando já existiam) e viram Appointments próprios, ligados pelo mesmo Booking_group
+      // — cobre o caso de 1 serviço do atendimento precisar de outra profissional.
+      const sameProf = rest.filter(it => it.professionalId === anchorProf)
+      const diffProf = rest.filter(it => it.professionalId !== anchorProf)
+
+      const newItens = sameProf.filter(it => it.isNew)
+      const updateItens = sameProf.filter(it => !it.isNew && it.itemId)
+      const newStandalone = diffProf.filter(it => it.isNew)
+      const removedStandalone = diffProf.filter(it => !it.isNew && it.itemId)
+
+      let bookingGroup = appt.Booking_group
+      if ((newStandalone.length > 0 || removedStandalone.length > 0) && !bookingGroup) {
+        bookingGroup = crypto.randomUUID()
+      }
+
       await api.patch(`/appointment/${original.id}`, {
         Service: original.servicoId,
+        Professional: anchorProf,
         Date: newDate,
         Start_time: original.startTime,
         End_time: original.endTime,
@@ -825,7 +921,27 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
         ...(newItens.length > 0 ? {
           Add_services: newItens.map(it => ({ Service: it.servicoId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
+        ...(updateItens.length > 0 ? {
+          Update_services: updateItens.map(it => ({ Id: it.itemId, Service: it.servicoId, Start_time: it.startTime, End_time: it.endTime }))
+        } : {}),
+        ...(removedStandalone.length > 0 ? {
+          Remove_services: removedStandalone.map(it => it.itemId)
+        } : {}),
+        ...(bookingGroup && bookingGroup !== appt.Booking_group ? { Booking_group: bookingGroup } : {}),
       })
+
+      for (const it of [...newStandalone, ...removedStandalone]) {
+        await api.post('/appointment', {
+          Client: appt.Client_id,
+          Professional: it.professionalId,
+          Service: it.servicoId,
+          Date: newDate,
+          Start_time: it.startTime,
+          End_time: it.endTime,
+          Is_urgent: isUrgent,
+          Booking_group: bookingGroup,
+        })
+      }
       addToast('Agendamento atualizado com sucesso', 'success')
       onSaved()
       onClose()
@@ -853,7 +969,6 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
           <div>
             <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Editar agendamento</span>
             <h4 className="font-display font-medium text-[18px] tracking-tight mt-0.5">{appt.Client}</h4>
-            <p className="text-[12.5px] text-ink-3 mt-0.5">{appt.Professional}</p>
           </div>
           <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer mt-1">
             <Icon name="x" size={18} />
@@ -873,18 +988,25 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
                   <label className="text-[12px] font-medium text-ink-2">
                     {itens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
                   </label>
-                  {itens.length > 1 && !item.id && (
+                  {itens.length > 1 && item.isNew && (
                     <button type="button" onClick={() => removeItem(i)} className="text-ink-3 hover:text-danger transition-colors cursor-pointer">
                       <Icon name="x" size={14} />
                     </button>
                   )}
                 </div>
                 <SearchableSelect
+                  value={item.professionalId}
+                  onChange={(pid) => handleProfissional(i, pid)}
+                  disabled={itemMeta[i]?.loadingProfessionals || !(itemMeta[i]?.professionalOptions?.length > 0)}
+                  options={(itemMeta[i]?.professionalOptions ?? []).map(p => ({ value: p.professional_id, label: p.name }))}
+                  placeholder={itemMeta[i]?.loadingProfessionals ? 'Carregando…' : 'Selecione a profissional'}
+                />
+                <SearchableSelect
                   value={item.servicoId}
                   onChange={(id) => handleServico(i, id)}
-                  disabled={loadingServices || services.length === 0}
-                  options={services.map(s => ({ value: s.UUID, label: s.Name }))}
-                  placeholder={loadingServices ? 'Carregando…' : 'Selecione o serviço'}
+                  disabled={itemMeta[i]?.loadingServices || !(itemMeta[i]?.services?.length > 0)}
+                  options={(itemMeta[i]?.services ?? []).map(s => ({ value: s.UUID, label: s.Name }))}
+                  placeholder={itemMeta[i]?.loadingServices ? 'Carregando…' : 'Selecione o serviço'}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1036,8 +1158,13 @@ export default function ProfissionalAgenda() {
     }
   }
 
+  // Um Appointment com buraco no meio de Services[] (item removido pra outra profissional
+  // na edição) vira N blocos visuais contíguos em vez de 1 retângulo só cobrindo tempo
+  // ocioso — ver splitIntoSegments.
+  const visualAppointments = useMemo(() => appointments.flatMap(splitIntoSegments), [appointments])
+
   // Pré-computa colunas para sobreposição — inclui urgentes (ver AdminAgenda.jsx)
-  const columnMap = computeColumns(appointments)
+  const columnMap = computeColumns(visualAppointments)
 
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Profissional" />
@@ -1171,8 +1298,8 @@ export default function ProfissionalAgenda() {
               {/* Slots */}
               {TIME_SLOTS.map(slot => {
                 const isHour    = slot.endsWith(':00')
-                const appts     = appointments.filter(a => anchoredToSlot(a, slot))
-                const occupied  = appointments.some(a => coversSlot(a, slot) && a.Status !== 'cancelado')
+                const appts     = visualAppointments.filter(a => anchoredToSlot(a, slot))
+                const occupied  = visualAppointments.some(a => coversSlot(a, slot) && a.Status !== 'cancelado')
                 const onBreak   = coversBreak(workingHour, slot)
                 const onLeave   = leaveCoversSlot(leaves, slot)
                 const leaveBlock = leaveStartsAt(leaves, slot)
@@ -1199,15 +1326,15 @@ export default function ProfissionalAgenda() {
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                     {appts.map(a => {
                       const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
-                      const { col = 0, totalCols = 1 } = columnMap.get(a.UUID) ?? {}
+                      const { col = 0, totalCols = 1 } = columnMap.get(a._segKey ?? a.UUID) ?? {}
                       const w     = totalCols > 1 ? `calc(${100 / totalCols}% - 4px)` : undefined
                       const left  = totalCols > 1 ? `calc(${(col * 100) / totalCols}% + 2px)` : '3px'
                       const right = totalCols > 1 ? undefined : '3px'
                       return (
-                        <button key={a.UUID}
+                        <button key={a._segKey ?? a.UUID}
                           onClick={e => { e.stopPropagation(); navigate(`/agendamento/${a.UUID}`) }}
-                          onContextMenu={e => openContextMenu(e, a)}
-                          onTouchStart={e => handleLongPressStart(e, a)}
+                          onContextMenu={e => openContextMenu(e, a._original ?? a)}
+                          onTouchStart={e => handleLongPressStart(e, a._original ?? a)}
                           onTouchEnd={handleLongPressEnd}
                           onTouchMove={handleLongPressEnd}
                           style={{ height: apptHeight(a, 64), top: apptTop(a, slot, 64), width: w, left, right }}
