@@ -476,17 +476,14 @@ export default function ProfissionalComandas() {
     if (!selected) return
     setPaying(true)
     try {
-      if (selected.Value > 0) {
-        await api.post('/transaction', {
-          Tab: selected.UUID,
-          Method: payMethod,
-          Net_amount: selected.Value,
-          Gross_amount: selected.Value,
-          Payment: payMethod !== 'fiado',
-          Payment_date: new Date().toISOString(),
-        })
-      }
-      await api.patch(`/tab/${selected.UUID}`, { Status: 'Paga' })
+      // Mesma RPC do "Fechar conta" (batch_pay_tabs), com um único tab_id — ver comentário
+      // equivalente em AdminCaixa.jsx: o caminho antigo fechava comanda multi-item sem
+      // tocar nos Tab_items e perdia a comissão dos demais profissionais.
+      await api.post('/tab/batch-pay', {
+        tab_ids: [selected.UUID],
+        Method: payMethod,
+        Payment_date: new Date().toISOString(),
+      })
       addToast('Pagamento registrado', 'success')
       load(true)
     } catch (err) {
@@ -506,7 +503,7 @@ export default function ProfissionalComandas() {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
     if (!batchClient) return
     setBatchPaying(true)
     try {
@@ -515,6 +512,7 @@ export default function ProfissionalComandas() {
         Method: batchMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
+        excluded_item_ids: excludedItemIds,
       })
       addToast(`Conta de ${batchClient.client_name} fechada com sucesso`, 'success')
       setBatchClient(null)

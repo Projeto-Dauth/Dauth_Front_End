@@ -346,7 +346,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
     setFecharPaying(true)
     try {
       await api.post('/tab/batch-pay', {
@@ -354,6 +354,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
         Method: fecharMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
+        excluded_item_ids: excludedItemIds,
       })
       addToast('Conta fechada com sucesso', 'success')
       setFecharConta(null)
