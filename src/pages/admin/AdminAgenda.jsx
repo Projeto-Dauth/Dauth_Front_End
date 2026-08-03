@@ -1516,7 +1516,7 @@ export default function AdminAgenda() {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
     if (!fecharContaClient) return
     setFecharContaPaying(true)
     try {
@@ -1525,6 +1525,7 @@ export default function AdminAgenda() {
         Method: fecharContaMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
+        excluded_item_ids: excludedItemIds,
       })
       addToast(`Conta de ${fecharContaClient.client_name} fechada com sucesso`, 'success')
       setFecharContaClient(null)

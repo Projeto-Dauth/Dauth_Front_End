@@ -32,6 +32,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   const { addToast } = useToast()
   const [visible, setVisible] = useState(false)
   const [removedTabIds, setRemovedTabIds] = useState(new Set())
+  const [removedItemIds, setRemovedItemIds] = useState(new Set())
   const [orderQty, setOrderQty] = useState({}) // { [orderId]: quantidade a pagar agora }
   const [clientData, setClientData] = useState(client)
   const [products, setProducts] = useState([])
@@ -46,6 +47,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   useEffect(() => {
     setClientData(client)
     setRemovedTabIds(new Set())
+    setRemovedItemIds(new Set())
     setOrderQty(Object.fromEntries((client?.orders ?? []).map(o => [o.UUID, o.Quantity])))
   }, [client?.client_id])
 
@@ -62,8 +64,18 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
 
   if (!clientData) return null
 
+  // Comanda sem Tab_items (combo/legado) só pode ser removida inteira; comanda com itens
+  // é removida item a item — numa comanda de atendimento combinado (Booking_group) todos
+  // os serviços vivem na MESMA Tab, então remover pela Tab riscava o grupo inteiro.
   const toggleTab = (id) => {
     setRemovedTabIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+  const toggleItem = (id) => {
+    setRemovedItemIds(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
@@ -248,13 +260,24 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
     ? products.filter(p => p.Name.toLowerCase().includes(productSearch.toLowerCase()))
     : products
 
-  const remainingTabIds = clientData.tabs.filter(t => !removedTabIds.has(t.UUID)).map(t => t.UUID)
+  const tabItems = (t) => t.Items ?? []
+  const keptItems = (t) => tabItems(t).filter(i => !removedItemIds.has(i.UUID))
+  // Uma Tab entra no lote se sobrou algum item nela (ou, sem itens, se não foi removida).
+  // Os itens riscados vão em excluded_item_ids: continuam 'pendente' no banco e seguram a
+  // comanda em aberto para uma cobrança futura.
+  const includedTabs = clientData.tabs.filter(t =>
+    tabItems(t).length > 0 ? keptItems(t).length > 0 : !removedTabIds.has(t.UUID)
+  )
+  const remainingTabIds = includedTabs.map(t => t.UUID)
+  const excludedItemIds = includedTabs.flatMap(t => tabItems(t).filter(i => removedItemIds.has(i.UUID)).map(i => i.UUID))
   const orderPayments = clientData.orders
     .filter(o => (orderQty[o.UUID] ?? 0) > 0)
     .map(o => ({ order_id: o.UUID, quantity: orderQty[o.UUID] }))
 
   const total =
-    clientData.tabs.filter(t => !removedTabIds.has(t.UUID)).reduce((s, t) => s + t.Value, 0) +
+    includedTabs.reduce((s, t) => s + (tabItems(t).length > 0
+      ? keptItems(t).reduce((si, i) => si + i.Unit_price * i.Quantity, 0)
+      : t.Value), 0) +
     clientData.orders.reduce((s, o) => s + (orderQty[o.UUID] ?? 0) * o.Unit_price, 0)
 
   const canConfirm = remainingTabIds.length + orderPayments.length > 0
@@ -288,17 +311,22 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
           </div>
           <div className="space-y-1.5 mb-5">
             {clientData.tabs.flatMap(t => {
-              const ativo = !removedTabIds.has(t.UUID)
               const items = t.Items ?? []
               const isCombo = items.length === 0 && t.Value === 0
               // Comanda inteira da cliente numa lista única — 1 linha por serviço/produto,
               // sem distinguir visualmente "atendimento combinado" (Booking_group) de
               // comanda solta: continuam sendo Tabs separadas no banco (preserva comissão
-              // por profissional), mas a exibição é uniforme. O toggle de remoção age
-              // sempre no nível da Tab inteira — cada linha de uma mesma Tab compartilha o
-              // mesmo estado ativo/inativo.
+              // por profissional), mas a exibição é uniforme. O toggle de remoção age por
+              // item quando a Tab tem Tab_items; só cai pro nível da Tab quando não há
+              // itens (combo/legado), que é o único caso sem granularidade possível.
               const rows = items.length > 0 ? items : [null]
-              return rows.map(it => ({ t, it, ativo, isCombo, isProduct: it?.Item_type === 'product' }))
+              return rows.map(it => ({
+                t,
+                it,
+                ativo: it ? !removedItemIds.has(it.UUID) : !removedTabIds.has(t.UUID),
+                isCombo,
+                isProduct: it?.Item_type === 'product',
+              }))
             })
               // Produtos sempre por último — não têm dia/hora de atendimento próprios.
               .sort((a, b) => (a.isProduct === b.isProduct ? 0 : a.isProduct ? 1 : -1))
@@ -320,7 +348,8 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
                     ? renderItemPrice(t.UUID, it, 'font-mono font-medium text-ink shrink-0')
                     : <span className="font-mono font-medium text-ink shrink-0">{formatCurrency(t.Value)}</span>}
                   <button
-                    onClick={() => toggleTab(t.UUID)}
+                    onClick={() => (it ? toggleItem(it.UUID) : toggleTab(t.UUID))}
+                    title={ativo ? 'Deixar fora deste pagamento (continua em aberto)' : 'Incluir neste pagamento'}
                     className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full border transition-colors cursor-pointer ${
                       ativo ? 'border-danger/40 text-danger hover:bg-danger-soft' : 'border-success/40 text-success hover:bg-success/10'
                     }`}>
@@ -420,7 +449,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
           <Button
             variant="primary"
             className="w-full justify-center mt-3"
-            onClick={() => onConfirm(remainingTabIds, orderPayments)}
+            onClick={() => onConfirm(remainingTabIds, orderPayments, excludedItemIds)}
             disabled={!canConfirm}
             loading={paying}
           >

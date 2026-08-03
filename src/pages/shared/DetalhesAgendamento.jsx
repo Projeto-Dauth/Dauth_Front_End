@@ -188,7 +188,7 @@ export default function DetalhesAgendamento() {
     }
   }
 
-  async function handleConfirmFechar(tabIds, orderPayments) {
+  async function handleConfirmFechar(tabIds, orderPayments, excludedItemIds) {
     setFecharPaying(true)
     try {
       await api.post('/tab/batch-pay', {
@@ -196,6 +196,7 @@ export default function DetalhesAgendamento() {
         Method: fecharMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
+        excluded_item_ids: excludedItemIds,
       })
       addToast('Conta fechada com sucesso')
       setFecharConta(null)

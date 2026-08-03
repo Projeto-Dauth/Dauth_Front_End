@@ -202,17 +202,16 @@ function TabComandas({ user, initialAppointmentId }) {
     if (!selected) return
     setPaying(true)
     try {
-      if (selected.Value > 0) {
-        await api.post('/transaction', {
-          Tab: selected.UUID,
-          Method: payMethod,
-          Net_amount: selected.Value,
-          Gross_amount: selected.Value,
-          Payment: payMethod !== 'fiado',
-          Payment_date: new Date().toISOString(),
-        })
-      }
-      await api.patch(`/tab/${selected.UUID}`, { Status: 'Paga' })
+      // Mesma RPC do "Fechar conta" (batch_pay_tabs), com um único tab_id: ela gera 1
+      // Transaction por Tab_item, com o profissional e a comissão de cada um, e marca os
+      // itens como pagos. O caminho antigo (POST /transaction + PATCH Status) foi escrito
+      // quando 1 comanda = 1 serviço — numa comanda multi-item ele fechava a comanda sem
+      // tocar nos Tab_items, perdendo a comissão dos demais profissionais.
+      await api.post('/tab/batch-pay', {
+        tab_ids: [selected.UUID],
+        Method: payMethod,
+        Payment_date: new Date().toISOString(),
+      })
       addToast('Pagamento registrado', 'success')
       load(true)
     } catch (err) {
@@ -232,7 +231,7 @@ function TabComandas({ user, initialAppointmentId }) {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
     if (!batchClient) return
     setBatchPaying(true)
     try {
@@ -241,6 +240,7 @@ function TabComandas({ user, initialAppointmentId }) {
         Method: batchMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
+        excluded_item_ids: excludedItemIds,
       })
       addToast(`Conta de ${batchClient.client_name} fechada com sucesso`, 'success')
       setBatchClient(null)
