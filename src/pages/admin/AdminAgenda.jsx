@@ -1575,7 +1575,7 @@ export default function AdminAgenda() {
     try {
       const profs = professionalsRef.current
       const [apptRes, ...leaveResults] = await Promise.all([
-        api.get('/appointment', { params: { date: toDateStr(date) } }),
+        api.get('/appointment', { params: { date: toDateStr(date), limit: 50 } }),
         ...profs.map(p =>
           api.get(`/professional-leave/professional/${p.UUID}`, { params: { date: toDateStr(date) } })
             .then(r => ({ uuid: p.UUID, leaves: (r.data.data ?? []).filter(l => l.Date === toDateStr(date)) }))
