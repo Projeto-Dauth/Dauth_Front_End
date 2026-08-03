@@ -86,6 +86,18 @@ aside { scrollbar-width: none; }
 .scrollbar-hidden::-webkit-scrollbar { display: none; }
 .scrollbar-hidden { scrollbar-width: none; }
 
+/* Slot fora do horário de trabalho do profissional na Agenda — listrado sutil, ainda
+   clicável (Admin pode encaixar; o aviso aparece só na confirmação) */
+.bg-off-hours {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(42, 30, 24, 0.045),
+    rgba(42, 30, 24, 0.045) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+}
+
 /* ── Shepherd Tour — Dauth overrides ── */
 .shepherd-element {
   border-radius: 12px !important;
