@@ -17,6 +17,7 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
+import { fetchWorkingHours, buildOutsideHoursWarning } from '@/lib/workingHours'
 
 function addMinutes(timeStr, mins) {
   const [h, m] = timeStr.split(':').map(Number)
@@ -108,6 +109,8 @@ export default function DetalhesAgendamento() {
   const [editIsUrgent, setEditIsUrgent] = useState(false)
   const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [offHoursWarning, setOffHoursWarning] = useState(null)
+  const [checkingHours, setCheckingHours] = useState(false)
   // Por item: { services, loadingServices, professionalOptions, loadingProfessionals }
   const [itemMeta, setItemMeta] = useState({})
 
@@ -375,9 +378,39 @@ export default function DetalhesAgendamento() {
     setEditItens(prev => prev.filter((_, i) => i !== index))
   }
 
-  async function handleSaveEdit() {
+  async function handleSaveEdit(skipOffHoursCheck = false) {
     if (editItens.some(it => !it.serviceId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     if (canEdit && editItens.some(it => !it.professionalId)) return addToast('Selecione a profissional em todos os itens', 'warning')
+
+    // Editar aqui pode mover o agendamento pra outra data E outro horário, então o
+    // expediente precisa ser rebuscado pelo dia da semana NOVO (mesma lógica do
+    // TransferirDrawer das agendas). Aviso, não bloqueio — ver decisions.md; falha na
+    // checagem não pode impedir o salvamento.
+    if (!skipOffHoursCheck) {
+      setCheckingHours(true)
+      try {
+        const [y, m, d] = editDate.split('-').map(Number)
+        const weekday = new Date(y, m - 1, d).getDay()
+        const ids = [...new Set(editItens.map(it => it.professionalId).filter(Boolean))]
+        const whByProf = await fetchWorkingHours(ids, weekday)
+        const warning = buildOutsideHoursWarning(
+          editItens.map((it, i) => ({
+            professionalId: it.professionalId,
+            professionalName: (itemMeta[i]?.professionalOptions ?? []).find(p => p.professional_id === it.professionalId)?.name ?? item.Professional,
+            startTime: it.startTime,
+            endTime: it.endTime,
+          })),
+          whByProf
+        )
+        if (warning) {
+          setCheckingHours(false)
+          return setOffHoursWarning(warning)
+        }
+      } catch { /* checagem é só um aviso — não pode impedir a edição */ }
+      setCheckingHours(false)
+    }
+
+    setOffHoursWarning(null)
     setSavingEdit(true)
     try {
       const [original, ...rest] = editItens
@@ -596,7 +629,9 @@ export default function DetalhesAgendamento() {
                 <Button variant="outline" size="md" onClick={() => setEditing(false)} className="flex-1">
                   Cancelar
                 </Button>
-                <Button variant="primary" size="md" onClick={handleSaveEdit} loading={savingEdit} className="flex-1">
+                {/* Arrow function obrigatória — onClick={handleSaveEdit} passaria o evento
+                    do clique como skipOffHoursCheck (truthy), pulando o aviso sempre. */}
+                <Button variant="primary" size="md" onClick={() => handleSaveEdit()} loading={savingEdit || checkingHours} className="flex-1">
                   Salvar
                 </Button>
               </div>
@@ -701,7 +736,7 @@ export default function DetalhesAgendamento() {
       </div>
 
       {/* Actions */}
-      {(canEdit || canReschedule) && (
+      {canEdit && (
         <div className="flex gap-2.5 mt-5">
           {canEdit && allowedTransitions.map(s => (
             <Button
@@ -718,7 +753,9 @@ export default function DetalhesAgendamento() {
               <Icon name="receipt" size={13} />Fechar comanda
             </Button>
           )}
-          {canReschedule && !editing && (
+          {/* Editar data/hora é só de Admin/Profissional — o cliente remarca cancelando e
+              agendando de novo pelo /agendar, que já filtra os horários pelo expediente. */}
+          {canEdit && canReschedule && !editing && (
             <Button variant="ghost" size="sm" onClick={openEdit}>
               <Icon name="edit" size={13} />Editar
             </Button>
@@ -730,6 +767,15 @@ export default function DetalhesAgendamento() {
           )}
         </div>
       )}
+
+      <Modal
+        isOpen={!!offHoursWarning}
+        onClose={() => setOffHoursWarning(null)}
+        onConfirm={() => handleSaveEdit(true)}
+        title="Fora do horário de trabalho"
+        message={offHoursWarning}
+        confirmLabel="Salvar mesmo assim"
+      />
 
       {/* Confirm modal */}
       <Modal

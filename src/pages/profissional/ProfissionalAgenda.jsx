@@ -14,6 +14,8 @@ import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { profissionalSteps } from '@/tours/profissionalTour'
+import Modal from '@/components/ui/Modal'
+import { outsideWorkingHours, workingHoursLabel, fetchWorkingHours, buildOutsideHoursWarning, UNKNOWN_HOURS } from '@/lib/workingHours'
 
 const navItems = navItemsByRole['Profissional']
 
@@ -460,9 +462,10 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigat
   )
 }
 
-function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
+function NovoAgendamentoDrawer({ slot, professional, date, workingHour, onClose, onSaved }) {
   const { addToast } = useToast()
   const { user: authUser } = useAuthStore()
+  const [offHoursWarning, setOffHoursWarning] = useState(null)
   const [servicos, setServicos]     = useState([])
   const [clienteId, setClienteId]   = useState('')
   const [clienteOption, setClienteOption] = useState(null)
@@ -530,8 +533,25 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
     setItens(prev => prev.filter((_, i) => i !== index))
   }
 
-  async function handleSalvar() {
+  async function handleSalvar(skipOffHoursCheck = false) {
     if (!clienteId || itens.some(it => !it.servicoId)) return addToast('Preencha cliente e todos os serviços', 'warning')
+
+    // Aviso, não bloqueio — o profissional pode encaixar fora do próprio expediente
+    // desde que confirme (ver decisions.md).
+    if (!skipOffHoursCheck) {
+      const warning = buildOutsideHoursWarning(
+        itens.map(it => ({
+          professionalId: professional?.UUID ?? authUser?.id,
+          professionalName: 'Você',
+          startTime: it.startTime,
+          endTime: it.endTime,
+        })),
+        { [professional?.UUID ?? authUser?.id]: workingHour ?? null }
+      )
+      if (warning) return setOffHoursWarning(warning)
+    }
+
+    setOffHoursWarning(null)
     setSaving(true)
     try {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -562,6 +582,14 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
       {modalCliente && (
         <ModalNovoCliente onClose={() => setModalCliente(false)} onCreated={handleClienteCriado} />
       )}
+      <Modal
+        isOpen={!!offHoursWarning}
+        onClose={() => setOffHoursWarning(null)}
+        onConfirm={() => handleSalvar(true)}
+        title="Fora do horário de trabalho"
+        message={offHoursWarning}
+        confirmLabel="Agendar mesmo assim"
+      />
 <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
@@ -693,7 +721,8 @@ function NovoAgendamentoDrawer({ slot, professional, date, onClose, onSaved }) {
             />
           </div>
 
-          <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
+          {/* Arrow function obrigatória — o evento do clique cairia em skipOffHoursCheck */}
+          <Button onClick={() => handleSalvar()} loading={saving} className="w-full mt-2">
             Confirmar agendamento
           </Button>
         </div>
@@ -824,6 +853,8 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
   })
   const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [offHoursWarning, setOffHoursWarning] = useState(null)
+  const [checkingHours, setCheckingHours] = useState(false)
   // Por item: { services, loadingServices, professionalOptions, loadingProfessionals }
   const [itemMeta, setItemMeta] = useState({})
 
@@ -910,9 +941,36 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
     setItens(prev => prev.filter((_, i) => i !== index))
   }
 
-  async function handleSalvar() {
+  async function handleSalvar(skipOffHoursCheck = false) {
     if (itens.some(it => !it.servicoId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     if (itens.some(it => !it.professionalId)) return addToast('Selecione a profissional em todos os itens', 'warning')
+
+    // A data pode mudar na edição, então o horário de trabalho do dia da semana novo
+    // precisa ser buscado aqui. Aviso, não bloqueio (ver decisions.md).
+    if (!skipOffHoursCheck) {
+      setCheckingHours(true)
+      try {
+        const [y, m, d] = newDate.split('-').map(Number)
+        const weekday = new Date(y, m - 1, d).getDay()
+        const whByProf = await fetchWorkingHours([...new Set(itens.map(it => it.professionalId))], weekday)
+        const warning = buildOutsideHoursWarning(
+          itens.map((it, i) => ({
+            professionalId: it.professionalId,
+            professionalName: (itemMeta[i]?.professionalOptions ?? []).find(p => p.professional_id === it.professionalId)?.name ?? appt.Professional,
+            startTime: it.startTime,
+            endTime: it.endTime,
+          })),
+          whByProf
+        )
+        if (warning) {
+          setCheckingHours(false)
+          return setOffHoursWarning(warning)
+        }
+      } catch { /* checagem é só um aviso — não pode impedir a edição */ }
+      setCheckingHours(false)
+    }
+
+    setOffHoursWarning(null)
     setSaving(true)
     try {
       const [original, ...rest] = itens
@@ -1072,11 +1130,22 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
           </button>
         </div>
         <div className="px-5 md:px-7 py-4 md:py-5 border-t border-line">
-          <Button onClick={handleSalvar} loading={saving} className="w-full justify-center">
+          {/* Arrow function obrigatória — o evento do clique cairia em skipOffHoursCheck */}
+          <Button onClick={() => handleSalvar()} loading={saving || checkingHours} className="w-full justify-center">
             <Icon name="edit" size={14} />Salvar alterações
           </Button>
         </div>
       </div>
+
+      {/* Depois do drawer (z-50) para o modal ficar por cima dele */}
+      <Modal
+        isOpen={!!offHoursWarning}
+        onClose={() => setOffHoursWarning(null)}
+        onConfirm={() => handleSalvar(true)}
+        title="Fora do horário de trabalho"
+        message={offHoursWarning}
+        confirmLabel="Salvar mesmo assim"
+      />
     </>
   )
 }
@@ -1093,6 +1162,9 @@ export default function ProfissionalAgenda() {
   })
   const [appointments, setAppointments] = useState([])
   const [workingHour, setWorkingHour]   = useState(null)
+  // Sem isso, workingHour=null antes do fetch terminar faria a grade inteira aparecer
+  // como "fora do expediente" por um instante.
+  const [whLoaded, setWhLoaded]         = useState(false)
   const [leaves, setLeaves]             = useState([])
   const [loading, setLoading]           = useState(true)
   const { restartTour } = useTour('profissional', profissionalSteps, !loading)
@@ -1111,12 +1183,14 @@ export default function ProfissionalAgenda() {
   useEffect(() => {
     if (!user?.publicId) return
     const weekday = date.getDay()
+    setWhLoaded(false)
     api.get(`/working-hours/professional/${user.publicId}`)
       .then(({ data }) => {
         const wh = (data.data ?? []).find(w => w.Weekday === weekday) ?? null
         setWorkingHour(wh)
       })
-      .catch(() => setWorkingHour(null))
+      .catch(() => setWorkingHour(UNKNOWN_HOURS))
+      .finally(() => setWhLoaded(true))
   }, [user?.publicId, date])
 
   const load = useCallback(async (silent = false) => {
@@ -1230,6 +1304,7 @@ export default function ProfissionalAgenda() {
           slot={newSlot.slot}
           professional={professional}
           date={date}
+          workingHour={workingHour}
           onClose={() => setNewSlot(null)}
           onSaved={load}
         />
@@ -1318,7 +1393,12 @@ export default function ProfissionalAgenda() {
               <div className="sticky top-0 z-30 px-3 py-3 border-b border-r border-line bg-surface-2" />
               <div className="sticky top-0 z-30 px-4 py-3 border-b border-line bg-surface-2 flex items-center gap-2.5">
                 <Avatar name={user?.name ?? ''} index={0} size="sm" />
-                <div className="font-medium text-[13px] truncate">{user?.name}</div>
+                <div className="min-w-0">
+                  <div className="font-medium text-[13px] truncate">{user?.name}</div>
+                  <div className={`text-[11px] truncate ${workingHour ? 'text-ink-3' : 'text-danger'}`}>
+                    {workingHoursLabel(workingHour, whLoaded)}
+                  </div>
+                </div>
               </div>
 
               {/* Slots */}
@@ -1333,6 +1413,9 @@ export default function ProfissionalAgenda() {
                 const breakStart = isBreakStart(workingHour, slot)
                 const breakSpans = breakStart ? spanBreak(workingHour) : 0
                 const past      = isSlotPast(date, slot)
+                // Fora do expediente continua clicável — só marcado visualmente, com aviso
+                // de confirmação na hora de salvar (ver decisions.md).
+                const offHours  = whLoaded && outsideWorkingHours(workingHour, slot)
                 const clickable = !occupied && !past && !onBreak && !onLeave
 
                 return [
@@ -1346,9 +1429,10 @@ export default function ProfissionalAgenda() {
                   // Coluna do profissional
                   <div key={`c-${slot}`}
                     onClick={clickable ? () => setNewSlot({ slot, professional }) : undefined}
+                    title={offHours && !past ? 'Fora do seu horário de trabalho' : undefined}
                     className={`relative h-16 border-line-2 overflow-visible
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                      ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
+                      ${past || onBreak || onLeave ? 'bg-surface-2' : offHours ? 'bg-off-hours' : ''}
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                     {appts.map(a => {
                       const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
@@ -1423,6 +1507,10 @@ export default function ProfissionalAgenda() {
                 {status.charAt(0).toUpperCase() + status.slice(1)}
               </span>
             ))}
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
+              <i className="w-3 h-3 rounded-sm border border-line-2 bg-off-hours" />
+              Fora do expediente
+            </span>
           </div>
         </>
       )}
