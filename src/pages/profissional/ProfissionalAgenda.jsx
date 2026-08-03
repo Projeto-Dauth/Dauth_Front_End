@@ -1197,7 +1197,7 @@ export default function ProfissionalAgenda() {
     if (!silent) setLoading(true)
     try {
       const [apptRes, leaveRes] = await Promise.all([
-        api.get('/appointment/my', { params: { date: toDateStr(date) } }),
+        api.get('/appointment/my', { params: { date: toDateStr(date), limit: 50 } }),
         user?.id ? api.get(`/professional-leave/professional/${user.id}`, { params: { date: toDateStr(date) } })
           .then(r => (r.data.data ?? []).filter(l => l.Date === toDateStr(date)))
           .catch(() => []) : Promise.resolve([])
