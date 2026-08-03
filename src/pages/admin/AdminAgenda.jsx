@@ -15,6 +15,8 @@ import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminSteps } from '@/tours/adminTour'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
+import Modal from '@/components/ui/Modal'
+import { outsideWorkingHours, workingHoursLabel, fetchWorkingHours, buildOutsideHoursWarning } from '@/lib/workingHours'
 
 // Tinha algum const bugado
 
@@ -768,8 +770,9 @@ function LeaveContextMenu({ leave, x, y, onClose, onEdit, onRemove }) {
   )
 }
 
-function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClose, onSaved }) {
+function NovoAgendamentoDrawer({ slot, professional, professionals, date, whByProf, onClose, onSaved }) {
   const { addToast } = useToast()
+  const [offHoursWarning, setOffHoursWarning] = useState(null)
   const [servicosByProf, setServicosByProf] = useState({}) // { [profUUID]: servico[] }
   const [loadingProf, setLoadingProf] = useState({}) // { [profUUID]: boolean }
   const [clienteId, setClienteId] = useState('')
@@ -861,8 +864,26 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
     setItens(prev => prev.filter((_, i) => i !== index))
   }
 
-  async function handleSalvar() {
+  async function handleSalvar(skipOffHoursCheck = false) {
     if (!clienteId || itens.some(it => !it.servicoId || !it.professionalId)) return addToast('Preencha cliente, profissional e serviço de todos os itens', 'warning')
+
+    // Aviso (não bloqueio): Admin/Profissional podem encaixar fora do expediente, mas
+    // precisam confirmar. Ver decisions.md, "Admin/Profissional continuam podendo agendar
+    // sem checar WorkingHours".
+    if (!skipOffHoursCheck) {
+      const warning = buildOutsideHoursWarning(
+        itens.map(it => ({
+          professionalId: it.professionalId,
+          professionalName: professionals.find(p => p.UUID === it.professionalId)?.Name,
+          startTime: it.startTime,
+          endTime: it.endTime,
+        })),
+        whByProf ?? {}
+      )
+      if (warning) return setOffHoursWarning(warning)
+    }
+
+    setOffHoursWarning(null)
     setSaving(true)
     try {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -898,6 +919,14 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
       {modalServicoIndex !== null && (
         <ModalNovoServico onClose={() => setModalServicoIndex(null)} onCreated={handleServicoCriado} />
       )}
+      <Modal
+        isOpen={!!offHoursWarning}
+        onClose={() => setOffHoursWarning(null)}
+        onConfirm={() => handleSalvar(true)}
+        title="Fora do horário de trabalho"
+        message={offHoursWarning}
+        confirmLabel="Agendar mesmo assim"
+      />
       <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
         <div className="absolute inset-0 bg-black/30" onClick={onClose} />
         <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[420px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
@@ -1046,7 +1075,9 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, onClos
               />
             </div>
 
-            <Button onClick={handleSalvar} loading={saving} className="w-full mt-2">
+            {/* Arrow function obrigatória — onClick={handleSalvar} passaria o evento do
+                clique como skipOffHoursCheck (truthy), pulando o aviso sempre. */}
+            <Button onClick={() => handleSalvar()} loading={saving} className="w-full mt-2">
               Confirmar agendamento
             </Button>
           </div>
@@ -1076,6 +1107,8 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
   })
   const [isUrgent, setIsUrgent] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [offHoursWarning, setOffHoursWarning] = useState(null)
+  const [checkingHours, setCheckingHours] = useState(false)
   // Por item: { services, loadingServices, professionalOptions, loadingProfessionals }
   const [itemMeta, setItemMeta] = useState({})
 
@@ -1165,9 +1198,37 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
     setItens(prev => prev.filter((_, i) => i !== index))
   }
 
-  async function handleSalvar() {
+  async function handleSalvar(skipOffHoursCheck = false) {
     if (itens.some(it => !it.servicoId)) return addToast('Selecione o serviço em todos os itens', 'warning')
     if (itens.some(it => !it.professionalId)) return addToast('Selecione a profissional em todos os itens', 'warning')
+
+    // A data pode ter mudado na edição, então o dia da semana (e o horário de trabalho)
+    // precisa ser buscado aqui — diferente do drawer de criação, que recebe o mapa pronto.
+    // Aviso, não bloqueio (ver decisions.md); falha na checagem não impede o salvamento.
+    if (!skipOffHoursCheck) {
+      setCheckingHours(true)
+      try {
+        const [y, m, d] = newDate.split('-').map(Number)
+        const weekday = new Date(y, m - 1, d).getDay()
+        const whByProf = await fetchWorkingHours([...new Set(itens.map(it => it.professionalId))], weekday)
+        const warning = buildOutsideHoursWarning(
+          itens.map((it, i) => ({
+            professionalId: it.professionalId,
+            professionalName: (itemMeta[i]?.professionalOptions ?? []).find(p => p.professional_id === it.professionalId)?.name ?? appt.Professional,
+            startTime: it.startTime,
+            endTime: it.endTime,
+          })),
+          whByProf
+        )
+        if (warning) {
+          setCheckingHours(false)
+          return setOffHoursWarning(warning)
+        }
+      } catch { /* checagem é só um aviso — não pode impedir a edição */ }
+      setCheckingHours(false)
+    }
+
+    setOffHoursWarning(null)
     setSaving(true)
     try {
       const [original, ...rest] = itens
@@ -1354,12 +1415,23 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
 
         {/* Footer */}
         <div className="px-5 md:px-7 py-4 md:py-5 border-t border-line">
-          <Button onClick={handleSalvar} loading={saving} className="w-full justify-center">
+          {/* Arrow function obrigatória — o evento do clique cairia em skipOffHoursCheck */}
+          <Button onClick={() => handleSalvar()} loading={saving || checkingHours} className="w-full justify-center">
             <Icon name="edit" size={14} />
             Salvar alterações
           </Button>
         </div>
       </div>
+
+      {/* Depois do drawer (z-50) para o modal ficar por cima dele */}
+      <Modal
+        isOpen={!!offHoursWarning}
+        onClose={() => setOffHoursWarning(null)}
+        onConfirm={() => handleSalvar(true)}
+        title="Fora do horário de trabalho"
+        message={offHoursWarning}
+        confirmLabel="Salvar mesmo assim"
+      />
     </>
   )
 }
@@ -1378,6 +1450,9 @@ export default function AdminAgenda() {
   const [professionals, setProfessionals] = useState([])
   const professionalsRef = useRef([])
   const [breakByProf, setBreakByProf] = useState({})
+  // Sem isso, o estado ainda guardaria o horário do dia anterior enquanto a busca do
+  // novo dia não termina — a grade mostraria o expediente errado por um instante.
+  const [whLoaded, setWhLoaded] = useState(false)
   const [leaveByProf, setLeaveByProf] = useState({})
   const [loading, setLoading] = useState(true)
   const { restartTour } = useTour('admin', adminSteps, !loading)
@@ -1489,18 +1564,10 @@ export default function AdminAgenda() {
   useEffect(() => {
     if (professionals.length === 0) return
     const weekday = date.getDay()
-    Promise.all(
-      professionals.map((p) =>
-        api.get(`/working-hours/professional/${p.UUID}`)
-          .then(({ data }) => {
-            const wh = (data.data ?? []).find((w) => w.Weekday === weekday)
-            return { uuid: p.UUID, wh: wh ?? null }
-          })
-          .catch(() => ({ uuid: p.UUID, wh: null }))
-      )
-    ).then((results) => {
-      setBreakByProf(Object.fromEntries(results.map(({ uuid, wh }) => [uuid, wh])))
-    })
+    setWhLoaded(false)
+    fetchWorkingHours(professionals.map((p) => p.UUID), weekday)
+      .then((map) => setBreakByProf(map))
+      .finally(() => setWhLoaded(true))
   }, [professionals, date])
 
   const load = useCallback(async (silent = false) => {
@@ -1616,6 +1683,7 @@ export default function AdminAgenda() {
           professional={newSlot.professional}
           professionals={professionals}
           date={date}
+          whByProf={breakByProf}
           onClose={() => setNewSlot(null)}
           onSaved={load}
         />
@@ -1713,7 +1781,17 @@ export default function AdminAgenda() {
               </button>
               <div className="flex-1 flex items-center gap-2 bg-surface border border-line rounded-lg px-3 py-2">
                 <Avatar name={profNames[mobileProfIdx]} index={mobileProfIdx} size="sm" />
-                <div className="font-medium text-[13px] truncate">{profNames[mobileProfIdx]}</div>
+                <div className="min-w-0">
+                  <div className="font-medium text-[13px] truncate">{profNames[mobileProfIdx]}</div>
+                  {(() => {
+                    const mobWh = breakByProf[profObjects[mobileProfIdx]?.UUID] ?? null
+                    return (
+                      <div className={`text-[11px] truncate ${mobWh ? 'text-ink-3' : 'text-danger'}`}>
+                        {workingHoursLabel(mobWh, whLoaded)}
+                      </div>
+                    )
+                  })()}
+                </div>
                 <div className="font-mono text-[10.5px] text-ink-3 ml-auto shrink-0">{mobileProfIdx + 1}/{profNames.length}</div>
               </div>
               <button
@@ -1757,12 +1835,21 @@ export default function AdminAgenda() {
               style={{ gridTemplateColumns: `64px repeat(${deskVisibleNames.length}, minmax(0, 1fr))` }}
             >
               <div className="sticky top-0 z-30 px-3 py-3 border-b border-r border-line bg-surface-2" />
-              {deskVisibleNames.map((name, idx) => (
+              {deskVisibleNames.map((name, idx) => {
+                const headerWh = breakByProf[deskVisibleProfs[idx]?.UUID] ?? null
+                const label = workingHoursLabel(headerWh, whLoaded)
+                return (
                 <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5 min-w-0">
                   <Avatar name={name} index={idx} size="sm" />
-                  <div className="font-medium text-[13px] truncate min-w-0">{name}</div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-[13px] truncate">{name}</div>
+                    <div title={label} className={`text-[11px] truncate ${headerWh ? 'text-ink-3' : 'text-danger'}`}>
+                      {label}
+                    </div>
+                  </div>
                 </div>
-              ))}
+                )
+              })}
               {TIME_SLOTS.map((slot) => {
                 const isHour = slot.endsWith(':00')
                 return [
@@ -1784,13 +1871,17 @@ export default function AdminAgenda() {
                     const breakStart = isBreakStart(wh, slot)
                     const breakSpans = breakStart ? spanBreak(wh) : 0
                     const past = isSlotPast(date, slot)
+                    // Fora do expediente continua clicável (Admin pode encaixar) — só fica
+                    // marcado visualmente e dispara o aviso de confirmação ao salvar.
+                    const offHours = whLoaded && outsideWorkingHours(wh, slot)
                     const clickable = !occupied && !past && !onBreak && !onLeave
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
                         onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
+                        title={offHours && !past ? 'Fora do horário de trabalho' : undefined}
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                          ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
+                          ${past || onBreak || onLeave ? 'bg-surface-2' : offHours ? 'bg-off-hours' : ''}
                           ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                         {appts.map((a) => {
                           const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
@@ -1876,6 +1967,7 @@ export default function AdminAgenda() {
                 const breakStart = isBreakStart(wh, slot)
                 const breakSpans = breakStart ? spanBreak(wh) : 0
                 const past = isSlotPast(date, slot)
+                const offHours = whLoaded && outsideWorkingHours(wh, slot)
                 const clickable = !occupied && !past && !onBreak && !onLeave
                 return [
                   <div key={`mt-${slot}`}
@@ -1888,7 +1980,7 @@ export default function AdminAgenda() {
                     onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
                     className={`relative h-14 overflow-visible border-line-2
                       ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}
-                      ${past || onBreak || onLeave ? 'bg-surface-2' : ''}
+                      ${past || onBreak || onLeave ? 'bg-surface-2' : offHours ? 'bg-off-hours' : ''}
                       ${clickable ? 'hover:bg-brand-soft cursor-pointer transition-colors' : ''}`}>
                     {appts.map((a) => {
                       const s = STATUS_STYLE[a.Status] ?? STATUS_STYLE.pendente
@@ -1959,6 +2051,10 @@ export default function AdminAgenda() {
                 {status.charAt(0).toUpperCase() + status.slice(1)}
               </span>
             ))}
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
+              <i className="w-3 h-3 rounded-sm border border-line-2 bg-off-hours" />
+              Fora do expediente
+            </span>
           </div>
         </>
       )}

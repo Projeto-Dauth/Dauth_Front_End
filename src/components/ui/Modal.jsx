@@ -28,7 +28,7 @@ export default function Modal({
           </button>
         </div>
         {message && (
-          <p className="text-[13.5px] text-ink-2 mb-5 leading-relaxed">{message}</p>
+          <p className="text-[13.5px] text-ink-2 mb-5 leading-relaxed whitespace-pre-line">{message}</p>
         )}
         <div className="flex gap-2.5 justify-end">
           <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>
