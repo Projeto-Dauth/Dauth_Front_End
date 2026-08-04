@@ -25,6 +25,7 @@ const PRESETS = [
   { key: 'semana', label: 'Semana' },
   { key: 'quinzena', label: 'Quinzena' },
   { key: 'mes', label: 'Mês' },
+  { key: 'personalizado', label: 'Personalizado' },
 ]
 
 const PAY_METHODS = [
@@ -46,7 +47,7 @@ function toLocalDateStr(date) {
 }
 
 function getDateRange(preset) {
-  if (preset === 'todas') return { from: null, to: null }
+  if (preset === 'todas' || preset === 'personalizado') return { from: null, to: null }
 
   const today = new Date()
   const to = toLocalDateStr(today)
@@ -463,6 +464,8 @@ export default function AdminComissoes() {
   const [view, setView] = useState('comissoes') // 'comissoes' | 'historico'
   const [commissionTab, setCommissionTab] = useState('pendente') // 'pendente' | 'repassada'
   const [preset, setPreset] = useState('mes')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [profFilter, setProfFilter] = useState(null)
   const [profissionais, setProfissionais] = useState([])
   const [markingPaid, setMarkingPaid] = useState(null)
@@ -472,7 +475,9 @@ export default function AdminComissoes() {
   const [totalsByProf, setTotalsByProf] = useState({})
   const [preparandoModal, setPreparandoModal] = useState(false)
 
-  const { from, to } = getDateRange(preset)
+  const { from, to } = preset === 'personalizado'
+    ? { from: customFrom || null, to: customTo || null }
+    : getDateRange(preset)
 
   useEffect(() => {
     api.get('/transaction/commissions/totals-by-professional', {
@@ -606,19 +611,40 @@ export default function AdminComissoes() {
         </div>
 
         {view === 'comissoes' && (
-          <div className="flex items-center gap-1 p-1 bg-surface-2 border border-line rounded-xl shrink-0 overflow-x-auto">
-            {PRESETS.map(p => (
-              <button
-                key={p.key}
-                onClick={() => setPreset(p.key)}
-                className={`shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
-                  preset === p.key
-                    ? 'bg-surface text-ink shadow-sm border border-line'
-                    : 'text-ink-3 hover:text-ink'
-                }`}>
-                {p.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 p-1 bg-surface-2 border border-line rounded-xl shrink-0 overflow-x-auto">
+              {PRESETS.map(p => (
+                <button
+                  key={p.key}
+                  onClick={() => setPreset(p.key)}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
+                    preset === p.key
+                      ? 'bg-surface text-ink shadow-sm border border-line'
+                      : 'text-ink-3 hover:text-ink'
+                  }`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {preset === 'personalizado' && (
+              <div className="flex items-center gap-2 shrink-0">
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  max={customTo || undefined}
+                  className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand"
+                />
+                <span className="text-ink-4 text-[12px]">até</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  min={customFrom || undefined}
+                  className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
