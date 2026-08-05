@@ -322,6 +322,26 @@ export default function DetalhesAgendamento() {
             if (cancelled) return
             setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: [], loadingProfessionals: false } }))
           })
+      } else if (canEdit && !it.serviceId) {
+        // Item novo (ainda sem serviço escolhido): não dá pra buscar profissionais
+        // por /service/:id/professionals sem um serviceId, então usa a lista geral
+        // — senão o select de profissional fica travado até o serviço ser escolhido,
+        // impedindo trocar a profissional de um item recém-adicionado.
+        setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingProfessionals: true } }))
+        Promise.all([
+          api.get('/users', { params: { Role: 'Profissional' } }),
+          api.get('/users', { params: { Role: 'Admin' } }),
+        ])
+          .then(([profRes, adminRes]) => {
+            if (cancelled) return
+            const list = [...(adminRes.data.data ?? []), ...(profRes.data.data ?? [])]
+              .map(u => ({ professional_id: u.UUID, name: u.Name }))
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: list, loadingProfessionals: false } }))
+          })
+          .catch(() => {
+            if (cancelled) return
+            setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: [], loadingProfessionals: false } }))
+          })
       }
     })
     return () => { cancelled = true }

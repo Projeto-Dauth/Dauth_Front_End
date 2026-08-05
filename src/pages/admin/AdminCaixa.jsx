@@ -132,6 +132,12 @@ function TabComandas({ user, initialAppointmentId }) {
   const [payMethod, setPayMethod] = useState('pix')
   const [paying, setPaying] = useState(false)
 
+  // Itens da comanda selecionada — GET /tab não traz Tab_items completo (só usa pra
+  // calcular o valor pendente), então busca à parte, igual ao ModalFecharConta.
+  const [selectedItems, setSelectedItems] = useState([])
+  const [editingItemId, setEditingItemId] = useState(null)
+  const [updatingItemId, setUpdatingItemId] = useState(null)
+
   // Fechar conta (batch pay)
   const [batchClient, setBatchClient] = useState(null) // resposta de /tab/client/:id/account-summary
   const [batchMethod, setBatchMethod] = useState('pix')
@@ -197,6 +203,73 @@ function TabComandas({ user, initialAppointmentId }) {
 
   const emAberto = tabs.filter((t) => t.Status === 'Em aberto').length
   const totalAberto = tabs.filter((t) => t.Status === 'Em aberto').reduce((s, t) => s + t.Value, 0)
+
+  useEffect(() => {
+    if (!selectedId) { setSelectedItems([]); return }
+    api.get(`/tab/${selectedId}`)
+      .then(({ data }) => setSelectedItems(data.Tab_items ?? []))
+      .catch(() => setSelectedItems([]))
+  }, [selectedId])
+
+  // Edita o Unit_price de um item da comanda selecionada — mesmo padrão do
+  // ModalFecharConta.jsx (PATCH /tab/:id/items/:itemId recalcula Tab.Value via trigger no
+  // banco; local só espelha a mesma soma pra não precisar rebuscar tudo).
+  async function handleUpdateItemPrice(item, rawValue) {
+    setEditingItemId(null)
+    const newPrice = parseFloat(String(rawValue).replace(',', '.'))
+    if (!Number.isFinite(newPrice) || newPrice < 0 || newPrice === item.Unit_price) return
+    setUpdatingItemId(item.UUID)
+    try {
+      const { data: updatedItem } = await api.patch(`/tab/${selected.UUID}/items/${item.UUID}`, { Unit_price: newPrice })
+      const nextItems = selectedItems.map(i =>
+        i.UUID === updatedItem.UUID ? { ...i, Unit_price: updatedItem.Unit_price, Quantity: updatedItem.Quantity } : i
+      )
+      setSelectedItems(nextItems)
+      setTabs(prev => prev.map(t => t.UUID === selected.UUID
+        ? { ...t, Value: nextItems.filter(i => i.Status !== 'pago').reduce((s, i) => s + i.Unit_price * i.Quantity, 0) }
+        : t
+      ))
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao atualizar valor do item', 'error')
+    } finally {
+      setUpdatingItemId(null)
+    }
+  }
+
+  function renderItemPrice(item) {
+    if (editingItemId === item.UUID) {
+      return (
+        <input
+          autoFocus
+          type="text"
+          inputMode="decimal"
+          defaultValue={item.Unit_price}
+          onInput={e => {
+            const cleaned = e.target.value.replace(/[^0-9.,]/g, '')
+            if (cleaned !== e.target.value) e.target.value = cleaned
+          }}
+          onBlur={e => handleUpdateItemPrice(item, e.target.value.replace(',', '.'))}
+          onKeyDown={e => {
+            if (e.key === 'Enter') e.target.blur()
+            if (e.key === 'Escape') { e.target.value = item.Unit_price; e.target.blur() }
+          }}
+          className="w-20 h-6 px-1.5 rounded border border-brand bg-surface text-ink text-[12.5px] font-mono text-right focus:outline-none shrink-0"
+        />
+      )
+    }
+    const isUpdating = updatingItemId === item.UUID
+    return (
+      <button
+        type="button"
+        onClick={() => setEditingItemId(item.UUID)}
+        disabled={isUpdating}
+        title="Editar valor do item"
+        className="font-mono shrink-0 hover:text-brand hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
+      >
+        {formatCurrency(item.Unit_price * item.Quantity)}
+      </button>
+    )
+  }
 
   async function handlePagar() {
     if (!selected) return
@@ -393,6 +466,25 @@ function TabComandas({ user, initialAppointmentId }) {
               </div>
 
               <div className="px-6 py-5">
+                {selectedItems.length > 0 && (
+                  <div className="pb-3.5 border-b border-dashed border-line-2 mb-1">
+                    <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Itens</div>
+                    <div className="space-y-1.5">
+                      {selectedItems.map(item => (
+                        <div key={item.UUID} className="flex items-center justify-between gap-2 text-[13px]">
+                          <span className="text-ink-2 truncate">
+                            {(item.Item_type === 'product' ? item.Product?.Name : item.Service?.Name) ?? '—'}
+                            {item.Quantity > 1 ? ` ×${item.Quantity}` : ''}
+                          </span>
+                          {selected.Status === 'Em aberto'
+                            ? renderItemPrice(item)
+                            : <span className="font-mono shrink-0">{formatCurrency(item.Unit_price * item.Quantity)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Valor</span>
                   <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Value)}</span>

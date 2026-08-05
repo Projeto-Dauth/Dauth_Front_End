@@ -46,6 +46,7 @@ export default function AgendarPage() {
   const [categories, setCategories] = useState(['Todas'])
   const [activeCategory, setActiveCategory] = useState('Todas')
   const [loadingServices, setLoadingServices] = useState(true)
+  const [serviceSearch, setServiceSearch] = useState('')
 
   // Step 1
   const [professionals, setProfessionals] = useState([])
@@ -174,9 +175,11 @@ export default function AgendarPage() {
     if (step > 0) setStep((s) => (s === 4 && isAuthenticated ? s - 2 : s - 1))
   }
 
-  const filteredServices = activeCategory === 'Todas'
+  const serviceSearch_ = serviceSearch.trim().toLowerCase()
+  const filteredServices = (activeCategory === 'Todas'
     ? services
     : services.filter((s) => s.Category === activeCategory)
+  ).filter((s) => !serviceSearch_ || s.Name.toLowerCase().includes(serviceSearch_))
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -376,6 +379,16 @@ export default function AgendarPage() {
             <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Filtre pela categoria ou escolha entre os serviços disponíveis.
             </p>
+            <div className="relative mb-4 max-w-[360px]">
+              <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
+              <input
+                type="text"
+                value={serviceSearch}
+                onChange={(e) => setServiceSearch(e.target.value)}
+                placeholder="Buscar serviço..."
+                className="w-full h-[38px] pl-8 pr-3 rounded-full border border-line bg-surface text-ink-2 text-[13px] placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors"
+              />
+            </div>
             <div className="flex gap-2 mb-5 flex-wrap">
               {categories.map((cat) => (
                 <button key={cat} onClick={() => setActiveCategory(cat)}
