@@ -190,6 +190,13 @@ function ClienteSidebar({ user, sinceLabel, onClose }) {
         </NavLink>
       ))}
       <div className="flex-1" />
+      {user?.role === 'Profissional' && (
+        <NavLink to="/profissional" onClick={onClose}>
+          <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-surface border border-line text-ink-2 cursor-pointer hover:border-ink-3 transition-colors mb-2">
+            <Icon name="arrowLeft" size={14} />Voltar ao painel
+          </button>
+        </NavLink>
+      )}
       <NavLink to="/agendar" onClick={onClose}>
         <button data-tour="agendar-btn" className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-brand text-white border border-brand cursor-pointer hover:bg-[#72391f] transition-colors">
           <Icon name="plus" size={14} />Novo agendamento

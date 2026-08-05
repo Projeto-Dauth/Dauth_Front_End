@@ -105,7 +105,7 @@ export default function TrocarSenha() {
         </div>
         {isFirstAccess && (
           <div className="mb-5 px-4 py-3 bg-warning-soft border border-warning/30 rounded-lg text-[13px] text-ink-2">
-            A senha padrão é <span className="font-mono font-semibold">12345678</span>. Troque agora para proteger sua conta.
+            A senha padrão é <span className="font-mono font-semibold">123456789</span>. Troque agora para proteger sua conta.
           </div>
         )}
 
