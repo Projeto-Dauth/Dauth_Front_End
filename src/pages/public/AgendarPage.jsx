@@ -46,6 +46,7 @@ export default function AgendarPage() {
   const [categories, setCategories] = useState(['Todas'])
   const [activeCategory, setActiveCategory] = useState('Todas')
   const [loadingServices, setLoadingServices] = useState(true)
+  const [serviceSearch, setServiceSearch] = useState('')
 
   // Step 1
   const [professionals, setProfessionals] = useState([])
@@ -80,7 +81,9 @@ export default function AgendarPage() {
   const svc = services.find((s) => s.UUID === selectedServiceId)
 
   useEffect(() => {
-    api.get('/public/services?has_professionals=true')
+    // has_professionals=true: só traz serviços com pelo menos 1 profissional vinculado —
+    // evita que a cliente escolha um serviço no passo 1 e trave sem opção no passo 2
+    api.get('/public/services?has_professionals=true&limit=100')
       .then(({ data }) => {
         setServices(data.data)
         const cats = ['Todas', ...new Set(data.data.map((s) => s.Category).filter(Boolean))]
@@ -172,9 +175,11 @@ export default function AgendarPage() {
     if (step > 0) setStep((s) => (s === 4 && isAuthenticated ? s - 2 : s - 1))
   }
 
-  const filteredServices = activeCategory === 'Todas'
+  const serviceSearch_ = serviceSearch.trim().toLowerCase()
+  const filteredServices = (activeCategory === 'Todas'
     ? services
     : services.filter((s) => s.Category === activeCategory)
+  ).filter((s) => !serviceSearch_ || s.Name.toLowerCase().includes(serviceSearch_))
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -374,6 +379,16 @@ export default function AgendarPage() {
             <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
               Filtre pela categoria ou escolha entre os serviços disponíveis.
             </p>
+            <div className="relative mb-4 max-w-[360px]">
+              <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
+              <input
+                type="text"
+                value={serviceSearch}
+                onChange={(e) => setServiceSearch(e.target.value)}
+                placeholder="Buscar serviço..."
+                className="w-full h-[38px] pl-8 pr-3 rounded-full border border-line bg-surface text-ink-2 text-[13px] placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors"
+              />
+            </div>
             <div className="flex gap-2 mb-5 flex-wrap">
               {categories.map((cat) => (
                 <button key={cat} onClick={() => setActiveCategory(cat)}
@@ -549,70 +564,70 @@ export default function AgendarPage() {
               </div>
             ) : (
               <>
-            <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Seus dados</h2>
-            <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
-              Entre na sua conta ou crie uma nova para finalizar o agendamento.
-            </p>
+                <h2 className="font-display font-medium text-[26px] md:text-[32px] tracking-tight mb-2">Seus dados</h2>
+                <p className="text-ink-2 text-[14px] md:text-[14.5px] mb-6 md:mb-8 max-w-[560px]">
+                  Entre na sua conta ou crie uma nova para finalizar o agendamento.
+                </p>
 
-            {/* Mobile: tabs */}
-            <div className="flex gap-1 mb-5 border-b border-line md:hidden">
-              {['login', 'register'].map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setAuthMode(mode)}
-                  className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors
+                {/* Mobile: tabs */}
+                <div className="flex gap-1 mb-5 border-b border-line md:hidden">
+                  {['login', 'register'].map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setAuthMode(mode)}
+                      className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors
                     ${authMode === mode ? 'border-brand text-ink' : 'border-transparent text-ink-3'}`}
-                >
-                  {mode === 'login' ? 'Já tenho conta' : 'Criar conta'}
-                </button>
-              ))}
-            </div>
+                    >
+                      {mode === 'login' ? 'Já tenho conta' : 'Criar conta'}
+                    </button>
+                  ))}
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              {/* Login */}
-              <div
-                className={`bg-surface border rounded-[14px] p-5 md:p-8 cursor-pointer transition-colors
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  {/* Login */}
+                  <div
+                    className={`bg-surface border rounded-[14px] p-5 md:p-8 cursor-pointer transition-colors
                   ${authMode === 'login' ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}
                   ${authMode !== 'login' ? 'hidden md:block' : ''}`}
-                onClick={() => setAuthMode('login')}
-              >
-                <h3 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-4 md:mb-5">Já tenho conta</h3>
-                <form onSubmit={handleLogin} onClick={(e) => e.stopPropagation()}>
-                  <AuthField label="Telefone" type="tel" placeholder="(11) 9 8765-4321"
-                    value={loginData.phone} onChange={(v) => setLoginData((d) => ({ ...d, phone: v }))} />
-                  <AuthField label="Senha" type="password" placeholder="Sua senha"
-                    value={loginData.password} onChange={(v) => setLoginData((d) => ({ ...d, password: v }))} />
-                  <Button type="submit" variant="primary" className="w-full justify-center mt-2"
-                    disabled={authLoading}>
-                    {authLoading && authMode === 'login' ? 'Entrando...' : 'Entrar'}
-                  </Button>
-                </form>
-              </div>
+                    onClick={() => setAuthMode('login')}
+                  >
+                    <h3 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-4 md:mb-5">Já tenho conta</h3>
+                    <form onSubmit={handleLogin} onClick={(e) => e.stopPropagation()}>
+                      <AuthField label="Telefone" type="tel" placeholder="(11) 9 8765-4321"
+                        value={loginData.phone} onChange={(v) => setLoginData((d) => ({ ...d, phone: v }))} />
+                      <AuthField label="Senha" type="password" placeholder="Sua senha"
+                        value={loginData.password} onChange={(v) => setLoginData((d) => ({ ...d, password: v }))} />
+                      <Button type="submit" variant="primary" className="w-full justify-center mt-2"
+                        disabled={authLoading}>
+                        {authLoading && authMode === 'login' ? 'Entrando...' : 'Entrar'}
+                      </Button>
+                    </form>
+                  </div>
 
-              {/* Register */}
-              <div
-                className={`bg-surface border rounded-[14px] p-5 md:p-8 cursor-pointer transition-colors
+                  {/* Register */}
+                  <div
+                    className={`bg-surface border rounded-[14px] p-5 md:p-8 cursor-pointer transition-colors
                   ${authMode === 'register' ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}
                   ${authMode !== 'register' ? 'hidden md:block' : ''}`}
-                onClick={() => setAuthMode('register')}
-              >
-                <h3 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-4 md:mb-5">Criar conta</h3>
-                <form onSubmit={handleRegister} onClick={(e) => e.stopPropagation()}>
-                  <AuthField label="Nome completo" type="text" placeholder="Seu nome"
-                    value={registerData.name} onChange={(v) => setRegisterData((d) => ({ ...d, name: v }))} />
-                  <AuthField label="Telefone" type="tel" placeholder="(11) 9 8765-4321"
-                    value={registerData.phone} onChange={(v) => setRegisterData((d) => ({ ...d, phone: v }))} />
-                  <AuthField label="Data de nascimento" type="date"
-                    value={registerData.birthday} onChange={(v) => setRegisterData((d) => ({ ...d, birthday: v }))} />
-                  <AuthField label="Senha" type="password" placeholder="Mínimo 8 caracteres"
-                    value={registerData.password} onChange={(v) => setRegisterData((d) => ({ ...d, password: v }))} />
-                  <Button type="submit" variant="primary" className="w-full justify-center mt-2"
-                    disabled={authLoading}>
-                    {authLoading && authMode === 'register' ? 'Criando conta...' : 'Criar conta'}
-                  </Button>
-                </form>
-              </div>
-            </div>
+                    onClick={() => setAuthMode('register')}
+                  >
+                    <h3 className="font-display font-medium text-[18px] md:text-[20px] tracking-tight mb-4 md:mb-5">Criar conta</h3>
+                    <form onSubmit={handleRegister} onClick={(e) => e.stopPropagation()}>
+                      <AuthField label="Nome completo" type="text" placeholder="Seu nome"
+                        value={registerData.name} onChange={(v) => setRegisterData((d) => ({ ...d, name: v }))} />
+                      <AuthField label="Telefone" type="tel" placeholder="(11) 9 8765-4321"
+                        value={registerData.phone} onChange={(v) => setRegisterData((d) => ({ ...d, phone: v }))} />
+                      <AuthField label="Data de nascimento" type="date"
+                        value={registerData.birthday} onChange={(v) => setRegisterData((d) => ({ ...d, birthday: v }))} />
+                      <AuthField label="Senha" type="password" placeholder="Mínimo 8 caracteres"
+                        value={registerData.password} onChange={(v) => setRegisterData((d) => ({ ...d, password: v }))} />
+                      <Button type="submit" variant="primary" className="w-full justify-center mt-2"
+                        disabled={authLoading}>
+                        {authLoading && authMode === 'register' ? 'Criando conta...' : 'Criar conta'}
+                      </Button>
+                    </form>
+                  </div>
+                </div>
               </>
             )}
           </>

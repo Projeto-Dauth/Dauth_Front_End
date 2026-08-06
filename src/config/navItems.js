@@ -41,6 +41,8 @@ export const navItemsByRole = {
     { to: '/profissional/horarios', icon: 'clock', label: 'Meus horários' },
     { to: '/perfil', icon: 'users', label: 'Meu perfil' },
     { to: '/docs', icon: 'book', label: 'Docs' },
+    { type: 'label', label: 'Como cliente' },
+    { to: '/cliente', icon: 'cal', label: 'Meus atendimentos' },
   ],
   Usuario: [
     { to: '/cliente', end: true, icon: 'cal', label: 'Início' },

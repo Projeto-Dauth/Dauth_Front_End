@@ -106,7 +106,7 @@ const router = createBrowserRouter([
   {
     path: '/cliente',
     element: (
-      <ProtectedRoute allowedRoles={['Usuario', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Usuario', 'Admin', 'Profissional']}>
         <ClienteDashboard />
       </ProtectedRoute>
     ),
@@ -114,7 +114,7 @@ const router = createBrowserRouter([
   {
     path: '/cliente/agendamentos',
     element: (
-      <ProtectedRoute allowedRoles={['Usuario', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Usuario', 'Admin', 'Profissional']}>
         <MeusAgendamentos />
       </ProtectedRoute>
     ),
@@ -122,7 +122,7 @@ const router = createBrowserRouter([
   {
     path: '/cliente/combos',
     element: (
-      <ProtectedRoute allowedRoles={['Usuario', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Usuario', 'Admin', 'Profissional']}>
         <MeusCombos />
       </ProtectedRoute>
     ),
@@ -130,7 +130,7 @@ const router = createBrowserRouter([
   {
     path: '/cliente/comandas',
     element: (
-      <ProtectedRoute allowedRoles={['Usuario', 'Admin']}>
+      <ProtectedRoute allowedRoles={['Usuario', 'Admin', 'Profissional']}>
         <MinhasComanadas />
       </ProtectedRoute>
     ),

@@ -84,6 +84,13 @@ function ClienteSidebar({ user, onClose }) {
         </NavLink>
       ))}
       <div className="flex-1" />
+      {user?.role === 'Profissional' && (
+        <NavLink to="/profissional" onClick={onClose}>
+          <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-surface border border-line text-ink-2 cursor-pointer hover:border-ink-3 transition-colors mb-2">
+            <Icon name="arrowLeft" size={14} />Voltar ao painel
+          </button>
+        </NavLink>
+      )}
       <NavLink to="/agendar" onClick={onClose}>
         <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-brand text-white border border-brand cursor-pointer hover:bg-[#72391f] transition-colors">
           <Icon name="plus" size={14} />Novo agendamento
@@ -111,11 +118,15 @@ export default function MinhasComanadas() {
   const [statusFilter, setStatusFilter] = useState('Todos')
 
   useEffect(() => {
-    api.get('/tab')
+    // GET /tab sem parâmetro se auto-filtra pelo role de quem chama: para Profissional
+    // ele traz as comandas que ELA atendeu, não as que comprou como cliente — errado aqui.
+    // /tab/client/:id não tem essa ambiguidade, sempre filtra pelo cliente informado.
+    const endpoint = user.role === 'Profissional' ? `/tab/client/${user.id}` : '/tab'
+    api.get(endpoint)
       .then(({ data }) => setTabs(data.data ?? []))
       .catch(() => setTabs([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [user.id, user.role])
 
   const filtered = statusFilter === 'Todos'
     ? tabs
