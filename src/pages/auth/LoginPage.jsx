@@ -26,6 +26,11 @@ function loginErrorMessage(err) {
 
   const { status, data } = err.response
   const msg = data?.error ?? data?.erro
+  // onSubmit encadeia 3 requisições (login → perfil → permissões) e qualquer 401 cai
+  // no mesmo catch. O middleware de autorização responde { message }, chave que não é
+  // lida acima — sem distinguir a origem, um cookie de sessão recusado pelo navegador
+  // aparecia como "telefone ou senha inválidos".
+  const isLoginRequest = err.config?.url?.includes('/auth/login')
 
   if (status === 429) {
     return 'Muitas tentativas de login. Aguarde 15 minutos antes de tentar novamente.'
@@ -35,7 +40,11 @@ function loginErrorMessage(err) {
   }
   if (Array.isArray(msg)) return msg.join(' ')
   if (msg) return msg
-  if (status === 401) return 'Telefone ou senha inválidos.'
+  if (status === 401) {
+    return isLoginRequest
+      ? 'Telefone ou senha inválidos.'
+      : 'Suas credenciais foram aceitas, mas o navegador não guardou a sessão. Se estiver em uma aba anônima ou com bloqueio de cookies, tente em uma aba normal.'
+  }
   if (status === 403) return 'Acesso negado. Sua conta pode estar desativada ou aguardando verificação.'
 
   return 'Erro ao entrar. Tente novamente.'
