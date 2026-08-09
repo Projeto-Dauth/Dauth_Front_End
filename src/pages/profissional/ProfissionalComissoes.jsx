@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Avatar from '@/components/ui/Avatar'
-import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
@@ -32,6 +31,7 @@ export default function ProfissionalComissoes() {
   const [data, setData] = useState([])
   const [totais, setTotais] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [statusTab, setStatusTab] = useState('apagar') // 'apagar' | 'pagas'
 
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
   const monthKey = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
@@ -46,6 +46,12 @@ export default function ProfissionalComissoes() {
       .catch(() => { setData([]); setTotais(null) })
       .finally(() => setLoading(false))
   }, [monthKey])
+
+  const aPagar = data.filter(row => !row.commission_paid)
+  const pagas = data.filter(row => row.commission_paid)
+  const listaAtual = statusTab === 'apagar' ? aPagar : pagas
+  const totalComissaoAtual = listaAtual.reduce((sum, r) => sum + (r.commission_amount ?? 0), 0)
+  const totalServicoAtual = listaAtual.reduce((sum, r) => sum + (r.gross_amount ?? 0), 0)
 
   const sidebar = (
     <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Profissional">Profissional</Sidebar>
@@ -88,14 +94,10 @@ export default function ProfissionalComissoes() {
         <>
           {/* Cards de totais */}
           {totais && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Atendimentos</span>
                 <span className="text-[26px] font-serif font-light leading-none tracking-wide text-ink">{totais.atendimentos}</span>
-              </div>
-              <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-1.5">
-                <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Receita gerada</span>
-                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-ink">{formatCurrency(totais.gross_amount)}</span>
               </div>
               <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Comissão a receber</span>
@@ -104,8 +106,44 @@ export default function ProfissionalComissoes() {
             </div>
           )}
 
-          {data.length === 0 ? (
-            <EmptyState icon="cash" title="Sem comissões" description="Nenhum atendimento pago registrado neste período." />
+          {/* Toggle A pagar / Pagas */}
+          <div className="flex items-center gap-2 mb-6">
+            <button
+              onClick={() => setStatusTab('apagar')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium border transition-colors cursor-pointer ${
+                statusTab === 'apagar'
+                  ? 'bg-warning/10 text-warning border-warning'
+                  : 'bg-surface text-ink-3 border-line hover:border-ink-3'
+              }`}>
+              A pagar
+              {statusTab === 'apagar' && (
+                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning">
+                  {aPagar.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setStatusTab('pagas')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium border transition-colors cursor-pointer ${
+                statusTab === 'pagas'
+                  ? 'bg-success/10 text-success border-success/40'
+                  : 'bg-surface text-ink-3 border-line hover:border-ink-3'
+              }`}>
+              Pagas
+              {statusTab === 'pagas' && (
+                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-full bg-success/20 text-success">
+                  {pagas.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {listaAtual.length === 0 ? (
+            <EmptyState
+              icon="cash"
+              title={statusTab === 'apagar' ? 'Nada a pagar' : 'Nenhuma comissão paga'}
+              description={statusTab === 'apagar' ? 'Não há comissões pendentes neste período.' : 'Nenhuma comissão foi repassada neste período.'}
+            />
           ) : (
             <>
               {/* Tabela — desktop */}
@@ -119,11 +157,10 @@ export default function ProfissionalComissoes() {
                       <th className="text-left px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Serviço</th>
                       <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Valor do serviço</th>
                       <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Sua comissão</th>
-                      <th className="text-right px-5 py-3.5 font-mono text-[10.5px] uppercase tracking-widest text-ink-4 font-normal">Repasse</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.map(row => (
+                    {listaAtual.map(row => (
                       <tr key={row.uuid} className="border-b border-line-2 last:border-0 hover:bg-surface-2 transition-colors">
                         <td className="px-5 py-4 font-mono text-[12px] text-ink-3">{formatDate(row.appointment_date)}</td>
                         <td className="px-5 py-4 font-mono text-[12px] text-ink-4">{formatDate(row.data)}</td>
@@ -138,22 +175,16 @@ export default function ProfissionalComissoes() {
                         <td className="px-5 py-4 text-right">
                           <span className="font-mono text-[13px] font-semibold text-brand">{formatCurrency(row.commission_amount)}</span>
                         </td>
-                        <td className="px-5 py-4 text-right">
-                          <Chip variant={row.commission_paid ? 'success' : 'warning'}>
-                            {row.commission_paid ? 'Repassado' : 'A repassar'}
-                          </Chip>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-line bg-surface-2">
                       <td colSpan={4} className="px-5 py-3.5 font-mono text-[11px] uppercase tracking-widest text-ink-3">
-                        Total · {totais?.atendimentos} atendimento{totais?.atendimentos !== 1 ? 's' : ''}
+                        Total · {listaAtual.length} atendimento{listaAtual.length !== 1 ? 's' : ''}
                       </td>
-                      <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink">{formatCurrency(totais?.gross_amount)}</td>
-                      <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(totais?.commission_amount)}</td>
-                      <td />
+                      <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink">{formatCurrency(totalServicoAtual)}</td>
+                      <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(totalComissaoAtual)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -161,21 +192,16 @@ export default function ProfissionalComissoes() {
 
               {/* Cards — mobile */}
               <div className="md:hidden space-y-3">
-                {data.map(row => (
+                {listaAtual.map(row => (
                   <div key={row.uuid} className="bg-surface border border-line rounded-[14px] px-4 py-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <Avatar name={row.cliente} index={0} size="sm" />
                         <span className="font-medium text-[14px] text-ink">{row.cliente}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <div className="font-mono text-[11px] text-ink-3">Agend. {formatDate(row.appointment_date)}</div>
-                          <div className="font-mono text-[10px] text-ink-4">Pgto. {formatDate(row.data)}</div>
-                        </div>
-                        <Chip variant={row.commission_paid ? 'success' : 'warning'}>
-                          {row.commission_paid ? 'Repassado' : 'A repassar'}
-                        </Chip>
+                      <div className="text-right">
+                        <div className="font-mono text-[11px] text-ink-3">Agend. {formatDate(row.appointment_date)}</div>
+                        <div className="font-mono text-[10px] text-ink-4">Pgto. {formatDate(row.data)}</div>
                       </div>
                     </div>
                     <div className="text-[13px] text-ink-2 mb-3">{row.servico}</div>
