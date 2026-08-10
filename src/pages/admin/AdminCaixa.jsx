@@ -25,6 +25,41 @@ const navItems = navItemsByRole['Admin']
 
 const STATUS_FILTERS = ['Todos', 'Em aberto', 'Paga', 'Expirada']
 
+const PERIOD_PRESETS = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'semana', label: 'Semana' },
+  { key: 'mes', label: 'Mês' },
+  { key: 'personalizado', label: 'Personalizado' },
+]
+
+function toLocalDateStr(date) {
+  return date.toLocaleDateString('en-CA')
+}
+
+// Comanda não tem data própria — usa a data do agendamento quando existe (o caso comum);
+// comandas sem Appointment (combo, ou comanda combinada sem Appointment direto) caem no
+// Created_at da própria Tab, que é o fallback mais próximo do "quando essa comanda existiu".
+function tabDateStr(t) {
+  return t.Appointment?.Date ?? t.Created_at?.slice(0, 10) ?? null
+}
+
+function getPeriodRange(preset) {
+  if (preset === 'todos' || preset === 'personalizado') return { from: null, to: null }
+
+  const today = new Date()
+  const to = toLocalDateStr(today)
+
+  if (preset === 'semana') {
+    const day = today.getDay()
+    const monday = new Date(today)
+    monday.setDate(today.getDate() - ((day + 6) % 7))
+    return { from: toLocalDateStr(monday), to }
+  }
+
+  const start = new Date(today.getFullYear(), today.getMonth(), 1)
+  return { from: toLocalDateStr(start), to }
+}
+
 const PAY_METHODS = [
   { id: 'pix', icon: 'qr', label: 'Pix' },
   { id: 'dinheiro', icon: 'cash', label: 'Dinheiro' },
@@ -126,6 +161,9 @@ function TabComandas({ user, initialAppointmentId }) {
   const [loading, setLoading] = useState(true)
   const { restartTour } = useTour('admin_caixa_comandas', adminCaixaComandasSteps, !loading)
   const [statusFilter, setStatusFilter] = useState('Todos')
+  const [periodPreset, setPeriodPreset] = useState('todos')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [search, setSearch] = useState('')
   const [onlyMensalista, setOnlyMensalista] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -178,9 +216,23 @@ function TabComandas({ user, initialAppointmentId }) {
         return t.Status === statusFilter
       })
 
+  const { from: periodFrom, to: periodTo } = periodPreset === 'personalizado'
+    ? { from: customFrom || null, to: customTo || null }
+    : getPeriodRange(periodPreset)
+
+  const filteredByPeriod = (!periodFrom && !periodTo)
+    ? filteredByStatus
+    : filteredByStatus.filter((t) => {
+        const d = tabDateStr(t)
+        if (!d) return false
+        if (periodFrom && d < periodFrom) return false
+        if (periodTo && d > periodTo) return false
+        return true
+      })
+
   const filteredByMensalista = onlyMensalista
-    ? filteredByStatus.filter(isFiadoTab)
-    : filteredByStatus
+    ? filteredByPeriod.filter(isFiadoTab)
+    : filteredByPeriod
 
   const search_ = search.trim().toLowerCase()
   const filteredBase = search_
@@ -197,7 +249,7 @@ function TabComandas({ user, initialAppointmentId }) {
 
   const { pageItems: pagedTabs, page, setPage, totalPages } = usePagination(filtered, 20)
 
-  useEffect(() => { setPage(1) }, [statusFilter, search, onlyMensalista])
+  useEffect(() => { setPage(1) }, [statusFilter, periodFrom, periodTo, search, onlyMensalista])
 
   const selected = tabs.find((t) => t.UUID === selectedId)
 
@@ -364,6 +416,41 @@ function TabComandas({ user, initialAppointmentId }) {
           ))}
         </div>
       )}
+
+      {/* Filtro de período */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="flex items-center gap-1 p-1 bg-surface-2 border border-line rounded-xl shrink-0 overflow-x-auto">
+          {PERIOD_PRESETS.map(p => (
+            <button
+              key={p.key}
+              onClick={() => setPeriodPreset(p.key)}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
+                periodPreset === p.key ? 'bg-surface text-ink shadow-sm border border-line' : 'text-ink-3 hover:text-ink'
+              }`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {periodPreset === 'personalizado' && (
+          <div className="flex items-center gap-2 shrink-0">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              max={customTo || undefined}
+              className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand"
+            />
+            <span className="text-ink-4 text-[12px]">até</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              min={customFrom || undefined}
+              className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand"
+            />
+          </div>
+        )}
+      </div>
 
       {/* Busca + Filtros */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-5">

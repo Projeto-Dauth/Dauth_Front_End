@@ -39,6 +39,7 @@ import AdminServicos from '@/pages/admin/AdminServicos'
 import AdminProdutos from '@/pages/admin/AdminProdutos'
 import AdminPedidosProdutos from '@/pages/admin/AdminPedidosProdutos'
 import AdminComissoes from '@/pages/admin/AdminComissoes'
+import AdminMensalistas from '@/pages/admin/AdminMensalistas'
 import ConvidarProfissional from '@/pages/admin/ConvidarProfissional'
 
 // Páginas compartilhadas
@@ -240,6 +241,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['Admin']}>
         <AdminComissoes />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/mensalistas',
+    element: (
+      <ProtectedRoute allowedRoles={['Admin']}>
+        <AdminMensalistas />
       </ProtectedRoute>
     ),
   },

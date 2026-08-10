@@ -399,7 +399,7 @@ function LeaveContextMenu({ leave, x, y, onClose, onEdit, onRemove }) {
   )
 }
 
-function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigate, onTransfer, onOpenComanda }) {
+function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigate, onTransfer, onOpenComanda, onDelete }) {
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -422,6 +422,7 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigat
   const actions = []
   if (appt.Status === 'pendente')   actions.push({ label: 'Marcar como Confirmado', icon: 'check', status: 'confirmado', color: 'text-success' })
   if (appt.Status === 'confirmado') actions.push({ label: 'Marcar como Concluído',  icon: 'check', status: 'concluido',  color: 'text-ink-2' })
+  if (appt.Status === 'concluido') actions.push({ label: 'Voltar para Confirmado', icon: 'arrowLeft', status: 'confirmado', color: 'text-warning' })
   if (appt.Status === 'pendente' || appt.Status === 'confirmado')
     actions.push({ label: 'Marcar como Cancelado', icon: 'x', status: 'cancelado', color: 'text-danger' })
 
@@ -458,6 +459,15 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigat
         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-3 hover:bg-surface-2 transition-colors cursor-pointer">
         <Icon name="arrowRight" size={13} />Ver detalhes
       </button>
+      {appt.Status === 'cancelado' && (
+        <>
+          <div className="border-t border-line my-1" />
+          <button onClick={() => { onDelete(appt); onClose() }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-danger hover:bg-surface-2 transition-colors cursor-pointer">
+            <Icon name="trash" size={13} />Excluir agendamento
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -1193,6 +1203,8 @@ export default function ProfissionalAgenda() {
   const [contextMenu, setContextMenu]   = useState(null)
   const [leaveMenu, setLeaveMenu]       = useState(null)
   const [transferAppt, setTransferAppt] = useState(null)
+  const [deleteAppt, setDeleteAppt]     = useState(null)
+  const [deleting, setDeleting]         = useState(false)
   const [folgaDrawer, setFolgaDrawer]   = useState(false)
   const longPressTimer = useRef(null)
   const dateInputRef   = useRef(null)
@@ -1277,6 +1289,21 @@ export default function ProfissionalAgenda() {
     }
   }
 
+  async function handleConfirmDelete() {
+    if (!deleteAppt) return
+    setDeleting(true)
+    try {
+      await api.delete(`/appointment/${deleteAppt.UUID}`)
+      addToast('Agendamento excluído')
+      setDeleteAppt(null)
+      load(true)
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao excluir agendamento', 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // Um Appointment com buraco no meio de Services[] (item removido pra outra profissional
   // na edição) vira N blocos visuais contíguos em vez de 1 retângulo só cobrindo tempo
   // ocioso — ver splitIntoSegments.
@@ -1311,8 +1338,18 @@ export default function ProfissionalAgenda() {
           onNavigate={appt => navigate(`/agendamento/${appt.UUID}`)}
           onTransfer={appt => setTransferAppt(appt)}
           onOpenComanda={appt => navigate(`/profissional/comandas?appointment=${appt.UUID}`)}
+          onDelete={setDeleteAppt}
         />
       )}
+      <Modal
+        isOpen={!!deleteAppt}
+        onClose={() => setDeleteAppt(null)}
+        onConfirm={handleConfirmDelete}
+        title="Excluir agendamento"
+        message={deleteAppt ? `Excluir o agendamento de ${deleteAppt.Client} (${serviceLabel(deleteAppt)})? Esta ação não pode ser desfeita.` : ''}
+        confirmLabel="Excluir"
+        loading={deleting}
+      />
       {transferAppt && (
         <TransferirDrawer
           appt={transferAppt}
@@ -1327,7 +1364,7 @@ export default function ProfissionalAgenda() {
           date={date}
           workingHour={workingHour}
           onClose={() => setNewSlot(null)}
-          onSaved={load}
+          onSaved={() => load(true)}
         />
       )}
       {folgaDrawer && (
@@ -1363,7 +1400,7 @@ export default function ProfissionalAgenda() {
           className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowLeft" size={14} />
         </button>
-        <div className="font-display font-medium text-[14px] md:text-[17px] truncate">{formatHeader(date)}</div>
+        <div className="font-display font-medium text-[14px] md:text-[17px] truncate text-center w-[170px] md:w-[320px] shrink-0">{formatHeader(date)}</div>
         <button onClick={nextDay}
           className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowRight" size={14} />
