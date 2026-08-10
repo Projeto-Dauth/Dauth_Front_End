@@ -25,6 +25,15 @@ function formatPrice(price) {
   return `R$ ${price.toFixed(2).replace('.', ',')}`
 }
 
+// Preço de exibição no passo 1 (escolha de serviço) — "a partir de" o menor preço entre
+// os profissionais que atendem o serviço (Min_price, calculado no backend a partir de
+// ServiceProfessional.Price_override); cada profissional pode cobrar diferente, então o
+// valor exato só é confirmado no passo 2, ao escolher quem vai atender.
+function formatFromPrice(minPrice) {
+  if (!minPrice || minPrice === 0) return 'Consultar'
+  return `A partir de R$ ${minPrice.toFixed(2).replace('.', ',')}`
+}
+
 function buildCalendar(year, month) {
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -416,7 +425,7 @@ export default function AgendarPage() {
                       <div className="font-mono text-[11px] md:text-[12px] text-ink-3 flex items-center gap-1">
                         <Icon name="clock" size={12} />{formatDuration(s.Duration)}
                       </div>
-                      <div className="font-display text-[16px] md:text-[18px] font-medium">{formatPrice(s.Price)}</div>
+                      <div className="font-display text-[14px] md:text-[15px] font-medium">{formatFromPrice(s.Min_price ?? s.Price)}</div>
                     </div>
                   </button>
                 ))}
@@ -445,8 +454,9 @@ export default function AgendarPage() {
                     className={`bg-surface border rounded-[14px] p-4 md:p-5 flex gap-4 items-center cursor-pointer text-left transition-all
                       ${selectedProf?.professional_id === p.professional_id ? 'border-brand shadow-[0_0_0_3px_#f1e3d6]' : 'border-line hover:border-ink-3'}`}>
                     <Avatar name={p.name} index={idx} size="lg" />
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="font-display font-medium text-[16px] md:text-[17px]">{p.name}</div>
+                      <div className="font-mono text-[12px] text-ink-3 mt-0.5">{formatPrice(p.price)}</div>
                     </div>
                     {selectedProf?.professional_id === p.professional_id && (
                       <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center flex-shrink-0">
@@ -648,7 +658,7 @@ export default function AgendarPage() {
                   { k: 'Profissional', v: selectedProf?.name ?? '—' },
                   { k: 'Data', v: dateLabel },
                   { k: 'Horário', v: selectedSlot?.start_time ?? '—' },
-                  { k: 'Total', v: svc ? formatPrice(svc.Price) : '—', total: true },
+                  { k: 'Total', v: svc ? formatPrice(selectedProf?.price ?? svc.Price) : '—', total: true },
                 ].map(({ k, v, total }) => (
                   <div
                     key={k}
