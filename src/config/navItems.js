@@ -20,6 +20,7 @@ export const navItemsByRole = {
       { to: '/admin/caixa?tab=relatorio', label: 'Relatório' },
     ]},
     { to: '/admin/comissoes', icon: 'chart', label: 'Comissões' },
+    { to: '/admin/mensalistas', icon: 'cash', label: 'Mensalistas' },
     { to: '/admin/produtos', icon: 'tag', label: 'Produtos' },
     { to: '/admin/pedidos-produtos', icon: 'cash', label: 'Pedidos de Produtos' },
     { type: 'label', label: 'Conta' },

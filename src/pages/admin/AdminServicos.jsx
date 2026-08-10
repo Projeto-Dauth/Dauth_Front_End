@@ -74,6 +74,8 @@ export default function AdminServicos() {
   const [unlinkingProf, setUnlinkingProf] = useState(false)
   const [editingProfCommissionId, setEditingProfCommissionId] = useState(null)
   const [updatingProfCommissionId, setUpdatingProfCommissionId] = useState(null)
+  const [editingProfPriceId, setEditingProfPriceId] = useState(null)
+  const [updatingProfPriceId, setUpdatingProfPriceId] = useState(null)
 
   const loadServices = useCallback(async () => {
     setLoadingServices(true)
@@ -241,6 +243,28 @@ export default function AdminServicos() {
       addToast(err.response?.data?.error || 'Erro ao atualizar comissão', 'error')
     } finally {
       setUpdatingProfCommissionId(null)
+    }
+  }
+
+  // Preço específico de um profissional para este serviço (Price_override) — se
+  // vazio/limpo, volta a usar o preço padrão do serviço (Service.Price).
+  async function handleUpdateProfPrice(prof, rawValue) {
+    setEditingProfPriceId(null)
+    const trimmed = String(rawValue).trim().replace(',', '.')
+    const newValue = trimmed === '' ? null : parseFloat(trimmed)
+    if (newValue !== null && (!Number.isFinite(newValue) || newValue < 0)) {
+      addToast('Preço deve ser maior ou igual a 0', 'warning')
+      return
+    }
+    if (newValue === (prof.price_override ?? null)) return
+    setUpdatingProfPriceId(prof.id)
+    try {
+      await api.patch(`/service/professionals/${prof.id}`, { Price_override: newValue })
+      setLinkedProfs(prev => prev.map(p => p.id === prof.id ? { ...p, price_override: newValue } : p))
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao atualizar preço', 'error')
+    } finally {
+      setUpdatingProfPriceId(null)
     }
   }
 
@@ -602,6 +626,37 @@ export default function AdminServicos() {
                     {prof.phone && <div className="font-mono text-[11px] text-ink-3">{prof.phone}</div>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {editingProfPriceId === prof.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        inputMode="decimal"
+                        defaultValue={prof.price_override ?? ''}
+                        placeholder={formatPrice(profsDrawer.Price)}
+                        onInput={e => {
+                          const cleaned = e.target.value.replace(/[^0-9.,]/g, '')
+                          if (cleaned !== e.target.value) e.target.value = cleaned
+                        }}
+                        onBlur={e => handleUpdateProfPrice(prof, e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') e.target.blur()
+                          if (e.key === 'Escape') { e.target.value = prof.price_override ?? ''; e.target.blur() }
+                        }}
+                        className="w-20 h-7 px-1.5 rounded border border-brand bg-surface text-ink text-[12.5px] font-mono text-right focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditingProfPriceId(prof.id)}
+                        disabled={updatingProfPriceId === prof.id}
+                        title="Editar preço deste profissional neste serviço"
+                        className={`font-mono text-[12.5px] px-1.5 hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors ${
+                          prof.price_override != null ? 'text-brand font-medium' : 'text-ink-3'
+                        }`}
+                      >
+                        {prof.price_override != null ? formatPrice(prof.price_override) : `${formatPrice(profsDrawer.Price)} (padrão)`}
+                      </button>
+                    )}
                     {editingProfCommissionId === prof.id ? (
                       <input
                         autoFocus
