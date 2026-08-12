@@ -175,12 +175,25 @@ function leaveCoversSlot(leaves, slot) {
 function leaveStartsAt(leaves, slot) {
   if (!leaves?.length) return null
   if (leaves.some(l => l.All_day) && slot === TIME_SLOTS[0]) return leaves.find(l => l.All_day)
-  return leaves.find(l => !l.All_day && l.Start_time?.slice(0, 5) === slot) ?? null
+  const slotMin = toMinutes(slot)
+  return leaves.find(l => {
+    if (l.All_day || !l.Start_time) return false
+    const startMin = toMinutes(l.Start_time.slice(0, 5))
+    return startMin >= slotMin && startMin < slotMin + 30
+  }) ?? null
 }
-function leaveSpans(leave) {
-  if (leave.All_day) return TIME_SLOTS.length
-  if (!leave.Start_time || !leave.End_time) return 1
-  return Math.max(1, Math.ceil((toMinutes(leave.End_time.slice(0, 5)) - toMinutes(leave.Start_time.slice(0, 5))) / 30))
+function leaveTop(leave, slot, cellH) {
+  if (leave.All_day || !leave.Start_time) return 2
+  const startMin = toMinutes(leave.Start_time.slice(0, 5))
+  const slotMin = toMinutes(slot)
+  return ((startMin - slotMin) / 30) * cellH + 2
+}
+function leaveHeight(leave, cellH) {
+  if (leave.All_day) return TIME_SLOTS.length * cellH - 4
+  if (!leave.Start_time || !leave.End_time) return cellH - 4
+  const startMin = toMinutes(leave.Start_time.slice(0, 5))
+  const endMin = toMinutes(leave.End_time.slice(0, 5))
+  return Math.max(cellH / 2 - 4, ((endMin - startMin) / 30) * cellH - 4)
 }
 
 function computeColumns(appts) {
@@ -1467,7 +1480,6 @@ export default function ProfissionalAgenda() {
                 const onBreak   = coversBreak(workingHour, slot)
                 const onLeave   = leaveCoversSlot(leaves, slot)
                 const leaveBlock = leaveStartsAt(leaves, slot)
-                const lSpans    = leaveBlock ? leaveSpans(leaveBlock) : 0
                 const breakStart = isBreakStart(workingHour, slot)
                 const breakSpans = breakStart ? spanBreak(workingHour) : 0
                 const past      = isSlotPast(date, slot)
@@ -1537,12 +1549,20 @@ export default function ProfissionalAgenda() {
                         </span>
                       </div>
                     )}
-                    {leaveBlock && (
+                    {leaveBlock && (occupied ? (
                       <div
-                        style={{ height: lSpans * 64 - 4 }}
+                        style={{ height: leaveHeight(leaveBlock, 64), top: leaveTop(leaveBlock, slot, 64) }}
                         onClick={e => { e.stopPropagation(); openLeaveMenu(e, leaveBlock) }}
                         onContextMenu={e => openLeaveMenu(e, leaveBlock)}
-                        className="absolute inset-x-[3px] top-[2px] z-10 rounded-md border border-danger/30 bg-danger-soft flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-pointer"
+                        title="Folga neste horário — clique para gerenciar"
+                        className="absolute left-0 z-30 w-[6px] rounded-l-md bg-danger cursor-pointer"
+                      />
+                    ) : (
+                      <div
+                        style={{ height: leaveHeight(leaveBlock, 64), top: leaveTop(leaveBlock, slot, 64) }}
+                        onClick={e => { e.stopPropagation(); openLeaveMenu(e, leaveBlock) }}
+                        onContextMenu={e => openLeaveMenu(e, leaveBlock)}
+                        className="absolute inset-x-[3px] z-10 rounded-md border border-danger/30 bg-danger-soft flex flex-col items-center justify-center gap-0.5 overflow-hidden cursor-pointer"
                       >
                         <Icon name="x" size={11} className="text-danger" />
                         <span className="font-mono text-[9.5px] text-danger font-medium">Folga</span>
@@ -1550,7 +1570,7 @@ export default function ProfissionalAgenda() {
                           <span className="font-mono text-[9px] text-danger opacity-70 truncate px-1">{leaveBlock.Reason}</span>
                         )}
                       </div>
-                    )}
+                    ))}
                   </div>,
                 ]
               })}
