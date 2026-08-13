@@ -28,8 +28,23 @@ export function rangeOutsideWorkingHours(wh, start, end) {
   return toMin(start) < toMin(wh.Start_time) || toMin(end) > toMin(wh.End_time)
 }
 
+// Sobreposição com o intervalo (almoço) do dia. Mesma convenção dos 3 estados acima:
+// desconhecido nunca vira afirmação. Sem intervalo cadastrado também é `false` —
+// `Break_start`/`Break_end` são opcionais em WorkingHours.
+export function rangeOverlapsBreak(wh, start, end) {
+  if (wh === UNKNOWN_HOURS || wh === undefined || !wh) return false
+  if (!wh.Break_start || !wh.Break_end) return false
+  return toMin(start) < toMin(wh.Break_end) && toMin(end) > toMin(wh.Break_start)
+}
+
 export function formatWorkingHours(wh) {
   return wh && wh !== UNKNOWN_HOURS ? `${wh.Start_time.slice(0, 5)}–${wh.End_time.slice(0, 5)}` : null
+}
+
+export function formatBreak(wh) {
+  return wh && wh !== UNKNOWN_HOURS && wh.Break_start && wh.Break_end
+    ? `${wh.Break_start.slice(0, 5)}–${wh.Break_end.slice(0, 5)}`
+    : null
 }
 
 // Texto do expediente exibido no cabeçalho da coluna do profissional na Agenda.
@@ -55,22 +70,30 @@ export async function fetchWorkingHours(professionalIds, weekday) {
   return Object.fromEntries(results)
 }
 
-// Monta a mensagem do aviso para os itens que caem fora do expediente.
-// items: [{ professionalId, professionalName, startTime, endTime }]
+// Monta a mensagem do aviso para os itens que caem fora do expediente OU em cima do
+// intervalo. items: [{ professionalId, professionalName, startTime, endTime }]
 // whByProf: mapa vindo de fetchWorkingHours
+//
+// Um item fora do expediente não reporta também o intervalo (`else if`): o intervalo
+// está sempre dentro do expediente, então as duas frases juntas seriam redundantes e a
+// primeira já é a informação mais forte.
 export function buildOutsideHoursWarning(items, whByProf) {
-  const offenders = items.filter(it =>
-    rangeOutsideWorkingHours(whByProf[it.professionalId], it.startTime, it.endTime)
-  )
-  if (offenders.length === 0) return null
+  const lines = []
 
-  const lines = offenders.map(it => {
+  for (const it of items) {
     const wh = whByProf[it.professionalId]
     const nome = it.professionalName || 'A profissional'
-    return wh
-      ? `${nome} atende das ${formatWorkingHours(wh)} — o serviço das ${it.startTime} às ${it.endTime} está fora desse horário.`
-      : `${nome} não trabalha neste dia — o serviço está marcado para ${it.startTime}.`
-  })
+
+    if (rangeOutsideWorkingHours(wh, it.startTime, it.endTime)) {
+      lines.push(wh
+        ? `${nome} atende das ${formatWorkingHours(wh)} — o serviço das ${it.startTime} às ${it.endTime} está fora desse horário.`
+        : `${nome} não trabalha neste dia — o serviço está marcado para ${it.startTime}.`)
+    } else if (rangeOverlapsBreak(wh, it.startTime, it.endTime)) {
+      lines.push(`${nome} tem intervalo das ${formatBreak(wh)} — o serviço das ${it.startTime} às ${it.endTime} avança sobre esse período.`)
+    }
+  }
+
+  if (lines.length === 0) return null
 
   return `${lines.join('\n')}\n\nDeseja agendar mesmo assim?`
 }
