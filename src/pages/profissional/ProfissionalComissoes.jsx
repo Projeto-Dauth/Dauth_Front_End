@@ -13,6 +13,37 @@ const navItems = navItemsByRole['Profissional']
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
+const PRESETS = [
+  { key: 'dia', label: 'Dia' },
+  { key: 'semana', label: 'Semana' },
+  { key: 'quinzena', label: 'Quinzena' },
+  { key: 'mes', label: 'Mês' },
+]
+
+function toLocalDateStr(date) {
+  return date.toLocaleDateString('en-CA')
+}
+
+// Dia/semana/quinzena são sempre relativos a hoje; "mês" usa o mês/ano escolhido nos
+// selects, para o profissional conseguir conferir um mês fechado anterior.
+function getDateRange(preset) {
+  const today = new Date()
+  const to = toLocalDateStr(today)
+
+  if (preset === 'dia') return { from: to, to }
+
+  if (preset === 'semana') {
+    const day = today.getDay()
+    const monday = new Date(today)
+    monday.setDate(today.getDate() - ((day + 6) % 7))
+    return { from: toLocalDateStr(monday), to }
+  }
+
+  const start = new Date(today)
+  start.setDate(today.getDate() - 14)
+  return { from: toLocalDateStr(start), to }
+}
+
 function formatCurrency(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0)
 }
@@ -26,6 +57,7 @@ function formatDate(iso) {
 export default function ProfissionalComissoes() {
   const { user } = useAuthStore()
   const now = new Date()
+  const [preset, setPreset] = useState('mes')
   const [selMonth, setSelMonth] = useState(now.getMonth())
   const [selYear, setSelYear] = useState(now.getFullYear())
   const [data, setData] = useState([])
@@ -36,16 +68,20 @@ export default function ProfissionalComissoes() {
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
   const monthKey = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
 
+  const query = preset === 'mes'
+    ? `month=${monthKey}`
+    : (({ from, to }) => `from=${from}&to=${to}`)(getDateRange(preset))
+
   useEffect(() => {
     setLoading(true)
-    api.get(`/transaction/my-commissions?month=${monthKey}`)
+    api.get(`/transaction/my-commissions?${query}`)
       .then(res => {
         setData(res.data.data ?? [])
         setTotais(res.data.totais ?? null)
       })
       .catch(() => { setData([]); setTotais(null) })
       .finally(() => setLoading(false))
-  }, [monthKey])
+  }, [query])
 
   const aPagar = data.filter(row => !row.commission_paid)
   const pagas = data.filter(row => row.commission_paid)
@@ -68,40 +104,61 @@ export default function ProfissionalComissoes() {
         </div>
       </div>
 
-      {/* Seletor de mês */}
-      <div className="flex items-center gap-2 mb-6">
-        <select
-          value={selMonth}
-          onChange={e => setSelMonth(Number(e.target.value))}
-          className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
-        >
-          {MONTHS.map((m, i) => (
-            <option key={i} value={i}>{m}</option>
-          ))}
-        </select>
-        <select
-          value={selYear}
-          onChange={e => setSelYear(Number(e.target.value))}
-          className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
-        >
-          {years.map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+      {/* Filtro de período */}
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        {PRESETS.map(p => (
+          <button
+            key={p.key}
+            onClick={() => setPreset(p.key)}
+            className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium border transition-colors cursor-pointer ${
+              preset === p.key
+                ? 'bg-brand text-white border-brand'
+                : 'bg-surface text-ink-3 border-line hover:border-ink-3'
+            }`}>
+            {p.label}
+          </button>
+        ))}
+
+        {preset === 'mes' && (
+          <>
+            <select
+              value={selMonth}
+              onChange={e => setSelMonth(Number(e.target.value))}
+              className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
+            >
+              {MONTHS.map((m, i) => (
+                <option key={i} value={i}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={selYear}
+              onChange={e => setSelYear(Number(e.target.value))}
+              className="h-[38px] px-3 rounded-lg border border-line bg-surface text-ink-2 text-[13px] font-body focus:outline-none focus:border-brand cursor-pointer"
+            >
+              {years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
 
       {loading ? <PageSpinner /> : (
         <>
           {/* Cards de totais */}
           {totais && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Atendimentos</span>
                 <span className="text-[26px] font-serif font-light leading-none tracking-wide text-ink">{totais.atendimentos}</span>
               </div>
               <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Comissão a receber</span>
-                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totais.commission_amount)}</span>
+                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totais.commission_pending)}</span>
+              </div>
+              <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-1.5">
+                <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Já repassado</span>
+                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-success">{formatCurrency(totais.commission_repassada)}</span>
               </div>
             </div>
           )}
