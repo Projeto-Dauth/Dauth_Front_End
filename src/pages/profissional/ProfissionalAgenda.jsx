@@ -15,6 +15,8 @@ import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { profissionalSteps } from '@/tours/profissionalTour'
 import Modal from '@/components/ui/Modal'
+import ModalFecharConta from '@/components/ui/ModalFecharConta'
+import { usePermission } from '@/hooks/usePermission'
 import { outsideWorkingHours, workingHoursLabel, fetchWorkingHours, buildOutsideHoursWarning, UNKNOWN_HOURS } from '@/lib/workingHours'
 
 const navItems = navItemsByRole['Profissional']
@@ -412,7 +414,7 @@ function LeaveContextMenu({ leave, x, y, onClose, onEdit, onRemove }) {
   )
 }
 
-function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigate, onTransfer, onOpenComanda, onDelete }) {
+function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigate, onTransfer, onOpenComanda, onFecharConta, canFecharConta, onDelete }) {
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -466,6 +468,12 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onNavigat
         <button onClick={() => { onOpenComanda(appt); onClose() }}
           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer">
           <Icon name="receipt" size={13} />Abrir comanda
+        </button>
+      )}
+      {appt.Status === 'concluido' && canFecharConta && (
+        <button onClick={() => { onFecharConta(appt); onClose() }}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-success hover:bg-surface-2 transition-colors cursor-pointer">
+          <Icon name="cash" size={13} />Fechar comanda
         </button>
       )}
       <button onClick={() => { onNavigate(appt); onClose() }}
@@ -1219,8 +1227,12 @@ export default function ProfissionalAgenda() {
   const [deleteAppt, setDeleteAppt]     = useState(null)
   const [deleting, setDeleting]         = useState(false)
   const [folgaDrawer, setFolgaDrawer]   = useState(false)
+  const [fecharContaClient, setFecharContaClient] = useState(null)
+  const [fecharContaMethod, setFecharContaMethod] = useState('pix')
+  const [fecharContaPaying, setFecharContaPaying] = useState(false)
   const longPressTimer = useRef(null)
   const dateInputRef   = useRef(null)
+  const { can } = usePermission()
 
   // Profissional como objeto para passar ao drawer
   const professional = { UUID: user?.publicId, Name: user?.name }
@@ -1292,6 +1304,41 @@ export default function ProfissionalAgenda() {
   }
   function handleLongPressEnd() { clearTimeout(longPressTimer.current) }
 
+  async function handleAbrirFecharConta(appt) {
+    setFecharContaMethod('pix')
+    try {
+      const { data } = await api.get(`/tab/client/${appt.Client_id}/account-summary`)
+      if (!data.eligible) {
+        addToast('Nenhuma comanda em aberto para este cliente', 'warning')
+        return
+      }
+      setFecharContaClient(data)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao carregar conta do cliente', 'error')
+    }
+  }
+
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
+    if (!fecharContaClient) return
+    setFecharContaPaying(true)
+    try {
+      await api.post('/tab/batch-pay', {
+        tab_ids: tabIds,
+        Method: fecharContaMethod,
+        Payment_date: new Date().toISOString(),
+        order_payments: orderPayments,
+        excluded_item_ids: excludedItemIds,
+      })
+      addToast(`Conta de ${fecharContaClient.client_name} fechada com sucesso`, 'success')
+      setFecharContaClient(null)
+      load(true)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao fechar conta', 'error')
+    } finally {
+      setFecharContaPaying(false)
+    }
+  }
+
   async function handleStatusChange(appt, status) {
     try {
       await api.patch(`/appointment/${appt.UUID}`, { Status: status })
@@ -1351,7 +1398,19 @@ export default function ProfissionalAgenda() {
           onNavigate={appt => navigate(`/agendamento/${appt.UUID}`)}
           onTransfer={appt => setTransferAppt(appt)}
           onOpenComanda={appt => navigate(`/profissional/comandas?appointment=${appt.UUID}`)}
+          onFecharConta={handleAbrirFecharConta}
+          canFecharConta={can('Caixa', 'manage')}
           onDelete={setDeleteAppt}
+        />
+      )}
+      {fecharContaClient && (
+        <ModalFecharConta
+          client={fecharContaClient}
+          method={fecharContaMethod}
+          onMethodChange={setFecharContaMethod}
+          paying={fecharContaPaying}
+          onClose={() => setFecharContaClient(null)}
+          onConfirm={handleFecharConta}
         />
       )}
       <Modal
