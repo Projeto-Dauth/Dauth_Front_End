@@ -858,7 +858,7 @@ export default function ProfissionalComandas() {
                             {(item.Item_type === 'product' ? item.Product?.Name : item.Service?.Name) ?? '—'}
                             {item.Quantity > 1 ? ` ×${item.Quantity}` : ''}
                           </span>
-                          {selected.Status === 'Em aberto'
+                          {selected.Status === 'Em aberto' && user?.role === 'Admin'
                             ? renderItemPrice(item)
                             : <span className="font-mono shrink-0">{formatCurrency(item.Unit_price * item.Quantity)}</span>}
                         </div>

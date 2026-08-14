@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Icon from '@/components/ui/Icons'
 import Button from '@/components/ui/Button'
 import api from '@/lib/api'
+import useAuthStore from '@/store/authStore'
 import { useToast } from '@/context/ToastContext'
 
 const PAY_METHODS = [
@@ -30,6 +31,9 @@ function formatDate(d) {
 
 export default function ModalFecharConta({ client, method, onMethodChange, paying, onClose, onConfirm }) {
   const { addToast } = useToast()
+  const { user } = useAuthStore()
+  // Só Admin altera valor de item/produto da comanda — profissional apenas visualiza.
+  const canEditPrice = user?.role === 'Admin'
   const [visible, setVisible] = useState(false)
   const [removedTabIds, setRemovedTabIds] = useState(new Set())
   const [removedItemIds, setRemovedItemIds] = useState(new Set())
@@ -144,6 +148,9 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   }
 
   const renderItemPrice = (tabId, item, displayClassName = 'font-mono shrink-0') => {
+    if (!canEditPrice) {
+      return <span className={displayClassName}>{formatCurrency(item.Unit_price * item.Quantity)}</span>
+    }
     if (editingItemId === item.UUID) {
       return (
         <input
@@ -221,6 +228,13 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   }
 
   const renderOrderPrice = (order) => {
+    if (!canEditPrice) {
+      return (
+        <span className="font-mono font-medium text-ink shrink-0 w-16 text-right">
+          {formatCurrency((orderQty[order.UUID] ?? 0) * order.Unit_price)}
+        </span>
+      )
+    }
     if (editingOrderId === order.UUID) {
       return (
         <input
