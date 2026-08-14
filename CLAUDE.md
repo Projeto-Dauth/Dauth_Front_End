@@ -529,7 +529,7 @@ Campos PascalCase. Normalizar ao receber: `UUID → id`, `Name → name`, etc.
 
 ### GET /working-hours/professional/:id
 ```json
-{ "data": [{ "UUID", "Weekday", "Start_time", "End_time" }] }
+{ "data": [{ "UUID", "Weekday", "Start_time", "End_time", "Break_start", "Break_end" }] }
 ```
 - `Weekday`: 0=Dom, 1=Seg, ..., 6=Sáb
 - `Start_time`/`End_time` com timezone offset — usar `.slice(0,5)` para exibição
