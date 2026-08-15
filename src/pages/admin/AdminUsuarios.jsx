@@ -18,6 +18,7 @@ import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminUsuariosSteps } from '@/tours/adminUsuariosTour'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { batchPayExtraMessage } from '@/lib/creditToast'
 import { MODULES } from '@/config/modules'
 
 const navItems = navItemsByRole['Admin']
@@ -115,6 +116,13 @@ function formatDate(str) {
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 
+const CREDIT_TYPE_LABEL = {
+  overpayment: 'Troco convertido em crédito',
+  usage: 'Usado em pagamento',
+  manual_adjust: 'Ajuste manual',
+  refund: 'Estorno',
+}
+
 function formatCurrency(v) {
   return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
@@ -170,6 +178,10 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const [permissions, setPermissions] = useState(null)
   const [savingPermissions, setSavingPermissions] = useState(false)
 
+  const [credit, setCredit] = useState(null)
+  const [creditModal, setCreditModal] = useState(false)
+  const [creditHistoryModal, setCreditHistoryModal] = useState(false)
+
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetting, setResetting] = useState(false)
 
@@ -206,7 +218,19 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     } else {
       setPermissions(null)
     }
+
+    if (client.Role === 'Usuario') {
+      loadCredit()
+    } else {
+      setCredit(null)
+    }
   }, [client.UUID, client.Role])
+
+  function loadCredit() {
+    api.get(`/users/${client.UUID}/credit-balance`)
+      .then(res => setCredit(res.data))
+      .catch(() => setCredit(null))
+  }
 
   function togglePermission(module, field) {
     setPermissions(prev => prev.map(p => {
@@ -246,17 +270,21 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds, extra) {
     setFecharPaying(true)
     try {
-      await api.post('/tab/batch-pay', {
+      const { data } = await api.post('/tab/batch-pay', {
         tab_ids: tabIds,
         Method: fecharMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
         excluded_item_ids: excludedItemIds,
+        client_id: client.UUID,
+        ...(extra?.amountTendered ? { Amount_tendered: extra.amountTendered } : {}),
+        ...(extra?.creditAmount ? { Credit_amount: extra.creditAmount } : {}),
       })
-      addToast('Conta fechada com sucesso', 'success')
+      const extraMsg = batchPayExtraMessage(data)
+      addToast(extraMsg ? `Conta fechada com sucesso. ${extraMsg}` : 'Conta fechada com sucesso', 'success')
       setFecharConta(null)
       onReload()
       onClose()
@@ -267,19 +295,149 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     }
   }
 
+  const mensalidadeSection = mensalistaData && mensalistaData.items.length > 0 && (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h5 className="font-medium text-[13.5px]">Mensalidade pendente</h5>
+        <span className="font-mono text-[11px] text-warning">{formatCurrency(mensalistaData.total)}</span>
+      </div>
+      <div className="space-y-1.5 mb-3">
+        {mensalistaData.items.map(item => (
+          <div key={item.uuid} className="flex items-center justify-between bg-warning-soft border border-warning/20 rounded-lg px-3 py-2 text-[13px]">
+            <span className="text-ink-2 truncate">{item.servico}</span>
+            <span className="font-mono font-medium text-ink shrink-0 ml-2">{formatCurrency(item.gross_amount)}</span>
+          </div>
+        ))}
+      </div>
+      <Button variant="primary" size="sm" className="w-full justify-center" onClick={() => setMensalistaModal(true)}>
+        <Icon name="cash" size={13} />Pagar mensalidade
+      </Button>
+    </div>
+  )
+
+  const creditoSection = client.Role === 'Usuario' && credit && (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h5 className="font-medium text-[13.5px]">Crédito do cliente</h5>
+        <span className={`font-serif text-[18px] font-light leading-none ${credit.balance > 0 ? 'text-brand' : 'text-ink-3'}`}>
+          {formatCurrency(credit.balance)}
+        </span>
+      </div>
+      {credit.data.length > 0 && (
+        <div className="space-y-1.5 mb-2">
+          {credit.data.slice(0, 3).map(t => (
+            <CreditRow key={t.UUID} t={t} />
+          ))}
+        </div>
+      )}
+      {credit.data.length > 3 && (
+        <button
+          onClick={() => setCreditHistoryModal(true)}
+          className="text-[12px] text-ink-3 hover:text-brand transition-colors mb-3 cursor-pointer"
+        >
+          Ver histórico completo ({credit.data.length})
+        </button>
+      )}
+      <Button variant="outline" size="sm" className="w-full justify-center" onClick={() => setCreditModal(true)}>
+        <Icon name="cash" size={13} />Ajustar crédito
+      </Button>
+    </div>
+  )
+
+  const comandasSection = openTabs.length > 0 && (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h5 className="font-medium text-[13.5px]">Comandas em aberto</h5>
+        <span className="text-[11px] font-mono text-warning">{openTabs.length} aberta{openTabs.length > 1 ? 's' : ''}</span>
+      </div>
+      <div className="space-y-2 mb-3">
+        {openTabs.map(t => (
+          <div key={t.UUID} className="flex items-center justify-between bg-warning-soft border border-warning/20 rounded-lg px-3 py-2.5 text-[13px]">
+            <span className="text-ink-2">{t.Appointment?.Service ?? '—'} · {t.Appointment?.Start_time?.slice(0, 5) ?? '—'}</span>
+            <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
+          </div>
+        ))}
+      </div>
+      <Button variant="primary" size="sm" className="w-full justify-center" onClick={handleOpenFecharConta}>
+        <Icon name="cash" size={13} />Fechar conta
+      </Button>
+    </div>
+  )
+
+  const agendamentosSection = (
+    <div>
+      <h5 className="font-medium text-[13.5px] mb-3">Últimos agendamentos</h5>
+      {appointments.length === 0 ? (
+        <p className="text-[13px] text-ink-3">Nenhum agendamento registrado.</p>
+      ) : (
+        <div>
+          {appointments.slice(0, 5).map(row => (
+            <div key={row.UUID} className="flex items-center justify-between py-2.5 border-b border-line-2 last:border-0">
+              <div>
+                <div className="text-[13px] font-medium">{row.Service ?? '—'}</div>
+                <div className="text-[11.5px] text-ink-3">{formatDate(row.Date)} · {row.Professional ?? '—'}</div>
+              </div>
+              <Chip status={row.Status} dot>{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  const permissoesSection = client.Role === 'Profissional' && permissions && (
+    <div>
+      <h5 className="font-medium text-[13.5px] mb-3">Permissões</h5>
+      <div className="space-y-2 mb-3">
+        {MODULES.map(({ key, label }) => {
+          const perm = permissions.find(p => p.module === key)
+          return (
+            <div key={key} className="flex items-center justify-between bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
+              <span className="text-ink-2">{label}</span>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
+                  <input type="checkbox" checked={perm?.canView ?? true} onChange={() => togglePermission(key, 'canView')} />
+                  Visualizar
+                </label>
+                <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={perm?.canManage ?? true}
+                    disabled={!(perm?.canView ?? true)}
+                    onChange={() => togglePermission(key, 'canManage')}
+                  />
+                  Gerenciar
+                </label>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <Button variant="outline" size="sm" className="w-full justify-center" onClick={handleSavePermissions} loading={savingPermissions}>
+        Salvar permissões
+      </Button>
+    </div>
+  )
+
+  const kpiItems = [
+    { value: concludedCount, label: 'Atendimentos', className: 'text-ink' },
+    { value: formatCurrency(totalGasto), label: 'Total gasto', className: 'text-brand' },
+    { value: formatCurrency(ticketMedio), label: 'Ticket médio', className: 'text-ink' },
+  ]
+
   return (
     <>
-      <div className="fixed inset-0 z-40 flex flex-col justify-end md:flex-row md:justify-end">
+      <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center">
         <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-        <div className="relative z-10 w-full rounded-t-2xl md:rounded-none md:w-[460px] bg-bg md:border-l border-line flex flex-col max-h-[90vh] md:max-h-full md:h-full overflow-y-auto shadow-xl">
+        <div className="relative z-10 w-full md:max-w-[1180px] md:mx-4 rounded-t-2xl md:rounded-2xl bg-bg border border-line flex flex-col max-h-[92vh] md:max-h-[88vh] overflow-hidden shadow-xl">
 
           {/* Alça mobile */}
           <div className="flex justify-center pt-3 pb-1 md:hidden">
             <div className="w-10 h-1 rounded-full bg-line-2" />
           </div>
 
-          {/* Header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-line sticky top-0 bg-bg z-10">
+          {/* Header — mobile mostra identidade completa; desktop só o X (identidade vai pra coluna esquerda) */}
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-line shrink-0 md:hidden">
             <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors cursor-pointer">
               <Icon name="x" size={18} />
             </button>
@@ -291,15 +449,23 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
             <Chip variant={client.active ? 'success' : 'danger'}>{client.active ? 'Ativo' : 'Inativo'}</Chip>
             <button
               onClick={() => setEditing((v) => !v)}
-              className="md:hidden p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
               title={client.Role === 'Profissional' ? 'Editar profissional' : 'Editar cliente'}
             >
               <Icon name="edit" size={16} />
             </button>
           </div>
+          <div className="hidden md:flex justify-end px-5 pt-4 shrink-0">
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
+            >
+              <Icon name="x" size={18} />
+            </button>
+          </div>
 
           {editing ? (
-            <div className="px-5 py-5 flex flex-col gap-4">
+            <div className="px-5 py-5 md:px-8 md:py-8 flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto scrollbar-hidden md:max-w-sm">
               <Input
                 label="Nome completo"
                 value={editForm.name}
@@ -329,7 +495,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
               </div>
             </div>
           ) : loading ? (
-            <div className="px-5 py-5 flex flex-col gap-6 animate-pulse">
+            <div className="px-5 py-5 flex-1 min-h-0 flex flex-col gap-6 animate-pulse overflow-y-auto scrollbar-hidden">
               {/* KPI skeleton */}
               <div className="grid grid-cols-3 gap-3">
                 {[0, 1, 2].map(i => (
@@ -353,132 +519,100 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
               </div>
             </div>
           ) : (
-            <div className="px-5 py-5 flex flex-col gap-6">
-
-              {/* KPIs */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-surface border border-line rounded-xl p-3 text-center">
-                  <div className="font-serif text-[24px] font-light leading-none text-ink">{concludedCount}</div>
-                  <div className="text-[11px] text-ink-3 mt-1.5">Atendimentos</div>
+            <>
+              {/* Mobile — tudo empilhado numa coluna só */}
+              <div className="px-5 py-5 flex-1 min-h-0 flex flex-col gap-6 overflow-y-auto scrollbar-hidden md:hidden">
+                <div className="grid grid-cols-3 gap-3">
+                  {kpiItems.map((k, i) => (
+                    <div key={i} className="bg-surface border border-line rounded-xl p-3 text-center">
+                      <div className={`font-serif ${i === 0 ? 'text-[24px]' : 'text-[20px]'} font-light leading-none ${k.className} truncate px-1`}>{k.value}</div>
+                      <div className="text-[11px] text-ink-3 mt-1.5">{k.label}</div>
+                    </div>
+                  ))}
                 </div>
-                <div className="bg-surface border border-line rounded-xl p-3 text-center">
-                  <div className="font-serif text-[20px] font-light leading-none text-brand truncate px-1">{formatCurrency(totalGasto)}</div>
-                  <div className="text-[11px] text-ink-3 mt-1.5">Total gasto</div>
-                </div>
-                <div className="bg-surface border border-line rounded-xl p-3 text-center">
-                  <div className="font-serif text-[20px] font-light leading-none text-ink truncate px-1">{formatCurrency(ticketMedio)}</div>
-                  <div className="text-[11px] text-ink-3 mt-1.5">Ticket médio</div>
-                </div>
+                {mensalidadeSection}
+                {creditoSection}
+                {comandasSection}
+                {agendamentosSection}
+                {permissoesSection}
+                <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)} className="justify-center">
+                  <Icon name="lock" size={13} />Redefinir senha
+                </Button>
               </div>
 
-              {/* Mensalidade pendente */}
-              {mensalistaData && mensalistaData.items.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="font-medium text-[13.5px]">Mensalidade pendente</h5>
-                    <span className="font-mono text-[11px] text-warning">{formatCurrency(mensalistaData.total)}</span>
+              {/* Desktop — coluna de identidade fixa + conteúdo à direita */}
+              <div className="hidden md:flex flex-1 min-h-0">
+                <div className="w-[320px] shrink-0 border-r border-line overflow-y-auto scrollbar-hidden px-6 py-6 flex flex-col gap-6">
+                  <div className="flex flex-col items-center text-center gap-2.5 pb-5 border-b border-line">
+                    <Avatar name={client.Name} index={0} size="lg" />
+                    <div>
+                      <h4 className="font-display font-medium text-[16px] tracking-tight">{client.Name}</h4>
+                      <p className="font-mono text-[12px] text-ink-3 mt-0.5">{client.Phone ?? '—'}</p>
+                    </div>
+                    <Chip variant={client.active ? 'success' : 'danger'}>{client.active ? 'Ativo' : 'Inativo'}</Chip>
                   </div>
-                  <div className="space-y-1.5 mb-3">
-                    {mensalistaData.items.map(item => (
-                      <div key={item.uuid} className="flex items-center justify-between bg-warning-soft border border-warning/20 rounded-lg px-3 py-2 text-[13px]">
-                        <span className="text-ink-2 truncate">{item.servico}</span>
-                        <span className="font-mono font-medium text-ink shrink-0 ml-2">{formatCurrency(item.gross_amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="primary" size="sm" className="w-full justify-center" onClick={() => setMensalistaModal(true)}>
-                    <Icon name="cash" size={13} />Pagar mensalidade
-                  </Button>
-                </div>
-              )}
 
-              {/* Comandas em aberto */}
-              {openTabs.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="font-medium text-[13.5px]">Comandas em aberto</h5>
-                    <span className="text-[11px] font-mono text-warning">{openTabs.length} aberta{openTabs.length > 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="space-y-2 mb-3">
-                    {openTabs.map(t => (
-                      <div key={t.UUID} className="flex items-center justify-between bg-warning-soft border border-warning/20 rounded-lg px-3 py-2.5 text-[13px]">
-                        <span className="text-ink-2">{t.Appointment?.Service ?? '—'} · {t.Appointment?.Start_time?.slice(0, 5) ?? '—'}</span>
-                        <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
+                  <div className="flex flex-col gap-2">
+                    {kpiItems.map((k, i) => (
+                      <div key={i} className="bg-surface border border-line rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+                        <span className="text-[12px] text-ink-3">{k.label}</span>
+                        <span className={`font-serif text-[16px] font-light leading-none ${k.className}`}>{k.value}</span>
                       </div>
                     ))}
+                    {client.Role === 'Usuario' && credit && (
+                      <div className="bg-surface border border-line rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+                        <span className="text-[12px] text-ink-3">Crédito</span>
+                        <span className={`font-serif text-[16px] font-light leading-none ${credit.balance > 0 ? 'text-brand' : 'text-ink-3'}`}>
+                          {formatCurrency(credit.balance)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <Button variant="primary" size="sm" className="w-full justify-center" onClick={handleOpenFecharConta}>
-                    <Icon name="cash" size={13} />Fechar conta
-                  </Button>
-                </div>
-              )}
 
-              {/* Últimos agendamentos */}
-              <div>
-                <h5 className="font-medium text-[13.5px] mb-3">Últimos agendamentos</h5>
-                {appointments.length === 0 ? (
-                  <p className="text-[13px] text-ink-3">Nenhum agendamento registrado.</p>
-                ) : (
-                  <div>
-                    {appointments.slice(0, 5).map(row => (
-                      <div key={row.UUID} className="flex items-center justify-between py-2.5 border-b border-line-2 last:border-0">
-                        <div>
-                          <div className="text-[13px] font-medium">{row.Service ?? '—'}</div>
-                          <div className="text-[11.5px] text-ink-3">{formatDate(row.Date)} · {row.Professional ?? '—'}</div>
-                        </div>
-                        <Chip status={row.Status} dot>{STATUS_LABELS[row.Status] ?? row.Status}</Chip>
-                      </div>
-                    ))}
+                  <div className="mt-auto flex flex-col gap-2 pt-5 border-t border-line">
+                    {client.Role === 'Usuario' && (
+                      <Button variant="outline" size="sm" onClick={() => setCreditModal(true)} className="justify-center">
+                        <Icon name="cash" size={13} />Ajustar crédito
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="justify-center">
+                      <Icon name="edit" size={13} />
+                      {client.Role === 'Profissional' ? 'Editar profissional' : 'Editar cliente'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)} className="justify-center">
+                      <Icon name="lock" size={13} />Redefinir senha
+                    </Button>
                   </div>
-                )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto scrollbar-hidden px-6 py-6 flex flex-col gap-6">
+                  {mensalidadeSection}
+                  {client.Role === 'Usuario' && credit && credit.data.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-medium text-[13.5px]">Histórico de crédito</h5>
+                        {credit.data.length > 4 && (
+                          <button
+                            onClick={() => setCreditHistoryModal(true)}
+                            className="text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer"
+                          >
+                            Ver todos ({credit.data.length})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {credit.data.slice(0, 4).map(t => (
+                          <CreditRow key={t.UUID} t={t} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {comandasSection}
+                  {agendamentosSection}
+                  {permissoesSection}
+                </div>
               </div>
-
-              {/* Permissões por módulo */}
-              {client.Role === 'Profissional' && permissions && (
-                <div>
-                  <h5 className="font-medium text-[13.5px] mb-3">Permissões</h5>
-                  <div className="space-y-2 mb-3">
-                    {MODULES.map(({ key, label }) => {
-                      const perm = permissions.find(p => p.module === key)
-                      return (
-                        <div key={key} className="flex items-center justify-between bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
-                          <span className="text-ink-2">{label}</span>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
-                              <input type="checkbox" checked={perm?.canView ?? true} onChange={() => togglePermission(key, 'canView')} />
-                              Visualizar
-                            </label>
-                            <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={perm?.canManage ?? true}
-                                disabled={!(perm?.canView ?? true)}
-                                onChange={() => togglePermission(key, 'canManage')}
-                              />
-                              Gerenciar
-                            </label>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full justify-center" onClick={handleSavePermissions} loading={savingPermissions}>
-                    Salvar permissões
-                  </Button>
-                </div>
-              )}
-
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="hidden md:flex justify-center">
-                <Icon name="edit" size={13} />
-                {client.Role === 'Profissional' ? 'Editar profissional' : 'Editar cliente'}
-              </Button>
-
-              <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)} className="justify-center">
-                <Icon name="lock" size={13} />
-                Redefinir senha
-              </Button>
-
-            </div>
+            </>
           )}
         </div>
       </div>
@@ -513,7 +647,173 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
           onSuccess={() => { setMensalistaModal(false); onReload() }}
         />
       )}
+
+      {creditModal && (
+        <ModalAjustarCredito
+          client={client}
+          balance={credit?.balance ?? 0}
+          onClose={() => setCreditModal(false)}
+          onSuccess={() => { setCreditModal(false); loadCredit(); onReload() }}
+        />
+      )}
+
+      {creditHistoryModal && credit && (
+        <ModalHistoricoCredito
+          client={client}
+          credit={credit}
+          onClose={() => setCreditHistoryModal(false)}
+        />
+      )}
     </>
+  )
+}
+
+function CreditRow({ t }) {
+  return (
+    <div className="flex items-center justify-between bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
+      <div className="min-w-0">
+        <div className="text-ink-2 truncate">{CREDIT_TYPE_LABEL[t.Type] ?? t.Type}</div>
+        <div className="text-[11px] text-ink-3 truncate">
+          {formatDate(t.Created_at)}{t.Note ? ` · ${t.Note}` : ''}
+        </div>
+      </div>
+      <span className={`font-mono font-medium shrink-0 ml-2 ${t.Amount >= 0 ? 'text-success' : 'text-danger'}`}>
+        {t.Amount >= 0 ? '+' : ''}{formatCurrency(t.Amount)}
+      </span>
+    </div>
+  )
+}
+
+function ModalHistoricoCredito({ client, credit, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-surface rounded-xl w-full max-w-md shadow-md border border-line mx-4 max-h-[80vh] flex flex-col">
+        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-3">
+          <div>
+            <h3 className="font-display font-medium text-lg tracking-tight">Histórico de crédito</h3>
+            <p className="text-[12px] text-ink-3 mt-0.5">{client.Name}</p>
+          </div>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors mt-0.5 cursor-pointer">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="px-6 pb-6 overflow-y-auto space-y-1.5">
+          {credit.data.map(t => (
+            <CreditRow key={t.UUID} t={t} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModalAjustarCredito({ client, balance, onClose, onSuccess }) {
+  const { addToast } = useToast()
+  const [type, setType] = useState('add')
+  const [amount, setAmount] = useState('')
+  const [note, setNote] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    const parsed = Number(amount.replace(',', '.'))
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      setError('Informe um valor maior que zero')
+      return
+    }
+    if (type === 'remove' && parsed > balance) {
+      setError(`O cliente só tem ${formatCurrency(balance)} de crédito`)
+      return
+    }
+    setSaving(true)
+    try {
+      const { data } = await api.post(`/users/${client.UUID}/credit-adjustment`, {
+        amount: type === 'add' ? parsed : -parsed,
+        note: note.trim() || undefined,
+      })
+
+      if (data.fiado_offset) {
+        const { amount: offset, fiado_before, fiado_after } = data.fiado_offset
+        const sobra = parsed - offset
+        addToast(
+          `${formatCurrency(offset)} abateram o fiado em aberto (${formatCurrency(fiado_before)} → ${formatCurrency(fiado_after)})`
+          + (sobra > 0 ? `. Os ${formatCurrency(sobra)} restantes viraram crédito.` : '. Nenhum crédito foi gerado — tudo foi usado para quitar o fiado.'),
+          'success'
+        )
+      } else {
+        addToast(type === 'add' ? 'Crédito adicionado com sucesso' : 'Crédito removido com sucesso', 'success')
+      }
+      onSuccess()
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao ajustar crédito', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-surface rounded-xl p-6 w-full max-w-sm shadow-md border border-line mx-4">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3 className="font-display font-medium text-lg tracking-tight">Ajustar crédito</h3>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink transition-colors mt-0.5 cursor-pointer">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <p className="text-[12px] text-ink-3 mb-4">
+          Saldo atual de {client.Name}: <span className="font-mono text-ink-2">{formatCurrency(balance)}</span>
+        </p>
+
+        <div className="flex gap-1.5 mb-4">
+          {[
+            { key: 'add', label: 'Adicionar' },
+            { key: 'remove', label: 'Remover' },
+          ].map(o => (
+            <button
+              key={o.key}
+              onClick={() => { setType(o.key); setError('') }}
+              className={`flex-1 px-3 py-1.5 rounded-full text-[12.5px] font-medium border cursor-pointer transition-colors
+                ${type === o.key ? 'bg-ink text-bg border-ink' : 'bg-surface-2 text-ink-2 border-line hover:border-ink-3'}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Valor (R$)"
+            placeholder="0,00"
+            value={amount}
+            onChange={(e) => { setAmount(e.target.value); setError('') }}
+            error={error}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-medium text-ink-2">Observação (opcional)</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={300}
+              rows={2}
+              placeholder="Ex: cortesia por atraso no atendimento"
+              className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-[13px]
+                         placeholder:text-ink-4 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/12 transition-colors resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2.5 justify-end mt-5">
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} loading={saving}>
+            {type === 'add' ? 'Adicionar crédito' : 'Remover crédito'}
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
 

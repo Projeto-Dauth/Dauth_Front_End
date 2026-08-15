@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Icon from '@/components/ui/Icons'
 import Button from '@/components/ui/Button'
+import CreditAndTrocoFields from '@/components/ui/CreditAndTrocoFields'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
 import { useToast } from '@/context/ToastContext'
@@ -47,6 +48,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   const [editingOrderId, setEditingOrderId] = useState(null)
   const [updatingOrderId, setUpdatingOrderId] = useState(null)
   const [removingOrderId, setRemovingOrderId] = useState(null)
+  const [payExtra, setPayExtra] = useState({ extra: {}, remainingAfterCredit: null, valid: true })
 
   useEffect(() => {
     setClientData(client)
@@ -294,7 +296,14 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
       : t.Value), 0) +
     clientData.orders.reduce((s, o) => s + (orderQty[o.UUID] ?? 0) * o.Unit_price, 0)
 
-  const canConfirm = remainingTabIds.length + orderPayments.length > 0
+  const remainingAfterCredit = payExtra.remainingAfterCredit ?? total
+  const creditFieldsValid = payExtra.valid
+
+  const canConfirm = remainingTabIds.length + orderPayments.length > 0 && creditFieldsValid
+
+  const handleConfirmClick = () => {
+    onConfirm(remainingTabIds, orderPayments, excludedItemIds, payExtra.extra)
+  }
 
   return (
     <div className="fixed inset-y-0 left-0 right-0 md:left-[240px] z-50 flex flex-col">
@@ -438,8 +447,9 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
             <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
             <span className="font-display text-[20px] font-medium text-ink">{formatCurrency(total)}</span>
           </div>
+
           <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Método de pagamento</div>
-          <div className="flex flex-wrap gap-1.5 mb-2">
+          <div className="flex flex-wrap gap-1.5 mb-3">
             {PAY_METHODS.map((m) => (
               <button
                 key={m.id}
@@ -460,15 +470,23 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
               Mensalista
             </button>
           </div>
+
+          <CreditAndTrocoFields
+            clientId={clientData.client_id}
+            total={total}
+            method={method}
+            onChange={setPayExtra}
+          />
+
           <Button
             variant="primary"
             className="w-full justify-center mt-3"
-            onClick={() => onConfirm(remainingTabIds, orderPayments, excludedItemIds)}
+            onClick={handleConfirmClick}
             disabled={!canConfirm}
             loading={paying}
           >
             <Icon name="check" size={14} />
-            {method === 'fiado' ? `Registrar mensalidade · ${formatCurrency(total)}` : `Fechar conta · ${formatCurrency(total)}`}
+            {method === 'fiado' ? `Registrar mensalidade · ${formatCurrency(remainingAfterCredit)}` : `Fechar conta · ${formatCurrency(remainingAfterCredit)}`}
           </Button>
         </div>
         </div>

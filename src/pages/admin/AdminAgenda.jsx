@@ -11,6 +11,7 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { searchClients } from '@/lib/searchClients'
+import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminSteps } from '@/tours/adminTour'
@@ -1568,18 +1569,22 @@ export default function AdminAgenda() {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds, extra) {
     if (!fecharContaClient) return
     setFecharContaPaying(true)
     try {
-      await api.post('/tab/batch-pay', {
+      const { data } = await api.post('/tab/batch-pay', {
         tab_ids: tabIds,
         Method: fecharContaMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
         excluded_item_ids: excludedItemIds,
+        client_id: fecharContaClient.client_id,
+        ...(extra?.amountTendered ? { Amount_tendered: extra.amountTendered } : {}),
+        ...(extra?.creditAmount ? { Credit_amount: extra.creditAmount } : {}),
       })
-      addToast(`Conta de ${fecharContaClient.client_name} fechada com sucesso`, 'success')
+      const extraMsg = batchPayExtraMessage(data)
+      addToast(extraMsg ? `Conta de ${fecharContaClient.client_name} fechada com sucesso. ${extraMsg}` : `Conta de ${fecharContaClient.client_name} fechada com sucesso`, 'success')
       setFecharContaClient(null)
       load(true)
     } catch (err) {
