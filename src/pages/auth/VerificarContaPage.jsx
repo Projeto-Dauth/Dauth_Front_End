@@ -90,12 +90,23 @@ export default function VerificarContaPage() {
                 </svg>
               </div>
               <h3 className="font-display font-medium text-[20px] tracking-tight mb-2">
-                Verificação falhou
+                Não foi possível confirmar o link
               </h3>
-              <p className="text-[13px] text-ink-3 mb-6">{errorMsg}</p>
+              <p className="text-[13px] text-ink-3 mb-2">{errorMsg}</p>
+              <p className="text-[13px] text-ink-3 mb-6">
+                Se você já clicou neste link antes (ou abriu em outro app), sua conta pode
+                já estar ativa. Tente entrar com seu telefone e senha antes de criar uma
+                conta nova.
+              </p>
+              <Link
+                to={loginHref}
+                className="inline-flex items-center justify-center h-[42px] px-6 rounded-md bg-brand text-white font-medium text-[14px] hover:bg-brand/90 transition-colors w-full"
+              >
+                Tentar entrar
+              </Link>
               <Link
                 to="/register"
-                className="inline-flex items-center justify-center h-[42px] px-6 rounded-md bg-brand text-white font-medium text-[14px] hover:bg-brand/90 transition-colors w-full"
+                className="inline-flex items-center justify-center h-[42px] px-6 mt-2 rounded-md border border-line text-ink-2 font-medium text-[14px] hover:border-ink-3 transition-colors w-full"
               >
                 Criar nova conta
               </Link>
