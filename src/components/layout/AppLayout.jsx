@@ -5,13 +5,16 @@ import NotificationDrawer from '@/components/ui/NotificationDrawer'
 import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
 import useNotificationStore from '@/store/notificationStore'
+import useWhatsappStatusStore from '@/store/whatsappStatusStore'
 import api from '@/lib/api'
 
 export default function AppLayout({ sidebar, children }) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const { unreadCount, fetchUnreadCount, openDrawer } = useNotificationStore()
+  const { status: whatsappStatus, fetchStatus: fetchWhatsappStatus } = useWhatsappStatusStore()
 
   async function handleLogout() {
     try { await api.post('/auth/logout') } catch {}
@@ -25,6 +28,14 @@ export default function AppLayout({ sidebar, children }) {
     const id = setInterval(fetchUnreadCount, 120000)
     return () => clearInterval(id)
   }, [])
+
+  // polling de status do WhatsApp a cada 120s — só para Admin
+  useEffect(() => {
+    if (user?.role !== 'Admin') return
+    fetchWhatsappStatus()
+    const id = setInterval(fetchWhatsappStatus, 120000)
+    return () => clearInterval(id)
+  }, [user?.role])
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -60,6 +71,17 @@ export default function AppLayout({ sidebar, children }) {
           </button>
           <img src={logo} alt="Dauth" className="w-9 h-9 rounded-lg object-cover" />
           <div className="font-display font-semibold text-[13.5px] flex-1">Dauth Agendamentos</div>
+
+          {/* alerta de WhatsApp desconectado — Admin only */}
+          {user?.role === 'Admin' && whatsappStatus && whatsappStatus !== 'connected' && (
+            <button
+              onClick={() => navigate('/perfil')}
+              title="WhatsApp desconectado — toque para reconectar"
+              className="p-2 rounded-lg text-danger hover:bg-danger-soft transition-colors"
+            >
+              <Icon name="alertCircle" size={17} />
+            </button>
+          )}
 
           {/* sino mobile */}
           <button
