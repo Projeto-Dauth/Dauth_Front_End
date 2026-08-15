@@ -18,6 +18,7 @@ import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
 import { fetchWorkingHours, buildOutsideHoursWarning } from '@/lib/workingHours'
+import { batchPayExtraMessage } from '@/lib/creditToast'
 
 function addMinutes(timeStr, mins) {
   const [h, m] = timeStr.split(':').map(Number)
@@ -188,17 +189,21 @@ export default function DetalhesAgendamento() {
     }
   }
 
-  async function handleConfirmFechar(tabIds, orderPayments, excludedItemIds) {
+  async function handleConfirmFechar(tabIds, orderPayments, excludedItemIds, extra) {
     setFecharPaying(true)
     try {
-      await api.post('/tab/batch-pay', {
+      const { data } = await api.post('/tab/batch-pay', {
         tab_ids: tabIds,
         Method: fecharMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
         excluded_item_ids: excludedItemIds,
+        client_id: fecharConta.client_id,
+        ...(extra?.amountTendered ? { Amount_tendered: extra.amountTendered } : {}),
+        ...(extra?.creditAmount ? { Credit_amount: extra.creditAmount } : {}),
       })
-      addToast('Conta fechada com sucesso')
+      const extraMsg = batchPayExtraMessage(data)
+      addToast(extraMsg ? `Conta fechada com sucesso. ${extraMsg}` : 'Conta fechada com sucesso')
       setFecharConta(null)
       setItem(prev => ({ ...prev, Status: 'concluido' }))
     } catch (err) {
