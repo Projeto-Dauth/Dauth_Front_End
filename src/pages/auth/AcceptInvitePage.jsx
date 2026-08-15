@@ -72,7 +72,12 @@ export default function AcceptInvitePage() {
         setTimeout(() => navigate('/login', { replace: true }), 2500)
       }
     } catch (err) {
-      setErrors({ api: err.response?.data?.error ?? 'Erro ao ativar conta. O link pode ter expirado.' })
+      const msg = err.response?.data?.error
+      if (msg?.toLowerCase().includes('telefone')) {
+        setErrors({ api: msg, phone: 'Este telefone já está cadastrado' })
+      } else {
+        setErrors({ api: msg ?? 'Erro ao ativar conta. O link pode ter expirado.' })
+      }
     } finally {
       setLoading(false)
     }
