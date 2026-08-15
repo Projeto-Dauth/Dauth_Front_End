@@ -10,7 +10,7 @@ import CookieBanner from './components/ui/CookieBanner'
 
 async function bootstrap() {
   try {
-    const { data } = await api.get('/users/perfil/me')
+    const { data } = await api.get('/users/perfil/me', { skipSessionExpiredRedirect: true })
     let permissions = null
     if (data.Role === 'Profissional') {
       permissions = await api.get(`/professional/${data.UUID}/permissions`).then(r => r.data.data).catch(() => null)
