@@ -2,6 +2,7 @@ const variants = {
   primary: 'bg-brand text-white border-brand hover:bg-[#72391f] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2',
   ghost: 'bg-transparent text-ink-2 border-line hover:bg-surface-2 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ink/20 focus-visible:ring-offset-2',
   outline: 'bg-surface text-ink border-line hover:border-ink-3 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ink/20 focus-visible:ring-offset-2',
+  whatsapp: 'bg-[#25D366] text-white border-[#25D366] hover:bg-[#1DA851] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#25D366]/40 focus-visible:ring-offset-2',
 }
 
 const sizes = {

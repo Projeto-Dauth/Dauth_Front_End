@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
+import WhatsAppLinkModal from '@/components/ui/WhatsAppLinkModal'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -50,6 +51,7 @@ export default function MeuPerfil() {
   const [exporting, setExporting] = useState(false)
   const [appointments, setAppointments] = useState([])
   const [apptLoading, setApptLoading] = useState(false)
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
 
   useEffect(() => {
     api.get('/users/perfil/me')
@@ -240,9 +242,16 @@ export default function MeuPerfil() {
               <Button variant="ghost" size="sm" onClick={handleExport} loading={exporting}>
                 <Icon name="receipt" size={13} />Exportar meus dados
               </Button>
+              {user?.role === 'Admin' && (
+                <Button variant="whatsapp" size="sm" onClick={() => setWhatsappModalOpen(true)}>
+                  <Icon name="qr" size={13} />Linkar com WhatsApp
+                </Button>
+              )}
             </div>
           </>
         )}
+
+        {whatsappModalOpen && <WhatsAppLinkModal onClose={() => setWhatsappModalOpen(false)} />}
 
         {/* Histórico de agendamentos — apenas para clientes */}
         {!editing && user?.role === 'Usuario' && (

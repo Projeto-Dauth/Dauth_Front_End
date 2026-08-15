@@ -6,6 +6,7 @@ import Icon from '@/components/ui/Icons'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
 import useNotificationStore from '@/store/notificationStore'
+import useWhatsappStatusStore from '@/store/whatsappStatusStore'
 import { usePermission } from '@/hooks/usePermission'
 
 function NavGroup({ item, onClose }) {
@@ -60,6 +61,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { unreadCount, openDrawer } = useNotificationStore()
+  const { status: whatsappStatus } = useWhatsappStatusStore()
   const { can } = usePermission()
   const visibleNavItems = navItems.filter((item) => can(item.module, 'view'))
   const navScrollRef = useRef(null)
@@ -143,6 +145,15 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
               <div className="text-[12.5px] font-medium truncate">{footerUser}</div>
               <div className="text-[11px] text-ink-3">{footerRole}</div>
             </div>
+            {footerRole === 'Admin' && whatsappStatus && whatsappStatus !== 'connected' && (
+              <button
+                onClick={() => navigate('/perfil')}
+                title="WhatsApp desconectado — clique para reconectar"
+                className="p-1.5 rounded-lg text-danger hover:bg-danger-soft transition-colors shrink-0 cursor-pointer"
+              >
+                <Icon name="alertCircle" size={15} />
+              </button>
+            )}
             <button
               data-tour="notifications"
               onClick={openDrawer}
