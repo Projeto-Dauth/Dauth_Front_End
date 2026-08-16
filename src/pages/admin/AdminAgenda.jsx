@@ -1006,64 +1006,64 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, whByPr
               const profServicos = servicosByProf[item.professionalId] ?? []
               const profLoading = loadingProf[item.professionalId] ?? false
               return (
-              <div key={i} className="flex flex-col gap-3 pb-3 border-b border-line last:border-b-0 last:pb-0">
-                {itens.length > 1 && (
-                  <div className="flex items-center justify-between">
-                    <label className="text-[12px] font-medium text-ink-2">Serviço {i + 1}</label>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(i)}
-                      className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
-                    >
-                      <Icon name="x" size={14} />
-                    </button>
-                  </div>
-                )}
+                <div key={i} className="flex flex-col gap-3 pb-3 border-b border-line last:border-b-0 last:pb-0">
+                  {itens.length > 1 && (
+                    <div className="flex items-center justify-between">
+                      <label className="text-[12px] font-medium text-ink-2">Serviço {i + 1}</label>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(i)}
+                        className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
+                      >
+                        <Icon name="x" size={14} />
+                      </button>
+                    </div>
+                  )}
 
-                {/* Profissional do item */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[12px] font-medium text-ink-2">Profissional</label>
-                  <SearchableSelect
-                    value={item.professionalId}
-                    onChange={(id) => handleProfissional(i, id)}
-                    options={professionals.map(p => ({ value: p.UUID, label: p.Name }))}
-                    placeholder="Selecionar profissional…"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[12px] font-medium text-ink-2">Serviço</label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setModalServicoIndex(i)}
-                      className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
-                    >
-                      <Icon name="plus" size={16} />
-                    </button>
+                  {/* Profissional do item */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[12px] font-medium text-ink-2">Profissional</label>
                     <SearchableSelect
-                      value={item.servicoId}
-                      onChange={(id) => handleServico(i, id)}
-                      disabled={profLoading || profServicos.length === 0}
-                      options={profServicos.map(s => ({ value: s.UUID, label: s.Name }))}
-                      placeholder={profLoading ? 'Carregando…' : profServicos.length === 0 ? 'Nenhum serviço vinculado' : 'Selecionar serviço…'}
-                      className="flex-1"
+                      value={item.professionalId}
+                      onChange={(id) => handleProfissional(i, id)}
+                      options={professionals.map(p => ({ value: p.UUID, label: p.Name }))}
+                      placeholder="Selecionar profissional…"
                     />
                   </div>
-                </div>
 
-                {/* Horários */}
-                <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-medium text-ink-2">Início</label>
-                    <input type="time" value={item.startTime} onChange={e => handleItemStartTime(i, e.target.value)} className={inputClass} />
+                    <label className="text-[12px] font-medium text-ink-2">Serviço</label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalServicoIndex(i)}
+                        className="flex-shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-md border border-line bg-surface text-brand hover:bg-brand-soft hover:border-brand/30 transition-colors cursor-pointer"
+                      >
+                        <Icon name="plus" size={16} />
+                      </button>
+                      <SearchableSelect
+                        value={item.servicoId}
+                        onChange={(id) => handleServico(i, id)}
+                        disabled={profLoading || profServicos.length === 0}
+                        options={profServicos.map(s => ({ value: s.UUID, label: s.Name }))}
+                        placeholder={profLoading ? 'Carregando…' : profServicos.length === 0 ? 'Nenhum serviço vinculado' : 'Selecionar serviço…'}
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-medium text-ink-2">Fim</label>
-                    <input type="time" value={item.endTime} onChange={e => handleItemEndTime(i, e.target.value)} className={inputClass} />
+
+                  {/* Horários */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[12px] font-medium text-ink-2">Início</label>
+                      <input type="time" value={item.startTime} onChange={e => handleItemStartTime(i, e.target.value)} className={inputClass} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[12px] font-medium text-ink-2">Fim</label>
+                      <input type="time" value={item.endTime} onChange={e => handleItemEndTime(i, e.target.value)} className={inputClass} />
+                    </div>
                   </div>
                 </div>
-              </div>
               )
             })}
 
@@ -1931,6 +1931,7 @@ export default function AdminAgenda() {
           <div data-tour="schedule-grid" className="bg-surface border border-line rounded-lg overflow-hidden">
             {/* Desktop */}
             <div
+              key={deskPageClamped}
               className="hidden md:grid overflow-y-auto max-h-[70vh] scrollbar-hidden"
               style={{ gridTemplateColumns: `64px repeat(${deskVisibleNames.length}, minmax(0, 1fr))` }}
             >
@@ -1939,15 +1940,15 @@ export default function AdminAgenda() {
                 const headerWh = breakByProf[deskVisibleProfs[idx]?.UUID] ?? null
                 const label = workingHoursLabel(headerWh, whLoaded)
                 return (
-                <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5 min-w-0">
-                  <Avatar name={name} index={idx} size="sm" />
-                  <div className="min-w-0">
-                    <div className="font-medium text-[13px] truncate">{name}</div>
-                    <div title={label} className={`text-[11px] truncate ${headerWh ? 'text-ink-3' : 'text-danger'}`}>
-                      {label}
+                  <div key={name} className="sticky top-0 z-30 px-4 py-3 border-b border-r last:border-r-0 border-line bg-surface-2 flex items-center gap-2.5 min-w-0">
+                    <Avatar name={name} index={idx} size="sm" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-[13px] truncate">{name}</div>
+                      <div title={label} className={`text-[11px] truncate ${headerWh ? 'text-ink-3' : 'text-danger'}`}>
+                        {label}
+                      </div>
                     </div>
                   </div>
-                </div>
                 )
               })}
               {TIME_SLOTS.map((slot) => {
