@@ -30,24 +30,29 @@ api.interceptors.response.use(
     const original = error.config
 
     const isAuthEndpoint = original.url?.includes('/auth/')
-    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint && !original.skipSessionExpiredRedirect) {
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true
 
       try {
         await refreshSession()
         return api(original)
       } catch {
-        try {
-          await axios.post(
-            `${import.meta.env.VITE_API_URL}/auth/logout`,
-            {},
-            { withCredentials: true }
-          )
-        } catch {}
-        useAuthStore.getState().logout()
-        if (window.location.pathname !== '/login') {
-          sessionStorage.setItem('session_expired', '1')
-          window.location.href = '/login'
+        // skipSessionExpiredRedirect: chamadas que checam se existe sessão (ex: bootstrap
+        // do app, ou o GET logo após accept-invite) esperam 401 como resultado normal
+        // quando não há sessão nenhuma — não devem forçar logout/redirect/toast.
+        if (!original.skipSessionExpiredRedirect) {
+          try {
+            await axios.post(
+              `${import.meta.env.VITE_API_URL}/auth/logout`,
+              {},
+              { withCredentials: true }
+            )
+          } catch {}
+          useAuthStore.getState().logout()
+          if (window.location.pathname !== '/login') {
+            sessionStorage.setItem('session_expired', '1')
+            window.location.href = '/login'
+          }
         }
         return Promise.reject(error)
       }

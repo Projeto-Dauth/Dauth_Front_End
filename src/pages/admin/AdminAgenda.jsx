@@ -9,8 +9,10 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import useWhatsappStatusStore from '@/store/whatsappStatusStore'
 import api from '@/lib/api'
 import { searchClients } from '@/lib/searchClients'
+import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminSteps } from '@/tours/adminTour'
@@ -1490,6 +1492,7 @@ export default function AdminAgenda() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const { addToast } = useToast()
+  const { status: whatsappStatus } = useWhatsappStatusStore()
 
   const [date, setDate] = useState(() => {
     const d = new Date()
@@ -1568,18 +1571,22 @@ export default function AdminAgenda() {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds, extra) {
     if (!fecharContaClient) return
     setFecharContaPaying(true)
     try {
-      await api.post('/tab/batch-pay', {
+      const { data } = await api.post('/tab/batch-pay', {
         tab_ids: tabIds,
         Method: fecharContaMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
         excluded_item_ids: excludedItemIds,
+        client_id: fecharContaClient.client_id,
+        ...(extra?.amountTendered ? { Amount_tendered: extra.amountTendered } : {}),
+        ...(extra?.creditAmount ? { Credit_amount: extra.creditAmount } : {}),
       })
-      addToast(`Conta de ${fecharContaClient.client_name} fechada com sucesso`, 'success')
+      const extraMsg = batchPayExtraMessage(data)
+      addToast(extraMsg ? `Conta de ${fecharContaClient.client_name} fechada com sucesso. ${extraMsg}` : `Conta de ${fecharContaClient.client_name} fechada com sucesso`, 'success')
       setFecharContaClient(null)
       load(true)
     } catch (err) {
@@ -1777,7 +1784,22 @@ export default function AdminAgenda() {
       )}
       <div className="flex justify-between items-end mb-5 md:mb-6">
         <div>
-          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agenda</h3>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Agenda</h3>
+            {whatsappStatus && (
+              <button
+                onClick={() => navigate('/perfil')}
+                title={whatsappStatus === 'connected' ? 'WhatsApp conectado' : 'WhatsApp desconectado — clique para reconectar'}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors cursor-pointer
+                  ${whatsappStatus === 'connected'
+                    ? 'bg-success-soft text-success border-success/20'
+                    : 'bg-danger-soft text-danger border-danger/20 animate-pulse'}`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${whatsappStatus === 'connected' ? 'bg-success' : 'bg-danger'}`} />
+                {whatsappStatus === 'connected' ? 'WhatsApp conectado' : 'WhatsApp desconectado'}
+              </button>
+            )}
+          </div>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">
             {appointments.length} atendimento{appointments.length !== 1 ? 's' : ''} · {formatHeader(date)}
           </p>

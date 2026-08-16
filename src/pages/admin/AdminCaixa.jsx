@@ -8,6 +8,9 @@ import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
+import CreditToggleRow from '@/components/ui/CreditToggleRow'
+import AmountTenderedField from '@/components/ui/AmountTenderedField'
+import { useCreditAndTroco } from '@/hooks/useCreditAndTroco'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import PaginationControls from '@/components/ui/PaginationControls'
@@ -16,6 +19,7 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { searchClients } from '@/lib/searchClients'
+import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
 import { usePagination } from '@/hooks/usePagination'
 import { useTour } from '@/hooks/useTour'
@@ -256,6 +260,13 @@ function TabComandas({ user, initialAppointmentId }) {
   const emAberto = tabs.filter((t) => t.Status === 'Em aberto').length
   const totalAberto = tabs.filter((t) => t.Status === 'Em aberto').reduce((s, t) => s + t.Value, 0)
 
+  const cr = useCreditAndTroco({
+    clientId: selected?.Appointment?.ClientId,
+    total: selected?.Value ?? 0,
+    method: payMethod,
+    resetKey: selectedId,
+  })
+
   useEffect(() => {
     if (!selectedId) { setSelectedItems([]); return }
     api.get(`/tab/${selectedId}`)
@@ -332,12 +343,16 @@ function TabComandas({ user, initialAppointmentId }) {
       // itens como pagos. O caminho antigo (POST /transaction + PATCH Status) foi escrito
       // quando 1 comanda = 1 serviço — numa comanda multi-item ele fechava a comanda sem
       // tocar nos Tab_items, perdendo a comissão dos demais profissionais.
-      await api.post('/tab/batch-pay', {
+      const clientId = selected.Appointment?.ClientId
+      const { data } = await api.post('/tab/batch-pay', {
         tab_ids: [selected.UUID],
         Method: payMethod,
         Payment_date: new Date().toISOString(),
+        ...(clientId ? { client_id: clientId } : {}),
+        ...cr.extra,
       })
-      addToast('Pagamento registrado', 'success')
+      const extraMsg = batchPayExtraMessage(data)
+      addToast(extraMsg ? `Pagamento registrado. ${extraMsg}` : 'Pagamento registrado', 'success')
       load(true)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao registrar pagamento', 'error')
@@ -356,18 +371,22 @@ function TabComandas({ user, initialAppointmentId }) {
     }
   }
 
-  async function handleFecharConta(tabIds, orderPayments, excludedItemIds) {
+  async function handleFecharConta(tabIds, orderPayments, excludedItemIds, extra) {
     if (!batchClient) return
     setBatchPaying(true)
     try {
-      await api.post('/tab/batch-pay', {
+      const { data } = await api.post('/tab/batch-pay', {
         tab_ids: tabIds,
         Method: batchMethod,
         Payment_date: new Date().toISOString(),
         order_payments: orderPayments,
         excluded_item_ids: excludedItemIds,
+        client_id: batchClient.client_id,
+        ...(extra?.amountTendered ? { Amount_tendered: extra.amountTendered } : {}),
+        ...(extra?.creditAmount ? { Credit_amount: extra.creditAmount } : {}),
       })
-      addToast(`Conta de ${batchClient.client_name} fechada com sucesso`, 'success')
+      const extraMsg = batchPayExtraMessage(data)
+      addToast(extraMsg ? `Conta de ${batchClient.client_name} fechada com sucesso. ${extraMsg}` : `Conta de ${batchClient.client_name} fechada com sucesso`, 'success')
       setBatchClient(null)
       load(true)
     } catch (err) {
@@ -533,14 +552,19 @@ function TabComandas({ user, initialAppointmentId }) {
             )}
           </div>
 
-          {/* Painel de pagamento */}
+          {/* Painel de pagamento — sticky: acompanha o scroll normalmente até a lista
+              alcançá-lo, aí trava no topo (top-6) enquanto o resto da lista continua
+              passando por baixo. Wrapper com lg:h-full dá "espaço de sobra" na célula do
+              grid pra isso funcionar — sem ele o sticky não gruda (a célula fica exatamente
+              do tamanho do painel, sem folga pra ele se mover). */}
           {selected && (
-            <div data-tour="comanda-painel" className="bg-surface border border-line rounded-[14px] h-fit lg:sticky top-6">
-              <button onClick={() => setSelectedId(null)} className="lg:hidden w-full flex items-center gap-1.5 px-6 pt-4 text-[12px] text-ink-3 hover:text-brand transition-colors cursor-pointer">
+          <div className="lg:h-full">
+            <div data-tour="comanda-painel" className="bg-surface border border-line rounded-[14px] h-fit lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] flex flex-col">
+              <button onClick={() => setSelectedId(null)} className="lg:hidden w-full flex items-center gap-1.5 px-6 pt-4 text-[12px] text-ink-3 hover:text-brand transition-colors cursor-pointer shrink-0">
                 <Icon name="arrowLeft" size={14} />
                 Voltar para a lista
               </button>
-              <div className="px-6 py-5 border-b border-line">
+              <div className="px-6 py-5 border-b border-line shrink-0">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Comanda selecionada</span>
                 <h4 className="font-display font-medium text-[19px] tracking-tight mt-1.5">
                   {selected.Appointment?.Client ?? 'Comanda avulsa'}
@@ -552,7 +576,7 @@ function TabComandas({ user, initialAppointmentId }) {
                 )}
               </div>
 
-              <div className="px-6 py-5">
+              <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
                 {selectedItems.length > 0 && (
                   <div className="pb-3.5 border-b border-dashed border-line-2 mb-1">
                     <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Itens</div>
@@ -572,10 +596,21 @@ function TabComandas({ user, initialAppointmentId }) {
                   </div>
                 )}
 
+                {selected.Status === 'Em aberto' && cr.parsedCreditAmount > 0 && (
+                  <div className="flex justify-between items-center py-2 text-[13px]">
+                    <span className="text-ink-3">Desconto crédito</span>
+                    <span className="font-mono font-medium text-danger">-{formatCurrency(cr.parsedCreditAmount)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Valor</span>
-                  <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Value)}</span>
+                  <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Status === 'Em aberto' ? cr.remainingAfterCredit : selected.Value)}</span>
                 </div>
+
+                {selected.Status === 'Em aberto' && selected.Appointment?.ClientId && (
+                  <CreditToggleRow cr={cr} className="py-3.5 border-b border-dashed border-line-2" editable={false} />
+                )}
 
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2 mb-4">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Status</span>
@@ -599,13 +634,16 @@ function TabComandas({ user, initialAppointmentId }) {
                     </div>
                     <button
                       onClick={() => setPayMethod(PAY_METHODS_FIADO.id)}
-                      className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-5
+                      className={`w-full px-3 py-3 rounded-[10px] border flex items-center justify-center gap-2 text-[13px] cursor-pointer transition-colors mb-2
                         ${payMethod === 'fiado' ? 'bg-warning/10 text-warning border-warning' : 'bg-surface border-line hover:border-warning/50 text-ink-2'}`}
                     >
                       <Icon name={PAY_METHODS_FIADO.icon} size={16} />
                       {PAY_METHODS_FIADO.label}
                     </button>
-                    <Button variant="primary" className="w-full justify-center" onClick={handlePagar} loading={paying}>
+
+                    {selected.Appointment?.ClientId && <AmountTenderedField cr={cr} method={payMethod} />}
+
+                    <Button variant="primary" className="w-full justify-center mt-3" onClick={handlePagar} loading={paying} disabled={!cr.valid}>
                       <Icon name="check" size={14} />
                       {payMethod === 'fiado' ? 'Registrar mensalidade' : 'Registrar pagamento'}
                     </Button>
@@ -620,6 +658,7 @@ function TabComandas({ user, initialAppointmentId }) {
                 </div>
               </div>
             </div>
+          </div>
           )}
         </div>
       )}
