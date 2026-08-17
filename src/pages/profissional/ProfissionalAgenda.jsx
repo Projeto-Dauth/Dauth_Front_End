@@ -873,9 +873,10 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
     const apptServices = appt.Services?.length > 0
       ? appt.Services
       : [{ UUID: appt.Service_id, Start_time: appt.Start_time, End_time: appt.End_time }]
+    // itemId vale pra todo item, inclusive o 1º — sem ele não dá pra remover a âncora do
+    // bloco (o item seguinte assume o lugar dela; ver handleSalvar).
     return apptServices.map((s, i) => ({
-      id: i === 0 ? appt.UUID : null,
-      itemId: i === 0 ? null : (s.Item_id ?? null),
+      itemId: s.Item_id ?? null,
       isNew: false,
       servicoId: s.UUID ?? '',
       startTime: (s.Start_time ?? appt.Start_time).slice(0, 5),
@@ -889,6 +890,10 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
   const [checkingHours, setCheckingHours] = useState(false)
   // Por item: { services, loadingServices, professionalOptions, loadingProfessionals }
   const [itemMeta, setItemMeta] = useState({})
+  // Itens que já existiam no bloco e foram explicitamente excluídos (saem de `itens` no
+  // clique) — precisam ir em Remove_services no save, diferente de item novo removido
+  // (nunca existiu no backend, só é descartado).
+  const removedExistingIdsRef = useRef([])
 
   useEffect(() => {
     let cancelled = false
@@ -991,7 +996,11 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
   }
 
   function removeItem(index) {
-    setItens(prev => prev.filter((_, i) => i !== index))
+    setItens(prev => {
+      const it = prev[index]
+      if (!it.isNew && it.itemId) removedExistingIdsRef.current.push(it.itemId)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   async function handleSalvar(skipOffHoursCheck = false) {
@@ -1040,13 +1049,20 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
       const updateItens = sameProf.filter(it => !it.isNew && it.itemId)
       const newStandalone = diffProf.filter(it => it.isNew)
       const removedStandalone = diffProf.filter(it => !it.isNew && it.itemId)
+      // Serviços excluídos de vez (botão x em item já existente, sem troca de profissional)
+      // — vão em Remove_services junto com removedStandalone, mas NÃO entram no loop de
+      // recriação abaixo: o serviço deve sumir, não virar um Appointment novo.
+      const allRemovedIds = [...new Set([
+        ...removedStandalone.map(it => it.itemId),
+        ...removedExistingIdsRef.current,
+      ])]
 
       let bookingGroup = appt.Booking_group
       if ((newStandalone.length > 0 || removedStandalone.length > 0) && !bookingGroup) {
         bookingGroup = crypto.randomUUID()
       }
 
-      await api.patch(`/appointment/${original.id}`, {
+      await api.patch(`/appointment/${appt.UUID}`, {
         Service: original.servicoId,
         Professional: anchorProf,
         Date: newDate,
@@ -1059,8 +1075,8 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
         ...(updateItens.length > 0 ? {
           Update_services: updateItens.map(it => ({ Id: it.itemId, Service: it.servicoId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
-        ...(removedStandalone.length > 0 ? {
-          Remove_services: removedStandalone.map(it => it.itemId)
+        ...(allRemovedIds.length > 0 ? {
+          Remove_services: allRemovedIds
         } : {}),
         ...(bookingGroup && bookingGroup !== appt.Booking_group ? { Booking_group: bookingGroup } : {}),
       })
@@ -1123,8 +1139,13 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
                   <label className="text-[12px] font-medium text-ink-2">
                     {itens.length > 1 ? `Serviço ${i + 1}` : 'Serviço'}
                   </label>
-                  {itens.length > 1 && item.isNew && (
-                    <button type="button" onClick={() => removeItem(i)} className="text-ink-3 hover:text-danger transition-colors cursor-pointer">
+                  {itens.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(i)}
+                      className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
+                      title={item.isNew ? 'Cancelar item' : 'Remover serviço do agendamento'}
+                    >
                       <Icon name="x" size={14} />
                     </button>
                   )}
