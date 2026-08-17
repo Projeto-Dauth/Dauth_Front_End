@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
@@ -107,6 +107,11 @@ export default function DetalhesAgendamento() {
   const [editing, setEditing] = useState(false)
   const [editDate, setEditDate] = useState('')
   const [editItens, setEditItens] = useState([])
+  // Itens que já existiam no bloco (não recém-adicionados na sessão de edição) e foram
+  // explicitamente excluídos — saem do array editItens no clique, então precisam ficar
+  // guardados aqui pra irem em Remove_services no PATCH (diferente de item novo removido,
+  // que só é descartado, nunca existiu no backend).
+  const removedExistingIdsRef = useRef([])
   const [editIsUrgent, setEditIsUrgent] = useState(false)
   const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
@@ -278,22 +283,23 @@ export default function DetalhesAgendamento() {
       ? item.Services
       : [{ UUID: item.Service_id, Start_time: item.Start_time, End_time: item.End_time }]
     setEditItens(itemServices.map((s, i) => ({
-      // 1º item: id = UUID do Appointment (alvo do PATCH principal). Demais itens já
-      // existentes no bloco fundido: itemId = UUID da linha Appointment_services (usado
-      // em Update_services no save, pra persistir a edição num item que já existia — sem
-      // isso a edição "não salvava"). isNew só fica true pra itens adicionados agora via
-      // "+ Adicionar serviço" (vão em Add_services). professionalId por item — todos
-      // herdam a profissional atual do bloco pra começar (é o que realmente são hoje, já
-      // que Appointment_services não guarda profissional própria); trocar a de um item
+      // itemId = UUID da linha Appointment_services (usado em Update_services no save, pra
+      // persistir a edição num item que já existia — sem isso a edição "não salvava"). Vale
+      // pra todo item, inclusive o 1º — sem ele não dá pra saber qual linha remover se o
+      // usuário excluir a âncora do bloco (o item seguinte assume o lugar dela; ver
+      // handleSaveEdit). isNew só fica true pra itens adicionados agora via "+ Adicionar
+      // serviço" (vão em Add_services). professionalId por item — todos herdam a
+      // profissional atual do bloco pra começar (é o que realmente são hoje, já que
+      // Appointment_services não guarda profissional própria); trocar a de um item
       // específico faz ele sair do bloco e virar Appointment próprio ao salvar.
-      id: i === 0 ? item.UUID : null,
-      itemId: i === 0 ? null : (s.Item_id ?? null),
+      itemId: s.Item_id ?? null,
       isNew: false,
       serviceId: s.UUID ?? '',
       startTime: (s.Start_time ?? item.Start_time)?.slice(0, 5) ?? '',
       endTime: (s.End_time ?? item.End_time)?.slice(0, 5) ?? '',
       professionalId: item.Professional_id ?? '',
     })))
+    removedExistingIdsRef.current = []
     setItemMeta({})
     setEditing(true)
   }
@@ -401,7 +407,14 @@ export default function DetalhesAgendamento() {
   }
 
   function removeEditItem(index) {
-    setEditItens(prev => prev.filter((_, i) => i !== index))
+    setEditItens(prev => {
+      const it = prev[index]
+      // Item que já existia no bloco (Appointment_services): registra pra ir em
+      // Remove_services no save. Item novo (isNew) só é descartado do array, nunca
+      // chegou a existir no backend.
+      if (!it.isNew && it.itemId) removedExistingIdsRef.current.push(it.itemId)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   async function handleSaveEdit(skipOffHoursCheck = false) {
@@ -454,13 +467,20 @@ export default function DetalhesAgendamento() {
       const updateItens = sameProf.filter(it => !it.isNew && it.itemId)
       const newStandalone = diffProf.filter(it => it.isNew)
       const removedStandalone = diffProf.filter(it => !it.isNew && it.itemId)
+      // Serviços excluídos de vez (botão x em item já existente, sem troca de profissional)
+      // — vão em Remove_services junto com removedStandalone, mas NÃO entram no loop de
+      // recriação abaixo: o serviço deve sumir, não virar um Appointment novo.
+      const allRemovedIds = [...new Set([
+        ...removedStandalone.map(it => it.itemId),
+        ...removedExistingIdsRef.current,
+      ])]
 
       let bookingGroup = item.Booking_group
       if ((newStandalone.length > 0 || removedStandalone.length > 0) && !bookingGroup) {
         bookingGroup = crypto.randomUUID()
       }
 
-      await api.patch(`/appointment/${original.id}`, {
+      await api.patch(`/appointment/${item.UUID}`, {
         Service: original.serviceId,
         Date: editDate,
         Start_time: original.startTime,
@@ -473,8 +493,8 @@ export default function DetalhesAgendamento() {
         ...(updateItens.length > 0 ? {
           Update_services: updateItens.map(it => ({ Id: it.itemId, Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
-        ...(removedStandalone.length > 0 ? {
-          Remove_services: removedStandalone.map(it => it.itemId)
+        ...(allRemovedIds.length > 0 ? {
+          Remove_services: allRemovedIds
         } : {}),
         ...(bookingGroup && bookingGroup !== item.Booking_group ? { Booking_group: bookingGroup } : {}),
       })
@@ -567,8 +587,13 @@ export default function DetalhesAgendamento() {
                     <label className="text-[12px] text-ink-3 font-medium">
                       {editItens.length > 1 ? `Item ${i + 1}` : 'Item'}
                     </label>
-                    {editItens.length > 1 && it.isNew && (
-                      <button type="button" onClick={() => removeEditItem(i)} className="text-ink-3 hover:text-danger transition-colors cursor-pointer">
+                    {editItens.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeEditItem(i)}
+                        className="text-ink-3 hover:text-danger transition-colors cursor-pointer"
+                        title={it.isNew ? 'Cancelar item' : 'Remover serviço do agendamento'}
+                      >
                         <Icon name="x" size={14} />
                       </button>
                     )}
