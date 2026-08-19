@@ -139,7 +139,7 @@ function AppointmentContextMenu({ appt, x, y, onClose, onStatusChange, onOpenCom
 const navItems = navItemsByRole['Admin']
 
 // Máximo de profissionais visíveis por vez na grade desktop — acima disso, pagina em vez de espremer colunas / gerar scroll lateral
-const DESK_PAGE_SIZE = 5
+const DESK_PAGE_SIZE = 6
 
 // Slots de 30 em 30 min das 06:00 às 00:00
 const TIME_SLOTS = []
