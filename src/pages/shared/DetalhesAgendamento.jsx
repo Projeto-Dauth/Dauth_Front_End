@@ -100,6 +100,7 @@ export default function DetalhesAgendamento() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState({ open: false, status: '' })
   const [saving, setSaving] = useState(false)
+  const [cancelingRecurring, setCancelingRecurring] = useState(false)
   const [fecharConta, setFecharConta] = useState(null)
   const [fecharMethod, setFecharMethod] = useState('pix')
   const [fecharPaying, setFecharPaying] = useState(false)
@@ -113,6 +114,8 @@ export default function DetalhesAgendamento() {
   // que só é descartado, nunca existiu no backend).
   const removedExistingIdsRef = useRef([])
   const [editIsUrgent, setEditIsUrgent] = useState(false)
+  const [editRecurring, setEditRecurring] = useState(false)
+  const [editFrequency, setEditFrequency] = useState('semanal')
   const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
   const [offHoursWarning, setOffHoursWarning] = useState(null)
@@ -177,6 +180,21 @@ export default function DetalhesAgendamento() {
       addToast(err.response?.data?.error ?? 'Erro ao remover', 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleCancelRecurring() {
+    setCancelingRecurring(true)
+    try {
+      await api.delete(`/recurring-appointment/${item.Recurring_appointment_id}`)
+      addToast('Recorrência cancelada')
+      const { data } = await api.get(`/appointment/${id}`)
+      setItem(data.data ?? data)
+      setModal({ open: false, status: '' })
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao cancelar recorrência', 'error')
+    } finally {
+      setCancelingRecurring(false)
     }
   }
 
@@ -278,6 +296,8 @@ export default function DetalhesAgendamento() {
   function openEdit() {
     setEditDate(item.Date)
     setEditIsUrgent(false)
+    setEditRecurring(false)
+    setEditFrequency('semanal')
     setEditNotes(item.Notes ?? '')
     const itemServices = item.Services?.length > 0
       ? item.Services
@@ -487,6 +507,7 @@ export default function DetalhesAgendamento() {
         End_time: original.endTime,
         Notes: editNotes.trim() || null,
         ...(canEdit ? { Is_urgent: editIsUrgent, Professional: anchorProf } : {}),
+        ...(canEdit && editRecurring && !item.Recurring_appointment_id ? { Recurring: true, Frequency: editFrequency } : {}),
         ...(newItens.length > 0 ? {
           Add_services: newItens.map(it => ({ Service: it.serviceId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
@@ -649,7 +670,11 @@ export default function DetalhesAgendamento() {
               {canEdit && (
                 <button
                   type="button"
-                  onClick={() => setEditIsUrgent(v => !v)}
+                  onClick={() => setEditIsUrgent(v => {
+                    const next = !v
+                    if (next) setEditRecurring(false)
+                    return next
+                  })}
                   className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
                     ${editIsUrgent ? 'bg-warning-soft border-warning/40' : 'bg-surface border-line hover:border-ink-3'}`}
                 >
@@ -662,6 +687,47 @@ export default function DetalhesAgendamento() {
                     <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
                   </div>
                 </button>
+              )}
+
+              {/* Recorrência — só pra transformar um agendamento comum em recorrente; uma
+                  série já recorrente se cancela pelo botão dedicado no rodapé da página.
+                  Desabilitada (não escondida) quando Urgente está marcado, para deixar
+                  claro que a incompatibilidade é intencional, não um bug. */}
+              {canEdit && !item.Recurring_appointment_id && (
+                <div className={`flex flex-col gap-2 ${editIsUrgent ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => setEditRecurring(v => !v)}
+                    disabled={editIsUrgent}
+                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+                      ${editRecurring ? 'bg-brand-soft border-brand/40' : 'bg-surface border-line hover:border-ink-3'}`}
+                  >
+                    <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+                      ${editRecurring ? 'bg-brand border-brand' : 'border-line-2'}`}>
+                      {editRecurring && <Icon name="check" size={10} className="text-white" />}
+                    </div>
+                    <div>
+                      <div className={`text-[13px] font-medium ${editRecurring ? 'text-brand' : 'text-ink-2'}`}>Tornar recorrente</div>
+                      <div className="text-[11px] text-ink-3">
+                        {editIsUrgent ? 'Indisponível com Agendamento urgente' : 'Repete automaticamente na mesma data/horário'}
+                      </div>
+                    </div>
+                  </button>
+                  {editRecurring && !editIsUrgent && (
+                    <div className="flex flex-col gap-1.5 pl-1">
+                      <label className="text-[12px] font-medium text-ink-2">Frequência</label>
+                      <select
+                        value={editFrequency}
+                        onChange={e => setEditFrequency(e.target.value)}
+                        className="w-full h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md focus:outline-none focus:border-brand transition-colors"
+                      >
+                        <option value="semanal">Semanal</option>
+                        <option value="quinzenal">Quinzenal</option>
+                        <option value="mensal">Mensal</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="flex flex-col gap-1.5">
@@ -816,6 +882,11 @@ export default function DetalhesAgendamento() {
               <Icon name="trash" size={13} />Excluir
             </Button>
           )}
+          {canEdit && item.Recurring_appointment_id && (
+            <Button variant="ghost" size="sm" onClick={() => setModal({ open: true, status: '__cancel_recurring__' })}>
+              <Icon name="repeat" size={13} />Cancelar recorrência
+            </Button>
+          )}
         </div>
       )}
 
@@ -830,7 +901,7 @@ export default function DetalhesAgendamento() {
 
       {/* Confirm modal */}
       <Modal
-        isOpen={modal.open && modal.status !== '__delete__'}
+        isOpen={modal.open && modal.status !== '__delete__' && modal.status !== '__cancel_recurring__'}
         onClose={() => setModal({ open: false, status: '' })}
         onConfirm={changeStatus}
         title={`Marcar como ${STATUS_LABELS[modal.status] ?? ''}`}
@@ -904,6 +975,16 @@ export default function DetalhesAgendamento() {
         message="Esta ação é irreversível. O agendamento será removido permanentemente."
         confirmLabel="Excluir"
         loading={saving}
+      />
+
+      <Modal
+        isOpen={modal.open && modal.status === '__cancel_recurring__'}
+        onClose={() => setModal({ open: false, status: '' })}
+        onConfirm={handleCancelRecurring}
+        title="Cancelar recorrência"
+        message="A série para de se repetir e as próximas ocorrências já marcadas são canceladas. Este atendimento e os já concluídos não são afetados."
+        confirmLabel="Cancelar recorrência"
+        loading={cancelingRecurring}
       />
     </AppLayout>
   )

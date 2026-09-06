@@ -155,6 +155,14 @@ const paths = {
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
     </>
   ),
+  repeat: (
+    <>
+      <path d="M17 1l4 4-4 4"/>
+      <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+      <path d="M7 23l-4-4 4-4"/>
+      <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 14, className = '' }) {
