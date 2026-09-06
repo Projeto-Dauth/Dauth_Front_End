@@ -359,10 +359,17 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
                     key={it?.UUID ?? t.UUID}
                     className={`grid grid-cols-[1.3fr_1fr_0.85fr_0.6fr_5rem_24px] gap-2 items-center text-[13px] transition-opacity ${ativo ? '' : 'opacity-40'}`}
                   >
-                  <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>
-                    {it
-                      ? (it.Item_type === 'product' && it.Quantity > 1 ? `${it.Name} ×${it.Quantity}` : it.Name)
-                      : isCombo ? 'Sessão de combo' : t.Appointment?.Service ?? 'Comanda'}
+                  <span className={`flex items-center gap-1 min-w-0 text-ink-2 ${ativo ? '' : 'line-through'}`}>
+                    <span className="truncate">
+                      {it
+                        ? (it.Item_type === 'product' && it.Quantity > 1 ? `${it.Name} ×${it.Quantity}` : it.Name)
+                        : isCombo ? 'Sessão de combo' : t.Appointment?.Service ?? 'Comanda'}
+                    </span>
+                    {!isProduct && t.Appointment?.Recurring_appointment_id && (
+                      <span title="Agendamento recorrente" className="flex-shrink-0 text-ink-4">
+                        <Icon name="repeat" size={11} />
+                      </span>
+                    )}
                   </span>
                   <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>{it?.Professional ?? t.Appointment?.Professional ?? ''}</span>
                   <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>{it?.Item_type === 'product' ? '—' : formatDate(t.Appointment?.Date)}</span>

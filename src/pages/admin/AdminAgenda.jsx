@@ -810,6 +810,8 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, whByPr
   const [clienteOption, setClienteOption] = useState(null)
   const [itens, setItens] = useState([{ professionalId: professional.UUID, servicoId: '', startTime: slot, endTime: addMinutes(slot, 60) }])
   const [isUrgent, setIsUrgent] = useState(false)
+  const [recurring, setRecurring] = useState(false)
+  const [frequency, setFrequency] = useState('semanal')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [modalCliente, setModalCliente] = useState(false)
@@ -923,6 +925,8 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, whByPr
         Date: dateStr,
         Is_urgent: isUrgent,
         Notes: notes.trim() || undefined,
+        Recurring: recurring || undefined,
+        Frequency: recurring ? frequency : undefined,
         Items: itens.map(item => ({
           Professional: item.professionalId,
           Service: item.servicoId,
@@ -930,7 +934,7 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, whByPr
           End_time: item.endTime,
         })),
       })
-      addToast(itens.length > 1 ? `${itens.length} serviços agendados!` : 'Agendamento criado!')
+      addToast(recurring ? 'Agendamento recorrente criado!' : itens.length > 1 ? `${itens.length} serviços agendados!` : 'Agendamento criado!')
       onSaved()
       onClose()
     } catch (err) {
@@ -1076,10 +1080,14 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, whByPr
               Adicionar serviço
             </button>
 
-            {/* Urgência */}
+            {/* Urgência — mutuamente exclusivo com Recorrência (backend rejeita a combinação) */}
             <button
               type="button"
-              onClick={() => setIsUrgent(v => !v)}
+              onClick={() => setIsUrgent(v => {
+                const next = !v
+                if (next) setRecurring(false)
+                return next
+              })}
               className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
                 ${isUrgent ? 'bg-warning-soft border-warning/40' : 'bg-surface border-line hover:border-ink-3'}`}
             >
@@ -1092,6 +1100,43 @@ function NovoAgendamentoDrawer({ slot, professional, professionals, date, whByPr
                 <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
               </div>
             </button>
+
+            {/* Recorrência — desabilitada (não escondida) quando Urgente está marcado,
+                para deixar claro que a incompatibilidade é intencional, não um bug. */}
+            <div className={`flex flex-col gap-2 ${isUrgent ? 'opacity-50 pointer-events-none' : ''}`}>
+              <button
+                type="button"
+                onClick={() => setRecurring(v => !v)}
+                disabled={isUrgent}
+                className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+                  ${recurring ? 'bg-brand-soft border-brand/40' : 'bg-surface border-line hover:border-ink-3'}`}
+              >
+                <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+                  ${recurring ? 'bg-brand border-brand' : 'border-line-2'}`}>
+                  {recurring && <Icon name="check" size={10} className="text-white" />}
+                </div>
+                <div>
+                  <div className={`text-[13px] font-medium ${recurring ? 'text-brand' : 'text-ink-2'}`}>Agendamento recorrente</div>
+                  <div className="text-[11px] text-ink-3">
+                    {isUrgent ? 'Indisponível com Agendamento urgente' : 'Repete automaticamente na mesma data/horário'}
+                  </div>
+                </div>
+              </button>
+              {recurring && !isUrgent && (
+                <div className="flex flex-col gap-1.5 pl-1">
+                  <label className="text-[12px] font-medium text-ink-2">Frequência</label>
+                  <select
+                    value={frequency}
+                    onChange={e => setFrequency(e.target.value)}
+                    className="w-full h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md focus:outline-none focus:border-brand transition-colors"
+                  >
+                    <option value="semanal">Semanal</option>
+                    <option value="quinzenal">Quinzenal</option>
+                    <option value="mensal">Mensal</option>
+                  </select>
+                </div>
+              )}
+            </div>
 
             {/* Observação */}
             <div className="flex flex-col gap-1.5">
@@ -1138,11 +1183,28 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
     }))
   })
   const [isUrgent, setIsUrgent] = useState(false)
+  const [recurring, setRecurring] = useState(false)
+  const [frequency, setFrequency] = useState('semanal')
+  const [cancelingRecurring, setCancelingRecurring] = useState(false)
   const [saving, setSaving] = useState(false)
   const [offHoursWarning, setOffHoursWarning] = useState(null)
   const [checkingHours, setCheckingHours] = useState(false)
   // Por item: { services, loadingServices, professionalOptions, loadingProfessionals }
   const [itemMeta, setItemMeta] = useState({})
+
+  async function handleCancelRecurring() {
+    setCancelingRecurring(true)
+    try {
+      await api.delete(`/recurring-appointment/${appt.Recurring_appointment_id}`)
+      addToast('Recorrência cancelada')
+      onSaved()
+      onClose()
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao cancelar recorrência', 'error')
+    } finally {
+      setCancelingRecurring(false)
+    }
+  }
   // Itens que já existiam no bloco e foram explicitamente excluídos (saem de `itens` no
   // clique) — precisam ir em Remove_services no save, diferente de item novo removido
   // (nunca existiu no backend, só é descartado).
@@ -1326,6 +1388,7 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
         Start_time: original.startTime,
         End_time: original.endTime,
         Is_urgent: isUrgent,
+        ...(recurring && !appt.Recurring_appointment_id ? { Recurring: true, Frequency: frequency } : {}),
         ...(newItens.length > 0 ? {
           Add_services: newItens.map(it => ({ Service: it.servicoId, Start_time: it.startTime, End_time: it.endTime }))
         } : {}),
@@ -1467,7 +1530,11 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
 
           <button
             type="button"
-            onClick={() => setIsUrgent(v => !v)}
+            onClick={() => setIsUrgent(v => {
+              const next = !v
+              if (next) setRecurring(false)
+              return next
+            })}
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
               ${isUrgent ? 'bg-warning-soft border-warning/40' : 'bg-surface border-line hover:border-ink-3'}`}
           >
@@ -1480,6 +1547,58 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
               <div className="text-[11px] text-ink-3">Permite sobrepor horários já ocupados</div>
             </div>
           </button>
+
+          {/* Recorrência — tornar recorrente (se ainda não é) ou remover a recorrência
+              (se já é), direto do fluxo de edição. */}
+          {appt.Recurring_appointment_id ? (
+            <button
+              type="button"
+              onClick={handleCancelRecurring}
+              disabled={cancelingRecurring}
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border border-danger/30 bg-danger-soft text-left hover:border-danger/50 transition-colors cursor-pointer disabled:opacity-60"
+            >
+              <Icon name="x" size={14} className="text-danger flex-shrink-0" />
+              <div>
+                <div className="text-[13px] font-medium text-danger">{cancelingRecurring ? 'Removendo…' : 'Remover recorrência'}</div>
+                <div className="text-[11px] text-ink-3">Para de repetir automaticamente — as próximas ocorrências já marcadas são canceladas</div>
+              </div>
+            </button>
+          ) : (
+            <div className={`flex flex-col gap-2 ${isUrgent ? 'opacity-50 pointer-events-none' : ''}`}>
+              <button
+                type="button"
+                onClick={() => setRecurring(v => !v)}
+                disabled={isUrgent}
+                className={`flex items-center gap-3 w-full px-4 py-3 rounded-[10px] border transition-colors cursor-pointer text-left
+                  ${recurring ? 'bg-brand-soft border-brand/40' : 'bg-surface border-line hover:border-ink-3'}`}
+              >
+                <div className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-colors
+                  ${recurring ? 'bg-brand border-brand' : 'border-line-2'}`}>
+                  {recurring && <Icon name="check" size={10} className="text-white" />}
+                </div>
+                <div>
+                  <div className={`text-[13px] font-medium ${recurring ? 'text-brand' : 'text-ink-2'}`}>Tornar recorrente</div>
+                  <div className="text-[11px] text-ink-3">
+                    {isUrgent ? 'Indisponível com Agendamento urgente' : 'Repete automaticamente na mesma data/horário'}
+                  </div>
+                </div>
+              </button>
+              {recurring && !isUrgent && (
+                <div className="flex flex-col gap-1.5 pl-1">
+                  <label className="text-[12px] font-medium text-ink-2">Frequência</label>
+                  <select
+                    value={frequency}
+                    onChange={e => setFrequency(e.target.value)}
+                    className="w-full h-[42px] px-[14px] rounded-md border border-line bg-surface text-ink-2 font-body text-md focus:outline-none focus:border-brand transition-colors"
+                  >
+                    <option value="semanal">Semanal</option>
+                    <option value="quinzenal">Quinzenal</option>
+                    <option value="mensal">Mensal</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -2023,6 +2142,7 @@ export default function AdminAgenda() {
                               <div className="flex items-center justify-center gap-1.5 leading-none w-full min-w-0">
                                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
                                 <span className="font-semibold text-[11px] truncate min-w-0">{a.Client}</span>
+                                {a.Recurring_appointment_id && <span title="Agendamento recorrente" className="flex-shrink-0"><Icon name="repeat" size={9} /></span>}
                               </div>
                               <div className="w-full min-w-0 mt-0.5">
                                 {serviceNames(a).map((name, i) => (
