@@ -825,7 +825,14 @@ export default function ProfissionalComandas() {
                   ${t.UUID === selectedId ? 'bg-brand-soft' : 'hover:bg-surface-2'}`}>
                 <Avatar name={t.Appointment?.Client ?? '?'} index={idx} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] md:text-[13.5px] font-medium truncate">{t.Appointment?.Client ?? 'Sem agendamento'}</div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-[13px] md:text-[13.5px] font-medium truncate">{t.Appointment?.Client ?? 'Sem agendamento'}</div>
+                    {t.Appointment?.Recurring_appointment_id && (
+                      <span title="Agendamento recorrente" className="flex-shrink-0 text-ink-4">
+                        <Icon name="repeat" size={11} />
+                      </span>
+                    )}
+                  </div>
                   <div className="font-mono text-[11px] text-ink-3 mt-0.5 truncate">
                     {t.Appointment
                       ? `${t.Appointment.Service} · ${formatDate(t.Appointment.Date)} · ${formatTime(t.Appointment.Start_time)}`
