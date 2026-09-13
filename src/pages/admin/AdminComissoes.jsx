@@ -693,9 +693,7 @@ export default function AdminComissoes() {
             />
           </div>
 
-          {loading ? <PageSpinner /> : transactions.length === 0 ? (
-            <EmptyState icon="cash" title="Sem comissões" description="Nenhuma transação paga registrada neste período." />
-          ) : (
+          {loading ? <PageSpinner /> : (
             <>
               {/* KPIs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
