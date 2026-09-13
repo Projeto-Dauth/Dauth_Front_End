@@ -420,8 +420,8 @@ function statusLabel(s) {
 
 function formatDate(iso) {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return `${d}/${m}/${y}`
 }
 
 function formatTime(t) {
