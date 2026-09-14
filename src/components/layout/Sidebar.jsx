@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
 import useNotificationStore from '@/store/notificationStore'
 import useWhatsappStatusStore from '@/store/whatsappStatusStore'
+import usePrivacyStore from '@/store/privacyStore'
 import { usePermission } from '@/hooks/usePermission'
 
 function NavGroup({ item, onClose }) {
@@ -57,11 +58,12 @@ function NavGroup({ item, onClose }) {
 
 const SCROLL_KEY = 'dauth_sidebar_scroll'
 
-export default function Sidebar({ navItems, footerUser, footerRole, width = '240px', onClose }) {
+export default function Sidebar({ navItems, footerUser, footerRole, width = '264px', onClose }) {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { unreadCount, openDrawer } = useNotificationStore()
   const { status: whatsappStatus } = useWhatsappStatusStore()
+  const { hidden: valuesHidden, toggle: toggleValuesHidden } = usePrivacyStore()
   const { can } = usePermission()
   const visibleNavItems = navItems.filter((item) => can(item.module, 'view'))
   const navScrollRef = useRef(null)
@@ -154,6 +156,13 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '240
                 <Icon name="alertCircle" size={15} />
               </button>
             )}
+            <button
+              onClick={toggleValuesHidden}
+              title={valuesHidden ? 'Mostrar valores' : 'Ocultar valores'}
+              className={`p-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${valuesHidden ? 'text-brand bg-brand-soft' : 'text-ink-4 hover:bg-surface-3'}`}
+            >
+              <Icon name={valuesHidden ? 'eyeOff' : 'eye'} size={15} />
+            </button>
             <button
               data-tour="notifications"
               onClick={openDrawer}

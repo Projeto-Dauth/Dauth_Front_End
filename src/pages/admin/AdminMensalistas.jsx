@@ -7,6 +7,7 @@ import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import ModalPagarMensalidade from '@/components/ui/ModalPagarMensalidade'
+import MoneyValue from '@/components/ui/MoneyValue'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
@@ -129,15 +130,15 @@ function EmAberto({ onOpenSettle }) {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Total em aberto</span>
-              <span className="text-[26px] font-serif font-light leading-none tracking-wide text-ink">{formatCurrency(totals.total_geral)}</span>
+              <span className="text-[26px] font-serif font-light leading-none tracking-wide text-ink"><MoneyValue>{formatCurrency(totals.total_geral)}</MoneyValue></span>
             </div>
             <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Deste mês</span>
-              <span className="text-[26px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totals.total_mes_atual)}</span>
+              <span className="text-[26px] font-serif font-light leading-none tracking-wide text-white"><MoneyValue>{formatCurrency(totals.total_mes_atual)}</MoneyValue></span>
             </div>
             <div className="bg-danger-soft border border-danger/30 rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-danger">Atrasado (meses anteriores)</span>
-              <span className="text-[26px] font-serif font-light leading-none tracking-wide text-danger">{formatCurrency(totals.total_atrasado)}</span>
+              <span className="text-[26px] font-serif font-light leading-none tracking-wide text-danger"><MoneyValue>{formatCurrency(totals.total_atrasado)}</MoneyValue></span>
             </div>
             <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-2">
               <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Clientes pendentes</span>
@@ -159,7 +160,7 @@ function EmAberto({ onOpenSettle }) {
                     <div className="w-[76px] shrink-0">
                       {c.atrasado && <Chip variant="danger">Atrasado</Chip>}
                     </div>
-                    <span className="font-mono text-[14px] font-semibold text-warning shrink-0 w-[84px] text-right">{formatCurrency(c.total)}</span>
+                    <span className="font-mono text-[14px] font-semibold text-warning shrink-0 w-[84px] text-right"><MoneyValue>{formatCurrency(c.total)}</MoneyValue></span>
                     <button
                       onClick={() => onOpenSettle(c)}
                       className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer transition-colors">
@@ -179,7 +180,7 @@ function EmAberto({ onOpenSettle }) {
                         <span className="font-mono text-[11.5px] text-ink-4 text-right">
                           {formatDate(item.appointment_date ?? item.payment_date)}
                         </span>
-                        <span className="font-mono text-ink-3 text-right">{formatCurrency(item.gross_amount)}</span>
+                        <span className="font-mono text-ink-3 text-right"><MoneyValue>{formatCurrency(item.gross_amount)}</MoneyValue></span>
                       </div>
                     ))}
                   </div>
@@ -280,7 +281,7 @@ function Historico() {
                     {formatDateTime(h.settled_at)} · por {h.settled_by_name}
                   </div>
                 </div>
-                <span className="font-mono text-[13px] font-semibold text-ink shrink-0">{formatCurrency(h.total_amount)}</span>
+                <span className="font-mono text-[13px] font-semibold text-ink shrink-0"><MoneyValue>{formatCurrency(h.total_amount)}</MoneyValue></span>
                 <Icon
                   name="chevronRight"
                   size={14}

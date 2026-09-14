@@ -11,6 +11,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import ModalPagarMensalidade from '@/components/ui/ModalPagarMensalidade'
+import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -189,7 +190,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     setResetting(true)
     try {
       await api.patch(`/users/${client.UUID}/reset-password`)
-      addToast(`Senha de ${client.Name} redefinida para 123456789`, 'success')
+      addToast(`Senha de ${client.Name} redefinida para 12345678`, 'success')
       setConfirmReset(false)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao redefinir senha', 'error')
@@ -299,13 +300,13 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     <div>
       <div className="flex items-center justify-between mb-3">
         <h5 className="font-medium text-[13.5px]">Mensalidade pendente</h5>
-        <span className="font-mono text-[11px] text-warning">{formatCurrency(mensalistaData.total)}</span>
+        <span className="font-mono text-[11px] text-warning"><MoneyValue>{formatCurrency(mensalistaData.total)}</MoneyValue></span>
       </div>
       <div className="space-y-1.5 mb-3">
         {mensalistaData.items.map(item => (
           <div key={item.uuid} className="flex items-center justify-between bg-warning-soft border border-warning/20 rounded-lg px-3 py-2 text-[13px]">
             <span className="text-ink-2 truncate">{item.servico}</span>
-            <span className="font-mono font-medium text-ink shrink-0 ml-2">{formatCurrency(item.gross_amount)}</span>
+            <span className="font-mono font-medium text-ink shrink-0 ml-2"><MoneyValue>{formatCurrency(item.gross_amount)}</MoneyValue></span>
           </div>
         ))}
       </div>
@@ -320,7 +321,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
       <div className="flex items-center justify-between mb-3">
         <h5 className="font-medium text-[13.5px]">Crédito do cliente</h5>
         <span className={`font-serif text-[18px] font-light leading-none ${credit.balance > 0 ? 'text-brand' : 'text-ink-3'}`}>
-          {formatCurrency(credit.balance)}
+          <MoneyValue>{formatCurrency(credit.balance)}</MoneyValue>
         </span>
       </div>
       {credit.data.length > 0 && (
@@ -354,7 +355,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
         {openTabs.map(t => (
           <div key={t.UUID} className="flex items-center justify-between bg-warning-soft border border-warning/20 rounded-lg px-3 py-2.5 text-[13px]">
             <span className="text-ink-2">{t.Appointment?.Service ?? '—'} · {t.Appointment?.Start_time?.slice(0, 5) ?? '—'}</span>
-            <span className="font-mono font-medium text-ink">{formatCurrency(t.Value)}</span>
+            <span className="font-mono font-medium text-ink"><MoneyValue>{formatCurrency(t.Value)}</MoneyValue></span>
           </div>
         ))}
       </div>
@@ -421,8 +422,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
 
   const kpiItems = [
     { value: concludedCount, label: 'Atendimentos', className: 'text-ink' },
-    { value: formatCurrency(totalGasto), label: 'Total gasto', className: 'text-brand' },
-    { value: formatCurrency(ticketMedio), label: 'Ticket médio', className: 'text-ink' },
+    { value: formatCurrency(totalGasto), label: 'Total gasto', className: 'text-brand', money: true },
+    { value: formatCurrency(ticketMedio), label: 'Ticket médio', className: 'text-ink', money: true },
   ]
 
   return (
@@ -525,7 +526,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                 <div className="grid grid-cols-3 gap-3">
                   {kpiItems.map((k, i) => (
                     <div key={i} className="bg-surface border border-line rounded-xl p-3 text-center">
-                      <div className={`font-serif ${i === 0 ? 'text-[24px]' : 'text-[20px]'} font-light leading-none ${k.className} truncate px-1`}>{k.value}</div>
+                      <div className={`font-serif ${i === 0 ? 'text-[24px]' : 'text-[20px]'} font-light leading-none ${k.className} truncate px-1`}>{k.money ? <MoneyValue>{k.value}</MoneyValue> : k.value}</div>
                       <div className="text-[11px] text-ink-3 mt-1.5">{k.label}</div>
                     </div>
                   ))}
@@ -556,14 +557,14 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                     {kpiItems.map((k, i) => (
                       <div key={i} className="bg-surface border border-line rounded-xl px-3.5 py-2.5 flex items-center justify-between">
                         <span className="text-[12px] text-ink-3">{k.label}</span>
-                        <span className={`font-serif text-[16px] font-light leading-none ${k.className}`}>{k.value}</span>
+                        <span className={`font-serif text-[16px] font-light leading-none ${k.className}`}>{k.money ? <MoneyValue>{k.value}</MoneyValue> : k.value}</span>
                       </div>
                     ))}
                     {client.Role === 'Usuario' && credit && (
                       <div className="bg-surface border border-line rounded-xl px-3.5 py-2.5 flex items-center justify-between">
                         <span className="text-[12px] text-ink-3">Crédito</span>
                         <span className={`font-serif text-[16px] font-light leading-none ${credit.balance > 0 ? 'text-brand' : 'text-ink-3'}`}>
-                          {formatCurrency(credit.balance)}
+                          <MoneyValue>{formatCurrency(credit.balance)}</MoneyValue>
                         </span>
                       </div>
                     )}
@@ -622,7 +623,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
         onClose={() => setConfirmReset(false)}
         onConfirm={handleResetPassword}
         title="Redefinir senha"
-        message={`A senha de ${client.Name} será redefinida para 123456789. No próximo login, será exigida a troca de senha.`}
+        message={`A senha de ${client.Name} será redefinida para 12345678. No próximo login, será exigida a troca de senha.`}
         confirmLabel="Redefinir"
         loading={resetting}
       />
@@ -678,7 +679,7 @@ function CreditRow({ t }) {
         </div>
       </div>
       <span className={`font-mono font-medium shrink-0 ml-2 ${t.Amount >= 0 ? 'text-success' : 'text-danger'}`}>
-        {t.Amount >= 0 ? '+' : ''}{formatCurrency(t.Amount)}
+        <MoneyValue>{t.Amount >= 0 ? '+' : ''}{formatCurrency(t.Amount)}</MoneyValue>
       </span>
     </div>
   )
@@ -763,7 +764,7 @@ function ModalAjustarCredito({ client, balance, onClose, onSuccess }) {
           </button>
         </div>
         <p className="text-[12px] text-ink-3 mb-4">
-          Saldo atual de {client.Name}: <span className="font-mono text-ink-2">{formatCurrency(balance)}</span>
+          Saldo atual de {client.Name}: <span className="font-mono text-ink-2"><MoneyValue>{formatCurrency(balance)}</MoneyValue></span>
         </p>
 
         <div className="flex gap-1.5 mb-4">

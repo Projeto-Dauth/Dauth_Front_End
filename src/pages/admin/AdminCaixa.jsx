@@ -8,6 +8,7 @@ import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
+import MoneyValue from '@/components/ui/MoneyValue'
 import CreditToggleRow from '@/components/ui/CreditToggleRow'
 import AmountTenderedField from '@/components/ui/AmountTenderedField'
 import { useCreditAndTroco } from '@/hooks/useCreditAndTroco'
@@ -329,7 +330,7 @@ function TabComandas({ user, initialAppointmentId }) {
         title="Editar valor do item"
         className="font-mono shrink-0 hover:text-brand hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
       >
-        {formatCurrency(item.Unit_price * item.Quantity)}
+        <MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue>
       </button>
     )
   }
@@ -400,7 +401,7 @@ function TabComandas({ user, initialAppointmentId }) {
     <>
       <div className="flex items-center justify-between mb-5 md:mb-6">
         <p className="text-[12px] md:text-[13px] text-ink-3">
-          {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
+          {emAberto} em aberto · <MoneyValue>{formatCurrency(totalAberto)}</MoneyValue> a receber
         </p>
         <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors" title="Repetir tour guiado">
           <Icon name="helpCircle" size={12} />
@@ -421,7 +422,7 @@ function TabComandas({ user, initialAppointmentId }) {
                 <div className="min-w-0">
                   <div className="text-[13px] font-medium truncate">{c.client_name}</div>
                   <div className="font-mono text-[11px] text-ink-3">
-                    {c.tab_count + c.order_count} ite{c.tab_count + c.order_count !== 1 ? 'ns' : 'm'} · {formatCurrency(c.total)}
+                    {c.tab_count + c.order_count} ite{c.tab_count + c.order_count !== 1 ? 'ns' : 'm'} · <MoneyValue>{formatCurrency(c.total)}</MoneyValue>
                   </div>
                 </div>
               </div>
@@ -545,7 +546,7 @@ function TabComandas({ user, initialAppointmentId }) {
                   </div>
                 </div>
                 <div className="font-mono text-[12px] md:text-[13px] font-medium shrink-0">
-                  {formatCurrency(t.Value)}
+                  <MoneyValue>{formatCurrency(t.Value)}</MoneyValue>
                 </div>
                 {isFiadoTab(t)
                   ? <Chip variant="warning" className="shrink-0">Mensalista</Chip>
@@ -596,7 +597,7 @@ function TabComandas({ user, initialAppointmentId }) {
                           </span>
                           {selected.Status === 'Em aberto'
                             ? renderItemPrice(item)
-                            : <span className="font-mono shrink-0">{formatCurrency(item.Unit_price * item.Quantity)}</span>}
+                            : <span className="font-mono shrink-0"><MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue></span>}
                         </div>
                       ))}
                     </div>
@@ -606,13 +607,13 @@ function TabComandas({ user, initialAppointmentId }) {
                 {selected.Status === 'Em aberto' && cr.parsedCreditAmount > 0 && (
                   <div className="flex justify-between items-center py-2 text-[13px]">
                     <span className="text-ink-3">Desconto crédito</span>
-                    <span className="font-mono font-medium text-danger">-{formatCurrency(cr.parsedCreditAmount)}</span>
+                    <span className="font-mono font-medium text-danger">-<MoneyValue>{formatCurrency(cr.parsedCreditAmount)}</MoneyValue></span>
                   </div>
                 )}
 
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Valor</span>
-                  <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Status === 'Em aberto' ? cr.remainingAfterCredit : selected.Value)}</span>
+                  <span className="font-display text-[22px] font-medium"><MoneyValue>{formatCurrency(selected.Status === 'Em aberto' ? cr.remainingAfterCredit : selected.Value)}</MoneyValue></span>
                 </div>
 
                 {selected.Status === 'Em aberto' && selected.Appointment?.ClientId && (
@@ -815,7 +816,7 @@ function TabPedidosProdutos() {
                   </div>
                 </div>
                 <div className="font-mono text-[12px] md:text-[13px] font-medium shrink-0">
-                  {formatCurrency(o.Total_price)}
+                  <MoneyValue>{formatCurrency(o.Total_price)}</MoneyValue>
                 </div>
                 <span className={`font-mono text-[10.5px] uppercase tracking-widest px-2 py-0.5 rounded shrink-0 ${PROD_STATUS_COLORS[o.Status]}`}>
                   {PROD_STATUS_LABELS[o.Status]}
@@ -845,7 +846,7 @@ function TabPedidosProdutos() {
               <div className="px-6 py-5">
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Valor</span>
-                  <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Total_price)}</span>
+                  <span className="font-display text-[22px] font-medium"><MoneyValue>{formatCurrency(selected.Total_price)}</MoneyValue></span>
                 </div>
 
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2 mb-4">
@@ -928,7 +929,7 @@ function TabPedidosProdutos() {
               {estTotal && (
                 <div className="bg-brand-soft rounded-lg px-4 py-2.5 flex justify-between items-center">
                   <span className="text-[12px] text-ink-3">Total estimado</span>
-                  <span className="font-display font-medium text-[16px] text-brand">{estTotal}</span>
+                  <span className="font-display font-medium text-[16px] text-brand"><MoneyValue>{estTotal}</MoneyValue></span>
                 </div>
               )}
               <FieldProd label="Observações (opcional)">
@@ -1032,7 +1033,7 @@ function TabRelatorio() {
               <div key={m} className="bg-surface border border-line rounded-xl p-4 flex flex-col gap-1.5">
                 <span className="font-mono text-[10px] uppercase tracking-widest text-ink-4">{METHOD_LABELS[m]}</span>
                 <span className="text-[22px] font-serif font-light leading-none tracking-wide text-ink">
-                  {formatCurrency(totais?.[m] ?? 0)}
+                  <MoneyValue>{formatCurrency(totais?.[m] ?? 0)}</MoneyValue>
                 </span>
               </div>
             ))}
@@ -1040,7 +1041,7 @@ function TabRelatorio() {
           <div className="bg-brand rounded-xl p-4 flex items-center justify-between mb-6">
             <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Total do período</span>
             <span className="text-[28px] font-serif font-light leading-none tracking-wide text-white">
-              {formatCurrency(totais?.geral ?? 0)}
+              <MoneyValue>{formatCurrency(totais?.geral ?? 0)}</MoneyValue>
             </span>
           </div>
 
@@ -1069,7 +1070,7 @@ function TabRelatorio() {
                         {METHOD_LABELS[p.metodo] ?? p.metodo}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-ink">{formatCurrency(p.valor)}</td>
+                    <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-ink"><MoneyValue>{formatCurrency(p.valor)}</MoneyValue></td>
                   </tr>
                 ))}
               </tbody>
@@ -1079,7 +1080,7 @@ function TabRelatorio() {
                     {payments.length} pagamento{payments.length !== 1 ? 's' : ''}
                   </td>
                   <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-ink">
-                    {formatCurrency(totais?.geral ?? 0)}
+                    <MoneyValue>{formatCurrency(totais?.geral ?? 0)}</MoneyValue>
                   </td>
                 </tr>
               </tfoot>
@@ -1092,7 +1093,7 @@ function TabRelatorio() {
               <div key={p.uuid} className="bg-surface border border-line rounded-[14px] px-4 py-4">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="font-medium text-[14px] text-ink">{p.cliente}</span>
-                  <span className="font-mono text-[13.5px] font-semibold text-ink">{formatCurrency(p.valor)}</span>
+                  <span className="font-mono text-[13.5px] font-semibold text-ink"><MoneyValue>{formatCurrency(p.valor)}</MoneyValue></span>
                 </div>
                 <div className="grid grid-cols-2 gap-y-2">
                   <div>

@@ -6,6 +6,7 @@ import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -164,7 +165,7 @@ export default function AdminProdutos() {
                     <td className="px-3.5 py-3 text-[13px] text-ink-3 border-b border-line-2 max-w-[200px] truncate">
                       {p.Description || <span className="italic text-ink-4">—</span>}
                     </td>
-                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatPrice(p.Price)}</td>
+                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2"><MoneyValue>{formatPrice(p.Price)}</MoneyValue></td>
                     <td className="px-3.5 py-3 font-mono text-[12px] border-b border-line-2">
                       <span className={p.Stock === 0 ? 'text-danger' : 'text-ink-2'}>{p.Stock}</span>
                     </td>
@@ -197,7 +198,7 @@ export default function AdminProdutos() {
               <div key={p.UUID} className="bg-surface border border-line rounded-xl p-4">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div className="font-medium text-[14px]">{p.Name}</div>
-                  <div className="font-display text-[16px] font-medium shrink-0">{formatPrice(p.Price)}</div>
+                  <div className="font-display text-[16px] font-medium shrink-0"><MoneyValue>{formatPrice(p.Price)}</MoneyValue></div>
                 </div>
                 {p.Description && (
                   <div className="text-[12px] text-ink-3 mb-2 line-clamp-2">{p.Description}</div>

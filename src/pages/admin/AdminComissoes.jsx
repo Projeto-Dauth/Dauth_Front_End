@@ -9,6 +9,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
+import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -124,7 +125,7 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
                 <Avatar name={g.name} index={gi} size="sm" />
                 <span className="font-medium text-[13.5px] text-ink flex-1 min-w-0 truncate">{g.name}</span>
                 <span className={`font-mono text-[13px] font-semibold shrink-0 ${paid ? 'text-ink-3' : 'text-brand'}`}>
-                  {formatCurrency(totalToShow)}
+                  <MoneyValue>{formatCurrency(totalToShow)}</MoneyValue>
                 </span>
                 {!paid && (
                   <button
@@ -169,8 +170,8 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
                     <td className="px-5 py-3 text-[12px] text-ink-3">{tx.servico}</td>
                     <td className="px-5 py-3 text-right font-mono text-[12px] text-ink-3">{formatDate(tx.appointment_date)}</td>
                     <td className="px-5 py-3 text-right font-mono text-[12px] text-ink-4">{formatDate(tx.data)}</td>
-                    <td className="px-5 py-3 text-right font-mono text-[12px] text-ink">{formatCurrency(tx.gross_amount)}</td>
-                    <td className="px-5 py-3 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(tx.commission_amount)}</td>
+                    <td className="px-5 py-3 text-right font-mono text-[12px] text-ink"><MoneyValue>{formatCurrency(tx.gross_amount)}</MoneyValue></td>
+                    <td className="px-5 py-3 text-right font-mono text-[13px] font-semibold text-brand"><MoneyValue>{formatCurrency(tx.commission_amount)}</MoneyValue></td>
                     <td className="px-5 py-3 text-right">
                       {paid ? (
                         <Chip variant="success">Repassado</Chip>
@@ -208,11 +209,11 @@ function CommissionSection({ title, groups, markingPaid, onMarcarRepassado, onPa
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-ink-4 mb-0.5">Valor serviço</div>
-                      <div className="font-mono text-[12px] text-ink-2">{formatCurrency(tx.gross_amount)}</div>
+                      <div className="font-mono text-[12px] text-ink-2"><MoneyValue>{formatCurrency(tx.gross_amount)}</MoneyValue></div>
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-ink-4 mb-0.5">Comissão</div>
-                      <div className="font-mono text-[13px] font-semibold text-brand">{formatCurrency(tx.commission_amount)}</div>
+                      <div className="font-mono text-[13px] font-semibold text-brand"><MoneyValue>{formatCurrency(tx.commission_amount)}</MoneyValue></div>
                     </div>
                   </div>
                   {/* Linha 3: ação */}
@@ -285,7 +286,7 @@ function ModalPagarComissoes({ group, onClose, onConfirm, pagando }) {
                   </div>
                   <span className="font-mono text-[11.5px] text-ink-3 shrink-0">{formatDate(tx.appointment_date)}</span>
                   <span className={`font-mono text-[13px] font-semibold shrink-0 ${ativo ? 'text-brand' : 'text-ink-4'}`}>
-                    {formatCurrency(tx.commission_amount)}
+                    <MoneyValue>{formatCurrency(tx.commission_amount)}</MoneyValue>
                   </span>
                   <button
                     onClick={() => toggle(tx.uuid)}
@@ -327,7 +328,7 @@ function ModalPagarComissoes({ group, onClose, onConfirm, pagando }) {
             <span className="font-mono text-[11px] uppercase tracking-widest text-ink-4">
               Total selecionado ({selecionados.length}/{group.rows.length})
             </span>
-            <span className="font-mono text-[18px] font-semibold text-brand">{formatCurrency(totalSelecionado)}</span>
+            <span className="font-mono text-[18px] font-semibold text-brand"><MoneyValue>{formatCurrency(totalSelecionado)}</MoneyValue></span>
           </div>
           <div className="flex gap-2">
             <button
@@ -423,7 +424,7 @@ function HistoricoRepasses({ profFilter }) {
                   {formatDateTime(h.paid_at)} · por {h.paid_by_name}
                 </div>
               </div>
-              <span className="font-mono text-[13px] font-semibold text-ink shrink-0">{formatCurrency(h.total_amount)}</span>
+              <span className="font-mono text-[13px] font-semibold text-ink shrink-0"><MoneyValue>{formatCurrency(h.total_amount)}</MoneyValue></span>
               <Icon
                 name="chevronRight"
                 size={14}
@@ -444,7 +445,7 @@ function HistoricoRepasses({ profFilter }) {
                 {(h.transactions ?? []).map(t => (
                   <div key={t.uuid} className="flex items-center justify-between gap-2 text-[12.5px]">
                     <span className="text-ink-2 truncate">{t.cliente ?? 'Cliente'} · {t.servico ?? 'Produto'}</span>
-                    <span className="font-mono text-ink-3 shrink-0">{t.commission_amount != null ? formatCurrency(t.commission_amount) : '—'}</span>
+                    <span className="font-mono text-ink-3 shrink-0">{t.commission_amount != null ? <MoneyValue>{formatCurrency(t.commission_amount)}</MoneyValue> : '—'}</span>
                   </div>
                 ))}
               </div>
@@ -699,11 +700,11 @@ export default function AdminComissoes() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-2">
                   <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Receita total do período</span>
-                  <span className="text-[28px] font-serif font-light leading-none tracking-wide text-ink">{formatCurrency(totalReceita)}</span>
+                  <span className="text-[28px] font-serif font-light leading-none tracking-wide text-ink"><MoneyValue>{formatCurrency(totalReceita)}</MoneyValue></span>
                 </div>
                 <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-2">
                   <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Comissões a repassar</span>
-                  <span className="text-[28px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totalPendente)}</span>
+                  <span className="text-[28px] font-serif font-light leading-none tracking-wide text-white"><MoneyValue>{formatCurrency(totalPendente)}</MoneyValue></span>
                 </div>
               </div>
 
