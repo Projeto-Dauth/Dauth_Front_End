@@ -1,3 +1,5 @@
+import MoneyValue from '@/components/ui/MoneyValue'
+
 function formatCurrency(v) {
   return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
@@ -21,7 +23,7 @@ export default function CreditToggleRow({ cr, className = 'py-3.5 border-b borde
           }}
           className="w-4 h-4"
         />
-        Crédito ({formatCurrency(cr.creditBalance)} disponível)
+        Crédito (<MoneyValue>{formatCurrency(cr.creditBalance)}</MoneyValue> disponível)
       </span>
       {cr.useCredit && editable && (
         <input

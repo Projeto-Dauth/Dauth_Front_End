@@ -1,3 +1,5 @@
+import MoneyValue from '@/components/ui/MoneyValue'
+
 function formatCurrency(v) {
   return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
@@ -28,7 +30,7 @@ export default function AmountTenderedField({ cr, method, topBorder = true }) {
       )}
       {cr.trocoPreview > 0 && (
         <p className="text-[12.5px] text-brand mb-1">
-          Troco de {formatCurrency(cr.trocoPreview)} vira crédito para o cliente (abate fiado em aberto primeiro, se houver).
+          Troco de <MoneyValue>{formatCurrency(cr.trocoPreview)}</MoneyValue> vira crédito para o cliente (abate fiado em aberto primeiro, se houver).
         </p>
       )}
     </>

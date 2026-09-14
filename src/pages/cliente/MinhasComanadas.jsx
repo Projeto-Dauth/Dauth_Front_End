@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Avatar from '@/components/ui/Avatar'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import MoneyValue from '@/components/ui/MoneyValue'
 import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -150,7 +151,7 @@ export default function MinhasComanadas() {
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Minhas comandas</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">
             {loading ? 'Carregando...' : emAberto > 0
-              ? `${emAberto} em aberto · ${formatCurrency(totalAberto)} a pagar`
+              ? <>{emAberto} em aberto · <MoneyValue>{formatCurrency(totalAberto)}</MoneyValue> a pagar</>
               : 'Nenhuma comanda em aberto'}
           </p>
         </div>
@@ -214,7 +215,7 @@ export default function MinhasComanadas() {
                     <td className="px-4 py-3.5 font-mono text-[13px] font-medium border-b border-line-2">
                       {tab.Value === 0
                         ? <span className="text-success text-[12px]">Combo</span>
-                        : formatCurrency(tab.Value)}
+                        : <MoneyValue>{formatCurrency(tab.Value)}</MoneyValue>}
                     </td>
                     <td className="px-4 py-3.5 border-b border-line-2">
                       <Chip variant={statusVariant(tab.Status)}>{statusLabel(tab.Status)}</Chip>
@@ -255,7 +256,7 @@ export default function MinhasComanadas() {
                   <span className="font-mono text-[13px] font-medium">
                     {tab.Value === 0
                       ? <span className="text-success text-[12px]">Combo</span>
-                      : formatCurrency(tab.Value)}
+                      : <MoneyValue>{formatCurrency(tab.Value)}</MoneyValue>}
                   </span>
                 </div>
               </div>

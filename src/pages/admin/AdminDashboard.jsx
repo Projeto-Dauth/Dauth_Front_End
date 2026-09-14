@@ -14,6 +14,8 @@ import {
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import { PageSpinner } from '@/components/ui/Spinner'
+import MoneyValue from '@/components/ui/MoneyValue'
+import usePrivacyStore from '@/store/privacyStore'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import useAuthStore from '@/store/authStore'
@@ -34,7 +36,8 @@ function formatDateShort(iso) {
   return `${d}/${m}`
 }
 
-function KpiCard({ icon, label, value, sub, highlight }) {
+function KpiCard({ icon, label, value, sub, highlight, money }) {
+  const valueEl = money ? <MoneyValue>{value}</MoneyValue> : value
   return (
     <div className={`rounded-xl border p-5 flex flex-col gap-3 ${highlight ? 'bg-brand text-white border-brand' : 'bg-surface border-line'}`}>
       <div className="flex items-center justify-between">
@@ -43,7 +46,7 @@ function KpiCard({ icon, label, value, sub, highlight }) {
           <Icon name={icon} size={16} className={highlight ? 'text-white' : 'text-brand'} />
         </span>
       </div>
-      <p className={`text-[32px] font-serif font-light leading-none tracking-wide ${highlight ? 'text-white' : 'text-ink'}`}>{value}</p>
+      <p className={`text-[32px] font-serif font-light leading-none tracking-wide ${highlight ? 'text-white' : 'text-ink'}`}>{valueEl}</p>
       {sub && <p className={`text-xs ${highlight ? 'text-white/60' : 'text-ink-4'}`}>{sub}</p>}
     </div>
   )
@@ -66,7 +69,7 @@ const CustomTooltipArea = ({ active, payload, label }) => {
   return (
     <div className="bg-surface border border-line rounded-lg px-3 py-2 shadow-sm text-sm">
       <p className="text-ink-4 text-xs mb-1">{label}</p>
-      <p className="text-ink font-medium">{formatCurrency(payload[0].value)}</p>
+      <p className="text-ink font-medium"><MoneyValue>{formatCurrency(payload[0].value)}</MoneyValue></p>
     </div>
   )
 }
@@ -103,6 +106,7 @@ function rangeForPreset(preset) {
 
 export default function AdminDashboard() {
   const { user } = useAuthStore()
+  const valuesHidden = usePrivacyStore((s) => s.hidden)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [preset, setPreset] = useState('7d')
@@ -203,7 +207,7 @@ export default function AdminDashboard() {
           <h2 className="text-xs font-mono uppercase tracking-widest text-ink-4 mb-3">Hoje</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <KpiCard icon="cal" label="Agendamentos" value={hoje.agendamentos} sub="Confirmados e pendentes" highlight />
-            <KpiCard icon="cash" label="Receita do dia" value={formatCurrency(hoje.receita)} sub="Comandas pagas hoje" />
+            <KpiCard icon="cash" label="Receita do dia" value={formatCurrency(hoje.receita)} sub="Comandas pagas hoje" money />
             <KpiCard icon="receipt" label="Comandas abertas" value={hoje.comandas_abertas} sub="Aguardando pagamento" />
           </div>
         </section>
@@ -214,8 +218,8 @@ export default function AdminDashboard() {
             {formatPeriodLabel()}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard icon="chart" label="Receita do período" value={formatCurrency(mes.receita)} sub={`${mes.total_comandas_pagas} comanda${mes.total_comandas_pagas !== 1 ? 's' : ''} paga${mes.total_comandas_pagas !== 1 ? 's' : ''}`} highlight />
-            <KpiCard icon="tag" label="Ticket médio" value={formatCurrency(mes.ticket_medio)} sub="Por comanda paga" />
+            <KpiCard icon="chart" label="Receita do período" value={formatCurrency(mes.receita)} sub={`${mes.total_comandas_pagas} comanda${mes.total_comandas_pagas !== 1 ? 's' : ''} paga${mes.total_comandas_pagas !== 1 ? 's' : ''}`} highlight money />
+            <KpiCard icon="tag" label="Ticket médio" value={formatCurrency(mes.ticket_medio)} sub="Por comanda paga" money />
             <KpiCard icon="check" label="Comandas pagas" value={mes.total_comandas_pagas} sub="No período" />
             <KpiCard
               icon="alertCircle"
@@ -252,7 +256,7 @@ export default function AdminDashboard() {
                     interval={6}
                   />
                   <YAxis
-                    tickFormatter={v => `R$${v}`}
+                    tickFormatter={v => valuesHidden ? '••••' : `R$${v}`}
                     tick={{ fontSize: 10, fill: '#b8a89a' }}
                     tickLine={false}
                     axisLine={false}
@@ -351,9 +355,9 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-5 py-3.5 text-right font-mono text-[12px] text-ink-2">{p.atendimentos}</td>
-                        <td className="px-5 py-3.5 text-right font-mono text-[12.5px] text-ink">{formatCurrency(p.gross_amount)}</td>
+                        <td className="px-5 py-3.5 text-right font-mono text-[12.5px] text-ink"><MoneyValue>{formatCurrency(p.gross_amount)}</MoneyValue></td>
                         <td className="px-5 py-3.5 text-right">
-                          <span className="font-mono text-[12.5px] font-semibold text-brand">{formatCurrency(p.commission_amount)}</span>
+                          <span className="font-mono text-[12.5px] font-semibold text-brand"><MoneyValue>{formatCurrency(p.commission_amount)}</MoneyValue></span>
                         </td>
                       </tr>
                     ))}
@@ -368,9 +372,9 @@ export default function AdminDashboard() {
                       <Avatar name={p.name} index={i} size="sm" />
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-[13px] truncate">{p.name}</div>
-                        <div className="font-mono text-[11px] text-ink-4">{p.atendimentos} atend. · {formatCurrency(p.gross_amount)}</div>
+                        <div className="font-mono text-[11px] text-ink-4">{p.atendimentos} atend. · <MoneyValue>{formatCurrency(p.gross_amount)}</MoneyValue></div>
                       </div>
-                      <span className="font-mono text-[12px] font-semibold text-brand shrink-0">{formatCurrency(p.commission_amount)}</span>
+                      <span className="font-mono text-[12px] font-semibold text-brand shrink-0"><MoneyValue>{formatCurrency(p.commission_amount)}</MoneyValue></span>
                     </div>
                   ))}
                 </div>

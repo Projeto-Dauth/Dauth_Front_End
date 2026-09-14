@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useCreditAndTroco } from '@/hooks/useCreditAndTroco'
 import CreditToggleRow from '@/components/ui/CreditToggleRow'
 import AmountTenderedField from '@/components/ui/AmountTenderedField'
+import MoneyValue from '@/components/ui/MoneyValue'
 
 function formatCurrency(v) {
   return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -28,7 +29,7 @@ export default function CreditAndTrocoFields({ clientId, total, method, onChange
       {cr.parsedCreditAmount > 0 && (
         <div className="flex items-center justify-between py-2 text-[14px]">
           <span className="text-ink-3">A cobrar de {method === 'fiado' ? 'mensalista' : 'outra forma'}</span>
-          <span className="font-mono font-medium text-ink">{formatCurrency(cr.remainingAfterCredit)}</span>
+          <span className="font-mono font-medium text-ink"><MoneyValue>{formatCurrency(cr.remainingAfterCredit)}</MoneyValue></span>
         </div>
       )}
 

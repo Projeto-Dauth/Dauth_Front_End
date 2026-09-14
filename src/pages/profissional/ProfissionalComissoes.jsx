@@ -5,6 +5,7 @@ import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import MoneyValue from '@/components/ui/MoneyValue'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
@@ -154,11 +155,11 @@ export default function ProfissionalComissoes() {
               </div>
               <div className="bg-brand border border-brand rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-white/70">Comissão a receber</span>
-                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-white">{formatCurrency(totais.commission_pending)}</span>
+                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-white"><MoneyValue>{formatCurrency(totais.commission_pending)}</MoneyValue></span>
               </div>
               <div className="bg-surface border border-line rounded-xl p-5 flex flex-col gap-1.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4">Já repassado</span>
-                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-success">{formatCurrency(totais.commission_repassada)}</span>
+                <span className="text-[22px] font-serif font-light leading-none tracking-wide text-success"><MoneyValue>{formatCurrency(totais.commission_repassada)}</MoneyValue></span>
               </div>
             </div>
           )}
@@ -228,9 +229,9 @@ export default function ProfissionalComissoes() {
                           </div>
                         </td>
                         <td className="px-5 py-4 text-[13px] text-ink-2">{row.servico}</td>
-                        <td className="px-5 py-4 text-right font-mono text-[12.5px] text-ink-2">{formatCurrency(row.gross_amount)}</td>
+                        <td className="px-5 py-4 text-right font-mono text-[12.5px] text-ink-2"><MoneyValue>{formatCurrency(row.gross_amount)}</MoneyValue></td>
                         <td className="px-5 py-4 text-right">
-                          <span className="font-mono text-[13px] font-semibold text-brand">{formatCurrency(row.commission_amount)}</span>
+                          <span className="font-mono text-[13px] font-semibold text-brand"><MoneyValue>{formatCurrency(row.commission_amount)}</MoneyValue></span>
                         </td>
                       </tr>
                     ))}
@@ -240,8 +241,8 @@ export default function ProfissionalComissoes() {
                       <td colSpan={4} className="px-5 py-3.5 font-mono text-[11px] uppercase tracking-widest text-ink-3">
                         Total · {listaAtual.length} atendimento{listaAtual.length !== 1 ? 's' : ''}
                       </td>
-                      <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink">{formatCurrency(totalServicoAtual)}</td>
-                      <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-brand">{formatCurrency(totalComissaoAtual)}</td>
+                      <td className="px-5 py-3.5 text-right font-mono text-[12.5px] font-semibold text-ink"><MoneyValue>{formatCurrency(totalServicoAtual)}</MoneyValue></td>
+                      <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold text-brand"><MoneyValue>{formatCurrency(totalComissaoAtual)}</MoneyValue></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -265,11 +266,11 @@ export default function ProfissionalComissoes() {
                     <div className="flex items-center justify-between pt-3 border-t border-line-2">
                       <div>
                         <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Valor do serviço</div>
-                        <div className="font-mono text-[13px] text-ink-2">{formatCurrency(row.gross_amount)}</div>
+                        <div className="font-mono text-[13px] text-ink-2"><MoneyValue>{formatCurrency(row.gross_amount)}</MoneyValue></div>
                       </div>
                       <div className="text-right">
                         <div className="font-mono text-[10px] uppercase tracking-widest text-ink-4 mb-0.5">Sua comissão</div>
-                        <div className="font-mono text-[14px] font-semibold text-brand">{formatCurrency(row.commission_amount)}</div>
+                        <div className="font-mono text-[14px] font-semibold text-brand"><MoneyValue>{formatCurrency(row.commission_amount)}</MoneyValue></div>
                       </div>
                     </div>
                   </div>

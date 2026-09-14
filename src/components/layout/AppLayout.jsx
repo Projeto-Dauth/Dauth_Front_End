@@ -6,6 +6,7 @@ import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
 import useNotificationStore from '@/store/notificationStore'
 import useWhatsappStatusStore from '@/store/whatsappStatusStore'
+import usePrivacyStore from '@/store/privacyStore'
 import api from '@/lib/api'
 
 export default function AppLayout({ sidebar, children }) {
@@ -15,6 +16,7 @@ export default function AppLayout({ sidebar, children }) {
   const logout = useAuthStore((s) => s.logout)
   const { unreadCount, fetchUnreadCount, openDrawer } = useNotificationStore()
   const { status: whatsappStatus, fetchStatus: fetchWhatsappStatus } = useWhatsappStatusStore()
+  const { hidden: valuesHidden, toggle: toggleValuesHidden } = usePrivacyStore()
 
   async function handleLogout() {
     try { await api.post('/auth/logout') } catch {}
@@ -82,6 +84,14 @@ export default function AppLayout({ sidebar, children }) {
               <Icon name="alertCircle" size={17} />
             </button>
           )}
+
+          <button
+            onClick={toggleValuesHidden}
+            title={valuesHidden ? 'Mostrar valores' : 'Ocultar valores'}
+            className={`p-2 rounded-lg transition-colors ${valuesHidden ? 'text-brand bg-brand-soft' : 'text-ink-3 hover:bg-surface-2'}`}
+          >
+            <Icon name={valuesHidden ? 'eyeOff' : 'eye'} size={17} />
+          </button>
 
           {/* sino mobile */}
           <button

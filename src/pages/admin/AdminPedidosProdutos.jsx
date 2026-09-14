@@ -8,6 +8,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -204,7 +205,7 @@ export default function AdminPedidosProdutos() {
                     <td className="px-3.5 py-3 text-[13px] font-medium border-b border-line-2">{o.Client?.Name ?? '—'}</td>
                     <td className="px-3.5 py-3 text-[13px] border-b border-line-2">{o.Product?.Name ?? '—'}</td>
                     <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{o.Quantity}</td>
-                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatPrice(o.Total_price)}</td>
+                    <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2"><MoneyValue>{formatPrice(o.Total_price)}</MoneyValue></td>
                     <td className="px-3.5 py-3 font-mono text-[11px] text-ink-3 border-b border-line-2">
                       {o.Payment_method ? PAYMENT_LABELS[o.Payment_method] : <span className="italic">—</span>}
                     </td>
@@ -240,7 +241,7 @@ export default function AdminPedidosProdutos() {
                     <span className={`font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded ${STATUS_COLORS[o.Status]}`}>
                       {STATUS_LABELS[o.Status]}
                     </span>
-                    <div className="font-display text-[15px] font-medium">{formatPrice(o.Total_price)}</div>
+                    <div className="font-display text-[15px] font-medium"><MoneyValue>{formatPrice(o.Total_price)}</MoneyValue></div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-[12px] text-ink-3 mb-3 flex-wrap">
@@ -314,7 +315,7 @@ export default function AdminPedidosProdutos() {
               {estimatedTotal && (
                 <div className="bg-brand-soft rounded-lg px-4 py-2.5 flex justify-between items-center">
                   <span className="text-[12px] text-ink-3">Total estimado</span>
-                  <span className="font-display font-medium text-[16px] text-brand">{estimatedTotal}</span>
+                  <span className="font-display font-medium text-[16px] text-brand"><MoneyValue>{estimatedTotal}</MoneyValue></span>
                 </div>
               )}
               <Field label="Observações (opcional)">
@@ -364,9 +365,9 @@ export default function AdminPedidosProdutos() {
               <InfoRow label="Cliente" value={detailDrawer.Client?.Name} />
               <InfoRow label="Telefone" value={detailDrawer.Client?.Phone} mono />
               <InfoRow label="Produto" value={detailDrawer.Product?.Name} />
-              <InfoRow label="Preço unitário" value={formatPrice(detailDrawer.Unit_price)} mono />
+              <InfoRow label="Preço unitário" value={<MoneyValue>{formatPrice(detailDrawer.Unit_price)}</MoneyValue>} mono />
               <InfoRow label="Quantidade" value={detailDrawer.Quantity} mono />
-              <InfoRow label="Total" value={formatPrice(detailDrawer.Total_price)} mono highlight />
+              <InfoRow label="Total" value={<MoneyValue>{formatPrice(detailDrawer.Total_price)}</MoneyValue>} mono highlight />
               <InfoRow label="Método" value={detailDrawer.Payment_method ? PAYMENT_LABELS[detailDrawer.Payment_method] : '—'} />
               <InfoRow label="Vendido por" value={detailDrawer.SoldBy?.Name} />
               {detailDrawer.Notes && <InfoRow label="Observações" value={detailDrawer.Notes} />}
