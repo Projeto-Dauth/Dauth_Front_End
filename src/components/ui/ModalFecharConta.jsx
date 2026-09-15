@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Icon from '@/components/ui/Icons'
 import Button from '@/components/ui/Button'
 import CreditAndTrocoFields from '@/components/ui/CreditAndTrocoFields'
+import MoneyValue from '@/components/ui/MoneyValue'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
 import { useToast } from '@/context/ToastContext'
@@ -151,7 +152,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
 
   const renderItemPrice = (tabId, item, displayClassName = 'font-mono shrink-0') => {
     if (!canEditPrice) {
-      return <span className={displayClassName}>{formatCurrency(item.Unit_price * item.Quantity)}</span>
+      return <span className={displayClassName}><MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue></span>
     }
     if (editingItemId === item.UUID) {
       return (
@@ -183,7 +184,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
         title="Editar valor do item"
         className={`${displayClassName} text-left hover:text-brand hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors`}
       >
-        {formatCurrency(item.Unit_price * item.Quantity)}
+        <MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue>
       </button>
     )
   }
@@ -233,7 +234,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
     if (!canEditPrice) {
       return (
         <span className="font-mono font-medium text-ink shrink-0 w-16 text-right">
-          {formatCurrency((orderQty[order.UUID] ?? 0) * order.Unit_price)}
+          <MoneyValue>{formatCurrency((orderQty[order.UUID] ?? 0) * order.Unit_price)}</MoneyValue>
         </span>
       )
     }
@@ -267,7 +268,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
         title="Editar valor do produto"
         className="font-mono font-medium text-ink shrink-0 w-16 text-right hover:text-brand hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
       >
-        {formatCurrency((orderQty[order.UUID] ?? 0) * order.Unit_price)}
+        <MoneyValue>{formatCurrency((orderQty[order.UUID] ?? 0) * order.Unit_price)}</MoneyValue>
       </button>
     )
   }
@@ -306,7 +307,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
   }
 
   return (
-    <div className="fixed inset-y-0 left-0 right-0 md:left-[240px] z-50 flex flex-col">
+    <div className="fixed inset-y-0 left-0 right-0 md:left-[264px] z-50 flex flex-col">
       <div
         className={`bg-surface w-full h-full shadow-2xl flex flex-col md:border-l border-line transition-transform duration-300 ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
@@ -376,7 +377,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
                   <span className={`truncate text-ink-2 ${ativo ? '' : 'line-through'}`}>{it?.Item_type === 'product' ? '—' : formatTime(it?.Start_time ?? t.Appointment?.Start_time)}</span>
                   {it
                     ? renderItemPrice(t.UUID, it, 'font-mono font-medium text-ink shrink-0')
-                    : <span className="font-mono font-medium text-ink shrink-0">{formatCurrency(t.Value)}</span>}
+                    : <span className="font-mono font-medium text-ink shrink-0"><MoneyValue>{formatCurrency(t.Value)}</MoneyValue></span>}
                   <button
                     onClick={() => (it ? toggleItem(it.UUID) : toggleTab(t.UUID))}
                     title={ativo ? 'Deixar fora deste pagamento (continua em aberto)' : 'Incluir neste pagamento'}
@@ -452,7 +453,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
         <div className="px-6 pb-6 pt-4 border-t border-line shrink-0">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-dashed border-line-2">
             <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
-            <span className="font-display text-[20px] font-medium text-ink">{formatCurrency(total)}</span>
+            <span className="font-display text-[20px] font-medium text-ink"><MoneyValue>{formatCurrency(total)}</MoneyValue></span>
           </div>
 
           <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Método de pagamento</div>
@@ -493,7 +494,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
             loading={paying}
           >
             <Icon name="check" size={14} />
-            {method === 'fiado' ? `Registrar mensalidade · ${formatCurrency(remainingAfterCredit)}` : `Fechar conta · ${formatCurrency(remainingAfterCredit)}`}
+            {method === 'fiado' ? 'Registrar mensalidade' : 'Fechar conta'} · <MoneyValue>{formatCurrency(remainingAfterCredit)}</MoneyValue>
           </Button>
         </div>
         </div>
@@ -518,7 +519,7 @@ export default function ModalFecharConta({ client, method, onMethodChange, payin
               <div key={p.UUID} className="flex items-center justify-between gap-2 px-5 py-2.5 border-b border-line-2 last:border-0">
                 <div className="min-w-0">
                   <div className="text-[12.5px] font-medium truncate">{p.Name}</div>
-                  <div className="font-mono text-[11px] text-ink-3">{formatCurrency(p.Price)} · estoque {p.Stock}</div>
+                  <div className="font-mono text-[11px] text-ink-3"><MoneyValue>{formatCurrency(p.Price)}</MoneyValue> · estoque {p.Stock}</div>
                 </div>
                 <button
                   onClick={() => handleAddProduct(p)}

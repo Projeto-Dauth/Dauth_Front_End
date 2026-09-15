@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import MoneyValue from '@/components/ui/MoneyValue'
 import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -68,7 +69,7 @@ function ComboCard({ combo }) {
           </div>
           <h4 className="font-display font-medium text-[17px] md:text-[18px] tracking-tight">{pkg?.Name ?? '—'}</h4>
           <div className="text-[12px] md:text-[13px] text-ink-3 mt-0.5">
-            {pkg?.Price != null ? formatCurrency(pkg.Price) : '—'}
+            {pkg?.Price != null ? <MoneyValue>{formatCurrency(pkg.Price)}</MoneyValue> : '—'}
             {pkg?.Available_until && (
               <span className="ml-2">· válido até {formatDate(pkg.Available_until)}</span>
             )}
@@ -141,7 +142,7 @@ function ExplorarCard({ pkg }) {
           )}
         </div>
         <div className="font-display font-medium text-[20px] md:text-[22px] tracking-tight flex-shrink-0 text-brand">
-          {formatCurrency(pkg.Price)}
+          <MoneyValue>{formatCurrency(pkg.Price)}</MoneyValue>
         </div>
       </div>
 

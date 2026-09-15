@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -373,7 +374,7 @@ export default function AdminServicos() {
                         <span className="font-mono text-[10.5px] uppercase tracking-widest text-brand bg-brand-soft px-2 py-0.5 rounded">{svc.Category}</span>
                       </td>
                       <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatDuration(svc.Duration)}</td>
-                      <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatPrice(svc.Price)}</td>
+                      <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2"><MoneyValue>{formatPrice(svc.Price)}</MoneyValue></td>
                       <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{svc.Commission}%</td>
                       <td className="px-3.5 py-3 border-b border-line-2">
                         <button onClick={() => openProfsDrawer(svc)} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer">
@@ -401,7 +402,7 @@ export default function AdminServicos() {
                       <div className="font-medium text-[14px]">{svc.Name}</div>
                       <span className="font-mono text-[10px] uppercase tracking-widest text-brand bg-brand-soft px-2 py-0.5 rounded mt-1 inline-block">{svc.Category}</span>
                     </div>
-                    <div className="font-display text-[16px] font-medium shrink-0">{formatPrice(svc.Price)}</div>
+                    <div className="font-display text-[16px] font-medium shrink-0"><MoneyValue>{formatPrice(svc.Price)}</MoneyValue></div>
                   </div>
                   <div className="flex items-center gap-3 text-[12px] text-ink-3 mb-3">
                     <span>{formatDuration(svc.Duration)}</span>
@@ -654,7 +655,7 @@ export default function AdminServicos() {
                           prof.price_override != null ? 'text-brand font-medium' : 'text-ink-3'
                         }`}
                       >
-                        {prof.price_override != null ? formatPrice(prof.price_override) : `${formatPrice(profsDrawer.Price)} (padrão)`}
+                        <MoneyValue>{prof.price_override != null ? formatPrice(prof.price_override) : formatPrice(profsDrawer.Price)}</MoneyValue>{prof.price_override == null && ' (padrão)'}
                       </button>
                     )}
                     {editingProfCommissionId === prof.id ? (

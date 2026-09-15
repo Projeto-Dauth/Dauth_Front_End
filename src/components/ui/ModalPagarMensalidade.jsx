@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from '@/components/ui/Icons'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
+import MoneyValue from '@/components/ui/MoneyValue'
 import api from '@/lib/api'
 
 const SETTLE_METHODS = [
@@ -70,12 +71,12 @@ export default function ModalPagarMensalidade({ client, items, total, onClose, o
                       ? new Date(item.payment_date).toLocaleDateString('pt-BR')
                       : '—'}
                 </span>
-                <span className="font-mono font-medium text-ink text-right">{formatCurrency(item.gross_amount)}</span>
+                <span className="font-mono font-medium text-ink text-right"><MoneyValue>{formatCurrency(item.gross_amount)}</MoneyValue></span>
               </div>
             ))}
             <div className="flex items-center justify-between pt-3 border-t border-dashed border-line-2">
               <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Total</span>
-              <span className="font-display text-[20px] font-medium text-warning">{formatCurrency(total)}</span>
+              <span className="font-display text-[20px] font-medium text-warning"><MoneyValue>{formatCurrency(total)}</MoneyValue></span>
             </div>
           </div>
 

@@ -86,6 +86,15 @@ aside { scrollbar-width: none; }
 .scrollbar-hidden::-webkit-scrollbar { display: none; }
 .scrollbar-hidden { scrollbar-width: none; }
 
+/* Modo "ocultar valores" — substitui valores monetários por •••• na tela para
+   mostrar o sistema para alguém sem expor números reais. Ver
+   src/store/privacyStore.js e src/components/ui/MoneyValue.jsx */
+.privacy-mask {
+  user-select: none;
+  letter-spacing: 1px;
+  opacity: 0.55;
+}
+
 /* Slot fora do horário de trabalho do profissional na Agenda — listrado sutil, ainda
    clicável (Admin pode encaixar; o aviso aparece só na confirmação) */
 .bg-off-hours {

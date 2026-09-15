@@ -7,6 +7,7 @@ import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -281,7 +282,7 @@ export default function AdminCombos() {
                     <div className="font-mono text-[11px] text-ink-3 mt-1">Válido até {formatDate(pkg.Available_until)}</div>
                   )}
                 </div>
-                <div className="font-display font-medium text-[22px] tracking-tight flex-shrink-0">{formatCurrency(pkg.Price)}</div>
+                <div className="font-display font-medium text-[22px] tracking-tight flex-shrink-0"><MoneyValue>{formatCurrency(pkg.Price)}</MoneyValue></div>
               </div>
 
               {/* Itens */}
@@ -490,7 +491,7 @@ export default function AdminCombos() {
             <div className="bg-surface-2 border border-line rounded-lg px-4 py-3 mb-5">
               <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-0.5">Pacote</div>
               <div className="font-display font-medium text-[16px]">{sellPkg.Name}</div>
-              <div className="font-mono text-[13px] text-brand mt-0.5">{formatCurrency(sellPkg.Price)}</div>
+              <div className="font-mono text-[13px] text-brand mt-0.5"><MoneyValue>{formatCurrency(sellPkg.Price)}</MoneyValue></div>
             </div>
             <DrawerField label="Cliente">
               <SearchableSelect

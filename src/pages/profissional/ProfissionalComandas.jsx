@@ -8,6 +8,7 @@ import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
+import MoneyValue from '@/components/ui/MoneyValue'
 import CreditToggleRow from '@/components/ui/CreditToggleRow'
 import AmountTenderedField from '@/components/ui/AmountTenderedField'
 import { useCreditAndTroco } from '@/hooks/useCreditAndTroco'
@@ -268,7 +269,7 @@ function TabPedidosProdutos() {
                   </div>
                 </div>
                 <div className="font-mono text-[12px] md:text-[13px] font-medium shrink-0">
-                  {formatCurrency(o.Total_price)}
+                  <MoneyValue>{formatCurrency(o.Total_price)}</MoneyValue>
                 </div>
                 <span className={`font-mono text-[10.5px] uppercase tracking-widest px-2 py-0.5 rounded shrink-0 ${PROD_STATUS_COLORS[o.Status]}`}>
                   {PROD_STATUS_LABELS[o.Status]}
@@ -297,7 +298,7 @@ function TabPedidosProdutos() {
               <div className="px-6 py-5">
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Valor</span>
-                  <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Total_price)}</span>
+                  <span className="font-display text-[22px] font-medium"><MoneyValue>{formatCurrency(selected.Total_price)}</MoneyValue></span>
                 </div>
 
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2 mb-4">
@@ -380,7 +381,7 @@ function TabPedidosProdutos() {
               {estTotal && (
                 <div className="bg-brand-soft rounded-lg px-4 py-2.5 flex justify-between items-center">
                   <span className="text-[12px] text-ink-3">Total estimado</span>
-                  <span className="font-display font-medium text-[16px] text-brand">{estTotal}</span>
+                  <span className="font-display font-medium text-[16px] text-brand"><MoneyValue>{estTotal}</MoneyValue></span>
                 </div>
               )}
               <FieldProd label="Observações (opcional)">
@@ -420,8 +421,8 @@ function statusLabel(s) {
 
 function formatDate(iso) {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return `${d}/${m}/${y}`
 }
 
 function formatTime(t) {
@@ -603,7 +604,7 @@ export default function ProfissionalComandas() {
         title="Editar valor do item"
         className="font-mono shrink-0 hover:text-brand hover:underline decoration-dotted underline-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
       >
-        {formatCurrency(item.Unit_price * item.Quantity)}
+        <MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue>
       </button>
     )
   }
@@ -699,7 +700,7 @@ export default function ProfissionalComandas() {
 
       <div className="flex items-center justify-between mb-5 md:mb-6">
         <p className="text-[12px] md:text-[13px] text-ink-3">
-          {emAberto} em aberto · {formatCurrency(totalAberto)} a receber
+          {emAberto} em aberto · <MoneyValue>{formatCurrency(totalAberto)}</MoneyValue> a receber
         </p>
       </div>
 
@@ -716,7 +717,7 @@ export default function ProfissionalComandas() {
                 <div className="min-w-0">
                   <div className="text-[13px] font-medium truncate">{c.client_name}</div>
                   <div className="font-mono text-[11px] text-ink-3">
-                    {c.tab_count + c.order_count} ite{c.tab_count + c.order_count !== 1 ? 'ns' : 'm'} · {formatCurrency(c.total)}
+                    {c.tab_count + c.order_count} ite{c.tab_count + c.order_count !== 1 ? 'ns' : 'm'} · <MoneyValue>{formatCurrency(c.total)}</MoneyValue>
                   </div>
                 </div>
               </div>
@@ -840,7 +841,7 @@ export default function ProfissionalComandas() {
                   </div>
                 </div>
                 <div className="font-mono text-[12px] md:text-[13px] font-medium shrink-0">
-                  {formatCurrency(t.Value)}
+                  <MoneyValue>{formatCurrency(t.Value)}</MoneyValue>
                 </div>
                 {isFiadoTab(t)
                   ? <Chip variant="warning" className="shrink-0">Mensalista</Chip>
@@ -891,7 +892,7 @@ export default function ProfissionalComandas() {
                           </span>
                           {selected.Status === 'Em aberto' && user?.role === 'Admin'
                             ? renderItemPrice(item)
-                            : <span className="font-mono shrink-0">{formatCurrency(item.Unit_price * item.Quantity)}</span>}
+                            : <span className="font-mono shrink-0"><MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue></span>}
                         </div>
                       ))}
                     </div>
@@ -901,13 +902,13 @@ export default function ProfissionalComandas() {
                 {selected.Status === 'Em aberto' && cr.parsedCreditAmount > 0 && (
                   <div className="flex justify-between items-center py-2 text-[13px]">
                     <span className="text-ink-3">Desconto crédito</span>
-                    <span className="font-mono font-medium text-danger">-{formatCurrency(cr.parsedCreditAmount)}</span>
+                    <span className="font-mono font-medium text-danger">-<MoneyValue>{formatCurrency(cr.parsedCreditAmount)}</MoneyValue></span>
                   </div>
                 )}
 
                 <div className="flex justify-between items-center py-3.5 border-b border-dashed border-line-2">
                   <span className="font-mono text-[11px] uppercase tracking-widest text-ink-3">Valor</span>
-                  <span className="font-display text-[22px] font-medium">{formatCurrency(selected.Status === 'Em aberto' ? cr.remainingAfterCredit : selected.Value)}</span>
+                  <span className="font-display text-[22px] font-medium"><MoneyValue>{formatCurrency(selected.Status === 'Em aberto' ? cr.remainingAfterCredit : selected.Value)}</MoneyValue></span>
                 </div>
 
                 {selected.Status === 'Em aberto' && selected.Appointment?.ClientId && (
