@@ -12,11 +12,31 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import WhatsAppLinkModal from '@/components/ui/WhatsAppLinkModal'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import usePrivacyStore from '@/store/privacyStore'
 import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
+
+const TABS = [
+  { id: 'perfil', label: 'Perfil' },
+  { id: 'config', label: 'Configurações' },
+]
+
+function ToggleSwitch({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={e => { e.stopPropagation(); onChange(!checked) }}
+      className={`relative w-10 h-6 rounded-full shrink-0 transition-colors cursor-pointer ${checked ? 'bg-brand' : 'bg-line-2'}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
+    </button>
+  )
+}
 
 function formatDate(str) {
   if (!str) return '—'
@@ -37,7 +57,9 @@ export default function MeuPerfil() {
   const { user, restoreSession } = useAuthStore()
   const { addToast } = useToast()
   const navigate = useNavigate()
+  const { hidden: valuesHidden, toggle: toggleValuesHidden } = usePrivacyStore()
 
+  const [tab, setTab] = useState('perfil')
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -210,14 +232,44 @@ export default function MeuPerfil() {
             <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Meu perfil</h3>
             <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Seus dados pessoais</p>
           </div>
-          {!editing && (
+          {tab === 'perfil' && !editing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
               <Icon name="edit" size={13} />Editar
             </Button>
           )}
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-1 mb-5 border-b border-line">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`relative px-3 pb-2.5 pt-1 text-[13px] font-medium transition-colors cursor-pointer
+                ${tab === t.id ? 'text-brand' : 'text-ink-3 hover:text-ink'}`}
+            >
+              {t.label}
+              {tab === t.id && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-brand rounded-full" />}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'config' && (
+          <div className="bg-surface border border-line rounded-xl p-5">
+            <label className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => toggleValuesHidden()}>
+              <span className="min-w-0">
+                <span className="block text-[13.5px] font-medium text-ink">Ocultar valores financeiros</span>
+                <span className="block text-[12px] text-ink-3 mt-0.5">
+                  Substitui comissões, receitas e outros valores por •••• na tela — útil para mostrar o sistema com alguém por perto sem expor números reais.
+                </span>
+              </span>
+              <ToggleSwitch checked={valuesHidden} onChange={toggleValuesHidden} />
+            </label>
+          </div>
+        )}
+
         {/* Avatar card */}
+        {tab === 'perfil' && (
         <div className="flex items-center gap-4 mb-5 p-5 bg-surface border border-line rounded-xl">
           <Avatar name={profile?.name ?? ''} index={0} size="lg" />
           <div>
@@ -226,9 +278,10 @@ export default function MeuPerfil() {
             <div className="font-mono text-[10.5px] text-ink-4 mt-1.5 uppercase tracking-widest">{profile?.role}</div>
           </div>
         </div>
+        )}
 
         {/* View mode */}
-        {!editing && (
+        {tab === 'perfil' && !editing && (
           <>
             <div className="bg-surface border border-line rounded-xl px-5 mb-4">
               <InfoRow label="Nome completo" value={profile?.name} />
@@ -254,7 +307,7 @@ export default function MeuPerfil() {
         {whatsappModalOpen && <WhatsAppLinkModal onClose={() => setWhatsappModalOpen(false)} />}
 
         {/* Histórico de agendamentos — apenas para clientes */}
-        {!editing && user?.role === 'Usuario' && (
+        {tab === 'perfil' && !editing && user?.role === 'Usuario' && (
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-display font-medium text-[17px] tracking-tight">Histórico de agendamentos</h4>
@@ -338,7 +391,7 @@ export default function MeuPerfil() {
         )}
 
         {/* Edit mode */}
-        {editing && (
+        {tab === 'perfil' && editing && (
           <form onSubmit={handleSave} className="bg-surface border border-line rounded-xl p-5">
             <Input
               label="Nome completo"
