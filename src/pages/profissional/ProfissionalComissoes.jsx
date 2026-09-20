@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import MoneyValue from '@/components/ui/MoneyValue'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { formatDate } from '@/lib/formatDate'
 import { navItemsByRole } from '@/config/navItems'
 
 const navItems = navItemsByRole['Profissional']
@@ -47,12 +48,6 @@ function getDateRange(preset) {
 
 function formatCurrency(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0)
-}
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleDateString('pt-BR')
 }
 
 export default function ProfissionalComissoes() {

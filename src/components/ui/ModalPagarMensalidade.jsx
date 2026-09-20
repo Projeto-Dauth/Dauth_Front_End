@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import MoneyValue from '@/components/ui/MoneyValue'
 import api from '@/lib/api'
+import { formatDate } from '@/lib/formatDate'
 
 const SETTLE_METHODS = [
   { id: 'pix', icon: 'qr', label: 'Pix' },
@@ -65,11 +66,7 @@ export default function ModalPagarMensalidade({ client, items, total, onClose, o
               <div key={item.uuid} className="grid grid-cols-[1fr_5rem_5rem] gap-x-3 items-center text-[13px] py-1">
                 <span className="text-ink-2 truncate">{item.servico}</span>
                 <span className="font-mono text-[11px] text-ink-4 text-right">
-                  {item.appointment_date
-                    ? new Date(item.appointment_date).toLocaleDateString('pt-BR')
-                    : item.payment_date
-                      ? new Date(item.payment_date).toLocaleDateString('pt-BR')
-                      : '—'}
+                  {formatDate(item.appointment_date ?? item.payment_date)}
                 </span>
                 <span className="font-mono font-medium text-ink text-right"><MoneyValue>{formatCurrency(item.gross_amount)}</MoneyValue></span>
               </div>
