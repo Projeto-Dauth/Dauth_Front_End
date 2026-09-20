@@ -10,6 +10,7 @@ import ModalPagarMensalidade from '@/components/ui/ModalPagarMensalidade'
 import MoneyValue from '@/components/ui/MoneyValue'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { formatDate } from '@/lib/formatDate'
 import { navItemsByRole } from '@/config/navItems'
 
 const navItems = navItemsByRole['Admin']
@@ -34,11 +35,6 @@ function monthLabel(monthStr) {
 
 function formatCurrency(v) {
   return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('pt-BR')
 }
 
 function formatDateTime(iso) {
