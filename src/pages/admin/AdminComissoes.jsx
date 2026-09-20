@@ -13,6 +13,7 @@ import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { formatDate } from '@/lib/formatDate'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminCaixaComissoesSteps } from '@/tours/adminCaixaComissoes'
@@ -74,11 +75,6 @@ function getDateRange(preset) {
 
 function formatCurrency(v) {
   return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('pt-BR')
 }
 
 function formatDateTime(iso) {
