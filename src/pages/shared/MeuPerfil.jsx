@@ -38,6 +38,14 @@ function ToggleSwitch({ checked, onChange }) {
   )
 }
 
+function applyPhoneMask(value) {
+  const d = value.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`
+  if (d.length <= 11) return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
+  return value
+}
+
 function formatDate(str) {
   if (!str) return '—'
   const [y, m, d] = str.slice(0, 10).split('-')
@@ -127,6 +135,9 @@ export default function MeuPerfil() {
   function validate() {
     const e = {}
     if (!name.trim()) e.name = 'Nome obrigatório'
+    if (phone.trim() && !/^\(\d{2}\) \d \d{4}-\d{4}$/.test(phone.trim())) {
+      e.phone = 'Telefone incompleto — preencha o DDD e o número completo'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -165,7 +176,9 @@ export default function MeuPerfil() {
       setEditing(false)
       addToast('Perfil atualizado com sucesso')
     } catch (err) {
-      addToast(err.response?.data?.error ?? 'Erro ao salvar', 'error')
+      const apiError = err.response?.data?.error
+      const message = Array.isArray(apiError) ? apiError.join(' ') : apiError
+      addToast(message ?? 'Erro ao salvar', 'error')
     } finally {
       setSaving(false)
     }
@@ -402,9 +415,10 @@ export default function MeuPerfil() {
             <Input
               label="Telefone"
               value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="(11) 99999-9999"
+              onChange={e => setPhone(applyPhoneMask(e.target.value))}
+              placeholder="(11) 9 8765-4321"
               type="tel"
+              error={errors.phone}
             />
             <Input
               label="Data de nascimento"
