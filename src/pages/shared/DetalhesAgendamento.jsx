@@ -34,6 +34,13 @@ const STATUS_TRANSITIONS = {
   Usuario: {},
 }
 
+// Cliente só cancela com mais de 24h de antecedência (horário de Brasília, UTC-3)
+function canClientCancel(item) {
+  if (item?.Status !== 'confirmado' || !item.Date || !item.Start_time) return false
+  const startsAt = new Date(`${item.Date}T${item.Start_time.slice(0, 8)}-03:00`)
+  return startsAt.getTime() - Date.now() >= 24 * 60 * 60 * 1000
+}
+
 function formatDate(str) {
   if (!str) return '—'
   const [y, m, d] = str.split('-')
@@ -853,6 +860,19 @@ export default function DetalhesAgendamento() {
       </div>
 
       {/* Actions */}
+      {role === 'Usuario' && item.Status === 'confirmado' && (
+        <div className="flex gap-2.5 mt-5">
+          {canClientCancel(item) ? (
+            <Button variant="ghost" size="sm" onClick={() => setModal({ open: true, status: 'cancelado' })}>
+              Cancelar agendamento
+            </Button>
+          ) : (
+            <p className="text-[12px] text-ink-3">
+              Para cancelar com menos de 24h de antecedência, fale com o salão.
+            </p>
+          )}
+        </div>
+      )}
       {canEdit && (
         <div className="flex gap-2.5 mt-5">
           {canEdit && allowedTransitions.map(s => (
