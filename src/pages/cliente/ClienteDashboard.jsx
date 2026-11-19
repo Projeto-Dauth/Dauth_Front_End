@@ -4,6 +4,8 @@ import AppLayout from '@/components/layout/AppLayout'
 import Avatar from '@/components/ui/Avatar'
 import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
+import Modal from '@/components/ui/Modal'
+import { useToast } from '@/context/ToastContext'
 import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import useAuthStore from '@/store/authStore'
@@ -51,9 +53,34 @@ function InfoRow({ label, value }) {
   )
 }
 
-function AppointmentPanel({ id, onClose }) {
+// Cliente só cancela com mais de 24h de antecedência (horário de Brasília, UTC-3)
+function canClientCancel(item) {
+  if (item?.Status !== 'confirmado' || !item.Date || !item.Start_time) return false
+  const startsAt = new Date(`${item.Date}T${item.Start_time.slice(0, 8)}-03:00`)
+  return startsAt.getTime() - Date.now() >= 24 * 60 * 60 * 1000
+}
+
+function AppointmentPanel({ id, onClose, onCancelled }) {
+  const { addToast } = useToast()
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+
+  async function handleCancel() {
+    setCancelling(true)
+    try {
+      await api.patch(`/appointment/${id}`, { Status: 'cancelado' })
+      setItem((it) => ({ ...it, Status: 'cancelado' }))
+      onCancelled?.(id)
+      setConfirmCancel(false)
+      addToast('Agendamento cancelado')
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao cancelar', 'error')
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -127,8 +154,28 @@ function AppointmentPanel({ id, onClose }) {
                 <div className="font-medium text-[13.5px]">{item.Professional ?? '—'}</div>
               </div>
             </div>
+
+            {canClientCancel(item) ? (
+              <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(true)}>
+                Cancelar agendamento
+              </Button>
+            ) : item.Status === 'confirmado' && (
+              <p className="text-[12px] text-ink-3">
+                Para cancelar com menos de 24h de antecedência, fale com o salão.
+              </p>
+            )}
           </div>
         )}
+
+        <Modal
+          isOpen={confirmCancel}
+          onClose={() => setConfirmCancel(false)}
+          onConfirm={handleCancel}
+          title="Cancelar agendamento"
+          message="Tem certeza que deseja cancelar este agendamento? Esta ação não pode ser desfeita."
+          confirmLabel="Cancelar agendamento"
+          loading={cancelling}
+        />
       </div>
     </div>
   )
@@ -279,7 +326,11 @@ export default function ClienteDashboard() {
   return (
     <AppLayout sidebar={<ClienteSidebar user={user} sinceLabel={sinceLabel} />}>
       {selectedId && (
-        <AppointmentPanel id={selectedId} onClose={() => setSelectedId(null)} />
+        <AppointmentPanel
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+          onCancelled={(cid) => setAppointments((prev) => prev.map((a) => a.UUID === cid ? { ...a, Status: 'cancelado' } : a))}
+        />
       )}
       {loading ? (
         <PageSpinner />
